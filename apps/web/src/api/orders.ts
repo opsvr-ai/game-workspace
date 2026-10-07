@@ -37,7 +37,6 @@ export const ordersApi = {
     http.post(`/orders/${id}/assign`, { companionId }),
   confirm: (id: string) => http.post(`/orders/${id}/confirm`),
   complete: (id: string) => http.post(`/orders/${id}/complete`),
-  refund: (id: string, reason: string) => http.post(`/orders/${id}/refund`, { reason }),
   deposit: (id: string) => http.post(`/orders/${id}/deposit`),
   cancel: (id: string, reason?: string) => http.post(`/orders/${id}/cancel`, { reason }),
   acceptAssignment: (id: string) => http.post(`/orders/${id}/accept-assignment`),
@@ -109,9 +108,13 @@ export const ordersApi = {
     customerPaymentAccountName?: string;
   }) => http.put(`/orders/${orderId}/payment`, data),
   /** 补单申请：scope=pending 待审 / due 到期要核查客户后来通过没（老板 2026-10-04） */
-  // 管理端直接补单（老板 2026-10-08）：订单管理里给店长 / 老板的「补单」按钮
-  supplementOrder: (id: string, reason: string) =>
-    http.post(`/orders/${id}/supplement`, { reason }),
+  /**
+   * 管理端补单（老板 2026-10-08）：订单管理里那颗「补单」按钮。
+   * 这张单上如果有陪玩提交的补单申请，这一下就是「核对 + 同意」—— 原因可以不写（用他写的那段）。
+   * （原来的 `POST /orders/:id/refund`「直接退款」已按老板要求整条删除。）
+   */
+  supplementOrder: (id: string, reason?: string) =>
+    http.post(`/orders/${id}/supplement`, { reason: reason || undefined }),
   /** 陪玩发起「退单」：写清原因 + 截图，进「补单审核」同一个入口（老板 2026-10-08） */
   requestRefund: (id: string, reason: string, evidenceUrl?: string) =>
     http.post(`/orders/${id}/refund-request`, { reason, evidenceUrl }),

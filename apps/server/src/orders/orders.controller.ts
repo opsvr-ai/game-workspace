@@ -276,12 +276,15 @@ export class OrdersController {
   }
 
   /**
-   * 管理端直接补单（老板 2026-10-08）：订单管理里把「退款」改成「补单」——
-   * 店长 / 老板点一下，给这张单的陪玩名额 +1，并留一条补单记录。
-   * 故意只给店长 / 老板（客服走原来的「补单审核」流程，陪玩不能给自己补）。
+   * 管理端补单（老板 2026-10-08）：订单管理里那颗「补单」按钮 ——
+   * 点一下给这张单的陪玩名额 +1，并留一条补单记录。
+   * 这张单上如果已经有陪玩提交的补单申请（待审），点它就等于「核对 + 同意」那一下：
+   * 保留陪玩写的原因 / 截图，补上谁批的、什么时候批的，陪玩端同步收到「已通过」提示。
+   * 客服 / 店长 / 老板都能点（老板 2026-10-08 删掉了原先给客服 / 店长的直接退款口子，换成这个）；
+   * 陪玩不能给自己补。
    */
   @Post('orders/:id/supplement')
-  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
   async supplementOrder(
     @Param('id') id: string,
     @Body() body: any,
@@ -470,15 +473,10 @@ export class OrdersController {
     return { code: 200, message: '完成成功', data };
   }
 
-  @Post('orders/:id/refund')
-  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
-  async refund(@Param('id') id: string, @Req() req: any, @Body() body: { reason?: string }): Promise<ApiResponse<unknown>> {
-    if (!body?.reason?.trim()) {
-      return { code: 400, message: '请填写退款原因', data: null };
-    }
-    const data = await this.ordersService.markRefund(id, req.user?.companionId, body.reason.trim());
-    return { code: 200, message: '已退款', data };
-  }
+  // 老板 2026-10-08：原来的 `POST /orders/:id/refund`（客服 / 店长的**直接退款**口子）整条删除，
+  // 换成 `POST /orders/:id/supplement`（补单：名额 +1 + 留记录 + 通知陪玩）。
+  // 「退款」只剩「陪玩申请退单 → 客服核对 → 店长拍板」那一条（见 /orders/:id/refund-request），
+  // 钱的事必须两段式，谁也不能一键把打过的单退掉。
 
   /**
    * 陪玩发起「退单」（老板 2026-10-08）：「客户同意了但是没打成」（客户没转钱 / 转钱了最后不打）。

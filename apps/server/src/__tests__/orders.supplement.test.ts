@@ -289,7 +289,7 @@ describe('到期核查：客户后来通过了要改回系统', () => {
   });
 });
 
-describe('管理端直接补单：订单管理里「退款」改成「补单」（老板 2026-10-08）', () => {
+describe('管理端「补单」：订单管理那一格从「退款」改成「补单」（老板 2026-10-08）', () => {
   beforeEach(() => vi.clearAllMocks());
 
   const ORDER = {
@@ -341,13 +341,19 @@ describe('管理端直接补单：订单管理里「退款」改成「补单」�
     expect(quota.credit).not.toHaveBeenCalled();
   });
 
-  it('本来就有待审申请的单：直接补单把它改成「已同意」，不再新增一条', async () => {
+  it('本来就有待审申请的单：点「补单」= 核对 + 同意 —— 保留陪玩写的原因 / 截图，不再新增一条', async () => {
     const { service, prisma } = setup();
     prisma.order.findUnique.mockResolvedValue(ORDER);
     // 这张单只有一条「待审」的补单记录；查询里带 status / type 就照着过滤（跟真库一样过滤，
     // 否则「查有没有已同意的记录」也会拿到这条待审记录，把防重复返还的判定带偏）
     prisma.supplementRequest.findFirst.mockImplementation(async (args: any) => {
-      const row = { id: 'sr1', type: 'SUPPLEMENT', status: 'PENDING' };
+      const row = {
+        id: 'sr1',
+        type: 'SUPPLEMENT',
+        status: 'PENDING',
+        reason: '客户一直没同意',
+        evidenceUrl: '/uploads/a.png',
+      };
       if (args?.where?.status && args.where.status !== row.status) return null;
       if (args?.where?.type && args.where.type !== row.type) return null;
       return row;
@@ -356,13 +362,34 @@ describe('管理端直接补单：订单管理里「退款」改成「补单」�
     prisma.order.update.mockResolvedValue({ id: 'o1' });
     prisma.companion.findUnique.mockResolvedValue({ userId: 'u1' });
 
-    await service.supplementOrder('o1', ADMIN, { reason: '客户补偿' });
+    // 接陪玩的申请时可以一个字都不写 —— 原因用他自己写的那段（老板 2026-10-08）
+    const res: any = await service.supplementOrder('o1', ADMIN, {});
 
     expect(prisma.supplementRequest.create).not.toHaveBeenCalled();
-    expect(prisma.supplementRequest.update.mock.calls[0][0].data.status).toBe('APPROVED');
+    const data = prisma.supplementRequest.update.mock.calls[0][0].data;
+    expect(data.status).toBe('APPROVED');
+    // 陪玩写的原因 / 截图就是凭据，同意的时候不能被覆盖成「【管理端补单】…」或者抹掉
+    expect(data.reason).toBeUndefined();
+    expect(data.evidenceUrl).toBeUndefined();
+    expect(data.decisionNote).toBe('核对无异议，同意补单');
+    expect(res.approvedRequest).toBe(true);
   });
 
-  it('没写明原因 → 拒绝', async () => {
+  it('客服也能补单（老板 2026-10-08：把原先只给客服 / 店长的「直接退款」口子整条删掉、换成这个动作）', async () => {
+    const { service, prisma, quota } = setup();
+    prisma.order.findUnique.mockResolvedValue(ORDER);
+    prisma.supplementRequest.findFirst.mockResolvedValue(null);
+    prisma.supplementRequest.create.mockResolvedValue({ id: 'sr2', status: 'APPROVED' });
+    prisma.order.update.mockResolvedValue({ id: 'o1' });
+    prisma.companion.findUnique.mockResolvedValue({ userId: 'u1' });
+
+    await service.supplementOrder('o1', { id: 'cs-1', role: 'CS', studioId: 's1' }, { reason: '客户补偿' });
+
+    expect(quota.credit).toHaveBeenCalledWith('c1', 1, 'SUPPLEMENT', expect.objectContaining({ refId: 'o1' }));
+    expect(quota.credit.mock.calls[0][3].note).toContain('客服');
+  });
+
+  it('没写明原因、这张单又没有陪玩的申请 → 拒绝（不能随手补名额）', async () => {
     const { service } = setup();
     await expect(service.supplementOrder('o1', ADMIN, { reason: '   ' })).rejects.toThrow();
   });
@@ -379,13 +406,10 @@ describe('管理端直接补单：订单管理里「退款」改成「补单」�
     await expect(service.supplementOrder('o1', ADMIN, { reason: 'x' })).rejects.toThrow();
   });
 
-  it('陪玩 / 客服没有「直接补单」权限', async () => {
+  it('陪玩没有「补单」权限（不能给自己补名额）', async () => {
     const { service } = setup();
     await expect(
       service.supplementOrder('o1', { id: 'c-1', role: 'COMPANION', studioId: 's1' }, { reason: 'x' }),
-    ).rejects.toThrow();
-    await expect(
-      service.supplementOrder('o1', { id: 'cs-1', role: 'CS', studioId: 's1' }, { reason: 'x' }),
     ).rejects.toThrow();
   });
 });

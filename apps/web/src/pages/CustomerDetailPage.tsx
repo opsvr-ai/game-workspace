@@ -17,6 +17,7 @@ import {
   DatePicker,
   Skeleton,
   Space,
+  Tooltip,
   Typography,
   Row,
   Col,
@@ -104,8 +105,10 @@ const CustomerDetailPage: React.FC = () => {
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [loadingFollowUps, setLoadingFollowUps] = useState(true);
   const [loadingJourney, setLoadingJourney] = useState(true);
-  const [refundTarget, setRefundTarget] = useState<any>(null);
-  const [refundReason, setRefundReason] = useState('');
+  // 「补单」（老板 2026-10-08）：原来的「退款」整条删掉（直接退款的口子连同接口一起删）——
+  // 这一格改成「补单」：给这张单的陪玩名额 +1，并留一条补单记录。
+  const [supplementTarget, setSupplementTarget] = useState<any>(null);
+  const [supplementReason, setSupplementReason] = useState('');
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [cancelReason, setCancelReason] = useState('');
 
@@ -262,16 +265,20 @@ const CustomerDetailPage: React.FC = () => {
       ? platformLabels[rawPlatform] ?? rawPlatform ?? '-'
       : '-';
   const orderCount = orders.length;
+  // 进行中那张单是不是已经补过名额了（老板 2026-10-08：补完的显示「已补」）。
+  // 订单接口把整个订单都带回来了，`customFields.supplementApproved` 就是「补单已批」的落点。
+  const activeOrder = orders.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
+  const activeSupplemented = !!(activeOrder as any)?.customFields?.supplementApproved;
 
-  const handleOrderAction = async (action: 'complete' | 'refund' | 'deposit') => {
+  const handleOrderAction = async (action: 'complete' | 'supplement' | 'deposit') => {
     const active = orders.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
     if (!active) {
       message.warning('当前没有进行中的订单');
       return;
     }
-    if (action === 'refund') {
-      setRefundTarget(active);
-      setRefundReason('');
+    if (action === 'supplement') {
+      setSupplementTarget(active);
+      setSupplementReason('');
       return;
     }
     try {
@@ -311,20 +318,20 @@ const CustomerDetailPage: React.FC = () => {
     }
   };
 
-  const submitRefund = async () => {
-    if (!refundTarget) return;
-    if (!refundReason.trim()) {
-      message.warning('请填写退款原因');
+  const submitSupplement = async () => {
+    if (!supplementTarget) return;
+    if (!supplementReason.trim()) {
+      message.warning('请填写补单原因');
       return;
     }
     try {
-      await ordersApi.refund(refundTarget.id, refundReason.trim());
-      message.success('已退款');
-      setRefundTarget(null);
-      setRefundReason('');
+      await ordersApi.supplementOrder(supplementTarget.id, supplementReason.trim());
+      message.success('已补单：这张单的陪玩抢单次数 +1，已记入补单记录');
+      setSupplementTarget(null);
+      setSupplementReason('');
       fetchOrders();
     } catch (err: any) {
-      message.error(extractErrorMessage(err, '退款失败'));
+      message.error(extractErrorMessage(err, '补单失败'));
     }
   };
 
@@ -447,7 +454,17 @@ const CustomerDetailPage: React.FC = () => {
         extra={
         <Space>
           <Button type="primary" size="small" onClick={() => handleOrderAction('complete')}>完成服务</Button>
-          <Button danger size="small" onClick={() => handleOrderAction('refund')}>退款</Button>
+          <Tooltip
+            title={
+              activeSupplemented
+                ? '这张单已经补过名额了（在订单管理的「🧾 补单审核 → 补单记录」里能查到是谁批的）'
+                : '给这张单的陪玩补 1 个抢单次数，并留一条补单记录'
+            }
+          >
+            <Button size="small" disabled={activeSupplemented} onClick={() => handleOrderAction('supplement')}>
+              {activeSupplemented ? '已补' : '补单'}
+            </Button>
+          </Tooltip>
           <Button danger size="small" onClick={openCancel}>取消</Button>
           <Button size="small" onClick={() => handleOrderAction('deposit')}>存单</Button>
           <Button
@@ -889,23 +906,23 @@ const CustomerDetailPage: React.FC = () => {
       </Card>
 
       <Modal
-        title="退款"
-        open={!!refundTarget}
-        onOk={submitRefund}
+        title="补单"
+        open={!!supplementTarget}
+        onOk={submitSupplement}
         onCancel={() => {
-          setRefundTarget(null);
-          setRefundReason('');
+          setSupplementTarget(null);
+          setSupplementReason('');
         }}
-        okText="确认退款"
+        okText="确认补单"
         cancelText="取消"
       >
         <div style={{ marginTop: 12 }}>
-          <Text strong>退款原因（必填）</Text>
+          <Text strong>补单原因（必填）</Text>
           <Input.TextArea
             rows={3}
-            value={refundReason}
-            onChange={(e) => setRefundReason(e.target.value)}
-            placeholder="例如：客户不喜欢陪玩声音 / 客户临时有事 / 技术差"
+            value={supplementReason}
+            onChange={(e) => setSupplementReason(e.target.value)}
+            placeholder="例如：客户临时改时间 / 不是陪玩的责任"
           />
         </div>
       </Modal>

@@ -878,9 +878,42 @@ export class OrdersService implements OnModuleInit {
     // 引流账号（来源账号）**不再按角色抹成 `***`**（老板 2026-09-30「管理端的 订单管理
     // 引流账号 怎么是 *？」）：陪玩端那一列本来就被 CustomerSourceMaskInterceptor 整列摘掉了，
     // 管理端（客服 / 店长 / 老板）一律显示完整账号 —— 和「客户管理」那一格同一口径。
-    const rows = orders.map((o) =>
-      maskCustomerWechat({ ...o, pendingTransferForMe: pendingTransferMap.get(o.id) || null }, user),
-    );
+    // 补单状态（老板 2026-10-08）：管理端订单行那颗「补单」按钮要知道两件事 ——
+    //   ① 这张单的陪玩已经提交了补单申请（待审）→ 按钮上挂提示，点一下就是核对 / 同意；
+    //   ② 这张单已经补过名额 → 显示「已补」，不能再点。
+    // 补单是管理端的事（陪玩看不到这个动作），所以只给客服 / 店长 / 老板查这一下。
+    const supplementPendingMap = new Map<string, any>();
+    const supplementApprovedSet = new Set<string>();
+    if (user.role !== 'COMPANION' && orders.length) {
+      const reqs = await this.prisma.supplementRequest.findMany({
+        where: { orderId: { in: orders.map((o) => o.id) }, type: SUPPLEMENT_TYPE },
+        select: { id: true, orderId: true, status: true, reason: true, evidenceUrl: true },
+      });
+      for (const r of reqs) {
+        if (r.status === 'PENDING') {
+          supplementPendingMap.set(r.orderId, {
+            id: r.id,
+            reason: r.reason,
+            evidenceUrl: r.evidenceUrl,
+          });
+        } else if (r.status === 'APPROVED') {
+          supplementApprovedSet.add(r.orderId);
+        }
+      }
+    }
+    const rows = orders.map((o) => {
+      const cf = (o.customFields as any) || {};
+      return maskCustomerWechat(
+        {
+          ...o,
+          pendingTransferForMe: pendingTransferMap.get(o.id) || null,
+          supplementPending: supplementPendingMap.has(o.id),
+          supplementPendingRequest: supplementPendingMap.get(o.id) || null,
+          supplementApproved: supplementApprovedSet.has(o.id) || !!cf.supplementApproved,
+        },
+        user,
+      );
+    });
     if (user.role === 'COMPANION' && scope === 'served') {
       // 「我服务的单」里主陪不是我的，一律按副陪视角遮客户微信：这一栏是我跟着别人打的单，
       // 客户资源是主陪的（老板 2026-10-03：「这个订单可以隐藏掉客户的微信信息，保护王昊的权益」）。
@@ -1309,19 +1342,23 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
-   * 管理端直接补单（老板 2026-10-08）：订单管理里的「退款」按钮改成「补单」——
-   * 店长 / 老板点一下，直接给这张单的陪玩名额 +1（写台账），并留一条 APPROVED 的补单记录，
+   * 管理端补单（老板 2026-10-08）：订单管理里那颗「补单」按钮 ——
+   * 点一下给这张单的陪玩名额 +1（写台账），并留一条 APPROVED 的补单记录，
    * 让管理端一眼看清今天到底给谁补过名额。
    *
+   * 它同时是「陪玩申请补单」的**核对 + 同意**入口（老板 2026-10-08：「点了补单要跟其他功能联动起来」）：
+   * 这张单上只要有待审的补单申请，点一下就顺手把它批掉（保留他写的原因 / 截图当作凭据），
+   * 陪玩端会收到「你的补单申请已通过」的实时提示 —— 一个动作，名额 / 台账 / 记录 / 通知一起走完。
+   *
    * 和陪玩自己申请补单走同一张表：同一张单只补一次（已经有 APPROVED 记录就直接拒）。
-   * 权限故意只给店长 / 老板 —— 客服走原来的「补单审核」流程，陪玩不能给自己补。
+   * 权限给客服 / 店长 / 老板（老板 2026-10-08 把原先只给「客服 / 店长」的那个直接退款口子整条删掉、
+   * 换成这个动作）；陪玩不能给自己补。
    */
   async supplementOrder(orderId: string, user: any, body: { reason?: string }) {
-    if (!['OWNER', 'ADMIN'].includes(user?.role ?? '')) {
-      throw new ForbiddenException('只有店长 / 老板能直接补单');
+    if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有客服 / 店长 / 老板能补单');
     }
     const reason = String(body?.reason || '').trim();
-    if (!reason) throw new BadRequestException('补单必须写明原因');
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       select: { id: true, orderCode: true, companionId: true, studioId: true, customFields: true },
@@ -1342,30 +1379,50 @@ export class OrdersService implements OnModuleInit {
     if (await this.hasReturnedQuota(orderId, '')) {
       throw new BadRequestException('这张单已经因为补单 / 退单返还过名额了，不能重复返还');
     }
+    // 老板 2026-10-08：这张单上「陪玩已经申请了补单」时，这一下就是**核对 + 同意** ——
+    // 原因用他写的那段（那就是凭据），管理端可以不写；不是接他的申请就必须写清楚。
+    const approvingRequest = existing?.status === 'PENDING';
+    if (!reason && !approvingRequest) throw new BadRequestException('补单必须写明原因');
     const now = new Date();
     const reviewDueAt = new Date(now.getTime() + SUPPLEMENT_REVIEW_HOURS * 3600 * 1000);
-    const fields: any = {
-      companionId: order.companionId,
-      studioId: order.studioId ?? null,
-      reason: `${ADMIN_SUPPLEMENT_TAG}${reason}`,
-      evidenceUrl: null,
-      status: 'APPROVED',
-      decidedByUserId: user?.id ?? null,
-      decidedAt: now,
-      decisionNote: reason,
-      reviewDueAt,
-      reviewStatus: 'PENDING',
-      reviewedAt: null,
-      reviewedByUserId: null,
-    };
+    const fields: any = approvingRequest
+      ? {
+          // 同意陪玩的补单申请：保留他写的原因 / 截图（客服、店长核对就是看这两样），
+          // 只把「谁批的、什么时候批的、批的时候说了什么」补上。
+          status: 'APPROVED',
+          decidedByUserId: user?.id ?? null,
+          decidedAt: now,
+          decisionNote: reason || '核对无异议，同意补单',
+          reviewDueAt,
+          reviewStatus: 'PENDING',
+          reviewedAt: null,
+          reviewedByUserId: null,
+        }
+      : {
+          companionId: order.companionId,
+          studioId: order.studioId ?? null,
+          reason: `${ADMIN_SUPPLEMENT_TAG}${reason}`,
+          evidenceUrl: null,
+          status: 'APPROVED',
+          decidedByUserId: user?.id ?? null,
+          decidedAt: now,
+          decisionNote: reason,
+          reviewDueAt,
+          reviewStatus: 'PENDING',
+          reviewedAt: null,
+          reviewedByUserId: null,
+        };
     const record = existing
       ? await this.prisma.supplementRequest.update({ where: { id: existing.id }, data: fields })
       : await this.prisma.supplementRequest.create({
           data: { orderId, type: SUPPLEMENT_TYPE, ...fields },
         });
+    const roleLabel = user?.role === 'CS' ? '客服' : '店长 / 老板';
     await this.quota.credit(order.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
       refId: order.id,
-      note: `管理端直接补单：${reason}`,
+      note: approvingRequest
+        ? `同意陪玩的补单申请（${roleLabel}核对）：${reason || '无异议'}`
+        : `管理端直接补单（${roleLabel}）：${reason}`,
     });
     const cf = (order.customFields as any) || {};
     await this.prisma.order
@@ -1388,13 +1445,15 @@ export class OrdersService implements OnModuleInit {
       this.wsGateway.notifyUser(companion.userId, 'order:supplement', {
         orderId: order.id,
         approved: true,
-        note: reason,
-        message: `管理端给你补了 1 个抢单名额（订单 ${order.orderCode || order.id}）`,
+        note: reason || null,
+        message: approvingRequest
+          ? `你的补单申请已通过：订单 ${order.orderCode || order.id} 给你补了 1 个抢单名额`
+          : `管理端给你补了 1 个抢单名额（订单 ${order.orderCode || order.id}）`,
       });
     }
     const st: any = await this.quota.status(order.companionId).catch(() => null);
     const balance = st?.balance ?? st?.remaining ?? null;
-    return { ...record, balance, orderCode: order.orderCode };
+    return { ...record, balance, orderCode: order.orderCode, approvedRequest: approvingRequest };
   }
 
   /**

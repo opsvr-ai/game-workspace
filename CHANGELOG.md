@@ -11,6 +11,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **管理端「退款」整条删掉、那一格改成「补单」；陪玩申请过补单的订单那颗按钮挂提示、补完显示「已补」（老板 2026-10-08，服务端 + 网页 `v1002`）。**
+  老板原话：「**删除，改成补单，以后陪玩申请补单在对应订单后边的补单按钮做提示，点了补单要跟其他功能联动起来，补完的显示已补**」。
+  ① **删除接口 `POST /api/orders/:id/refund`**（`orders.controller.ts`）—— 管理端（客服 / 店长 / 老板）再也没有「直接退款」这条口子（线上调用返回 404）。
+  钱的退款只剩唯一一条：陪玩的「退单」申请（`POST /api/orders/:id/refund-request`）→ 客服核对「无异议，转店长」→ 店长 / 老板拍板 → 内部 `markRefund()`
+  （`orders.service.ts` 里保留，是本系统唯一的退款实现）。
+  ② **订单管理操作列那一格，客服 / 店长 / 老板一律「补单」**：`orders.controller.ts` 的 `@Roles` 由 `OWNER, ADMIN` 扩到 `OWNER, ADMIN, CS`；
+  给这张单的陪玩名额 +1（`CompanionQuotaLog`，理由 `SUPPLEMENT`）+ 落补单记录 + 推 `order:supplement` 通知本人（以前客服是「退款」、店长 / 老板才是「补单」，现在统一成一个动作）。
+  ③ **联动「陪玩申请补单」**：这张单已有陪玩提交的待审申请时，按钮上挂红点；点开弹窗直接显示他写的原因 + 截图。
+  `supplementOrder()` 识别到 `PENDING` 申请就**顺带把它批掉**（保留陪玩写的 `reason` / `evidenceUrl`，结论记「核对无异议，同意补单」），此时 `reason` 可省、
+  没有申请才要求填原因（`Body: { reason? }`）；返回值多一个 `approvedRequest: boolean`。
+  ④ **列表接口 `GET /api/orders`（`findAll`）只给管理端每行多带 `supplementPending` / `supplementPendingRequest` / `supplementApproved`** —— 网页据此画红点、或显示绿字「**已补**」（补过就不给再点，同一张单只补一次）。
+  ⑤ 网页 `OrdersPage.tsx` 删掉整段「退款」状态 / 弹窗 / 提交函数，新增 `canSupplement()`；监听 `AppLayout` 转发的 `supplement:refresh`（WS `order:supplement` / `order:supplement_request`）就实时重拉，
+  红点 / 已补立刻变；`CustomerDetailPage.tsx` 页头那颗红字「退款」也改成「补单」（补过显示「已补」且禁用）。
+  验证：服务端 `vitest run` **773 / 773**（`orders.supplement` 新增「客服也能补单」「不写原因但有待审申请 → 同意」等用例）；
+  网页 `vitest run` **105 / 105**（新增 `order-supplement-button.test.tsx` 5 条：客服看到的也是「补单」且没有「退款」、待补单挂红点 + 弹窗显示陪玩原因、
+  待补单可不写原因、没申请必须写原因、已补显示「已补」）；接口契约重新导出（403 个接口）、守门脚本全绿。
 - **全部客户端更新已在服务器上、机队一个不落下（老板 2026-10-08：「所有更新你都上传服务器吧，等明天他们开机……所有人哈，一个不落下」）。**
   核查结论：两端最新版**都早就在服务器上了**，一个文件不缺 —— 陪玩端 `1.0.20261022`、客服端 `1.0.20260938`；
   `/api/agent/version` 回读 `1.0.20261022`、`/api/agent/cs-version` 回读 `1.0.20260938`（带整包静默更新的 `zipUrl`）。

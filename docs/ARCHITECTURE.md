@@ -274,6 +274,19 @@
   订单管理页「今日抢单 · 补单 · 合计」的补单数改读它。「补单审核」弹窗（`components/SupplementReviewButton.tsx`）新增第三个页签，
   并支持点订单 / 整行跳 `ordersPathWithOrder()`（整行高亮 + 自动开详情）。
 
+- **管理端「退款」整条删除、那一格一律改成「补单」；陪玩申请过补单的订单那颗按钮挂提示、补完显示「已补」**（2026-10-08，服务端 + 网页 `v1002`）:
+  老板「删除，改成补单，以后陪玩申请补单在对应订单后边的补单按钮做提示，点了补单要跟其他功能联动起来，补完的显示已补」。
+  ① **删除** `@Post('orders/:id/refund')`（`orders.controller.ts`）—— 管理端不再有直接退款这条口子；钱的退款只剩
+  「陪玩 `refund-request` → 客服核对 → 店长拍板 → 内部 `markRefund()`」这一条（`markRefund()` 保留，是本系统唯一的退款实现）。
+  ② `POST /api/orders/:id/supplement` 的 `@Roles` 由 `OWNER, ADMIN` 扩到 **`OWNER, ADMIN, CS`**；
+  `OrdersService.supplementOrder()` 新增：若已有 `PENDING` 补单申请，则 `reason` 可省、**顺带把该申请置为 `APPROVED`**
+  （保留陪玩写的 `reason` / `evidenceUrl`，`decisionNote='核对无异议，同意补单'`，`reviewStatus=PENDING` 走 24h 到期核查），返回值多一个 `approvedRequest: boolean`。
+  ③ `OrdersService.findAll()` **只给管理端**（`role !== 'COMPANION'`）批量带上 **`supplementPending` / `supplementPendingRequest` / `supplementApproved`**，
+  网页据此画红点和绿字「已补」。
+  ④ 网页 `OrdersPage.tsx` 删掉整段「退款」状态 / 弹窗 / 提交函数，改成一个 `canSupplement()` + 补单弹窗；
+  监听 `AppLayout` 转发的 `supplement:refresh`（WS `order:supplement` / `order:supplement_request`）实时重拉；
+  `CustomerDetailPage.tsx` 页头那颗红字「退款」也改成「补单」（补过显示「已补」且禁用）。
+
 ---
 
 ## 1. 系统全景架构

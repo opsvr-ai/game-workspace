@@ -51,7 +51,7 @@ import {
   fitOrderColumnWidths,
   sumWidths,
 } from '../constants/datasetColumns';
-import { TEXT, SEMANTIC, BORDER } from '../styles/tokens';
+import { TEXT, SEMANTIC, BORDER, BG } from '../styles/tokens';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -157,9 +157,6 @@ const OrdersPage: React.FC = () => {
     window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: chatPartner }));
     setChatPartner(null);
   }, [chatPartner]);
-  const [refundOrder, setRefundOrder] = useState<any>(null);
-  const [refundReason, setRefundReason] = useState('');
-  const [refundSubmitting, setRefundSubmitting] = useState(false);
   // 管理端「补单」（老板 2026-10-08）：店长 / 老板点一下，给这张单的陪玩抢单次数 +1
   const [supplementTarget, setSupplementTarget] = useState<any>(null);
   const [supplementReason, setSupplementReason] = useState('');
@@ -355,6 +352,15 @@ const OrdersPage: React.FC = () => {
   };
 
   /**
+   * 管理端能不能给这张单「补单」（老板 2026-10-08）：客服 / 店长 / 老板，单没取消、有人接单。
+   *
+   * 这一格原来只有店长 / 老板是「补单」、客服是「退款」；老板要求把「直接退款」整条删掉，
+   * 全换成一个动作 ——「补单」：给陪玩名额 +1、留记录、通知他本人。
+   * 陪玩已经提交过补单申请的单，按钮上会挂红点提醒（见下面渲染那一段）。
+   */
+  const canSupplement = (r: any) => (isAdmin || isCs) && r.status !== 'CANCELLED' && !!r.companionId;
+
+  /**
    * 陪玩能不能转让这张单（老板 2026-09-29）。
    *
    * 「抢单超时自动回收」已经整条删除 —— 是谁抢的就是谁的；只有我抢到的、还没开始
@@ -424,6 +430,17 @@ const OrdersPage: React.FC = () => {
   useEffect(() => {
     fetch();
   }, [fetch]);
+
+  // 别处提交了补单申请（陪玩点「添加失败」）或批了补单，服务端推 socket、AppLayout 转成这个自定义事件：
+  // 立刻重拉一遍 —— 「补单」那颗按钮上的红点（待补单）和「已补」状态不能等到下次手动刷新才变
+  // （老板 2026-10-08：「以后陪玩申请补单在对应订单后边的补单按钮做提示」）。
+  useEffect(() => {
+    if (isCompanion) return;
+    const onSupplementRefresh = () => void fetch();
+    window.addEventListener('supplement:refresh', onSupplementRefresh as EventListener);
+    return () =>
+      window.removeEventListener('supplement:refresh', onSupplementRefresh as EventListener);
+  }, [fetch, isCompanion]);
 
   // 陪玩端：把三栏的单数拉一遍挂在页签角标上（只拉陪玩自己的，量很小）。
   useEffect(() => {
@@ -736,7 +753,7 @@ const OrdersPage: React.FC = () => {
   // 「操作」列：固定格子排布（2026-09-28 重做 —— 老板说这一列「很乱、不是对齐的」）。
   // 以前是「有哪个按钮就挨着摆」：同一个「退款」，在抢到的行里被排到中间、在没人抢的行里贴着左边；
   // 两个汉字的按钮还会被 antd 自动插一个空格（显示成「退 款」「沟 通」），图标又时有时无 —— 一列看下来就是乱的。
-  // 现在：第一行永远是「修改 / 退款」，第二行永远是「沟通 / 添加成功 / 添加失败」，
+  // 现在：第一行永远是「修改 / 补单」，第二行永远是「沟通 / 添加成功 / 添加失败」，
   // 每个动作占一个固定宽度的格子（这一行没有这个动作就留空），所以同一个按钮在哪一行都在同一个位置；
   // 按钮统一纯文字、等宽（图标去掉，绿 / 红底色表意），高度沿用全站表格按钮规格（22px）。
   const ACTION_ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 4, minHeight: 22 };
@@ -793,8 +810,9 @@ const OrdersPage: React.FC = () => {
     const hasContactRow = !!chatTarget || contactState !== 'none';
     if (!hasOrderRow && !hasContactRow) return null;
 
-    // 操作列：一行按顺序排 —— 沟通 → 添加成功 / 已同意 / 已添加 → 添加失败 → 修改 → 退款
-    // （老板 2026-09-28：「修改 退款 显示在 添加失败后边」）。每个动作占一个固定宽度的格子，
+    // 操作列：一行按顺序排 —— 沟通 → 添加成功 / 已同意 / 已添加 → 添加失败 → 修改 → 补单
+    // （老板 2026-09-28：「修改 退款 显示在 添加失败后边」；2026-10-08 老板要求把「退款」整条删掉、那一格改成「补单」）。
+    // 每个动作占一个固定宽度的格子，
     // 这一行没有这个动作就留空，所以同一个按钮在哪一行都是同一个位置；一行放得下就不用换行，
     // 数据行高统一 33px。
     return (
@@ -1013,30 +1031,39 @@ const OrdersPage: React.FC = () => {
             >
               拒绝
             </Button>
-          ) : hasOrderRow && isAdmin ? (
-            // 管理端（店长 / 老板）不退款，改成「补单」：给这张单的陪玩名额 +1，并留一条记录
-            <Button
-              size="small"
-              style={{ width: 36 }}
-              onClick={() => {
-                setSupplementTarget(r);
-                setSupplementReason('');
-              }}
-            >
-              补单
-            </Button>
-          ) : hasOrderRow ? (
-            <Button
-              size="small"
-              danger
-              style={{ width: 36 }}
-              onClick={() => {
-                setRefundOrder(r);
-                setRefundReason('');
-              }}
-            >
-              退款
-            </Button>
+          ) : canSupplement(r) ? (
+            // 管理端（客服 / 店长 / 老板）那一格（老板 2026-10-08）：原来的「退款」整条删掉，一律「补单」——
+            // 陪玩已经提交补单申请的，按钮上挂个红点；点一下就是核对 + 同意（名额 / 台账 / 记录 / 通知一起走完）；
+            // 已经补过的显示「已补」，不给再点（免得同一张单补两次名额）。
+            r.supplementApproved ? (
+              <Tooltip title="这张单已经补过名额了；谁批的、什么时候批的，到「🧾 补单审核 → 补单记录」里查">
+                <Tag color="success" style={{ margin: 0, padding: '0 3px', fontSize: 11 }}>
+                  已补
+                </Tag>
+              </Tooltip>
+            ) : (
+              <Badge dot={!!r.supplementPending}>
+                <Tooltip
+                  title={
+                    r.supplementPending
+                      ? '陪玩已提交补单申请：点这里核对并同意（同意 = 他的抢单次数 +1，并实时通知他）'
+                      : '给这张单的陪玩补 1 个抢单次数，并留一条补单记录'
+                  }
+                >
+                  <Button
+                    size="small"
+                    type={r.supplementPending ? 'primary' : 'default'}
+                    style={{ width: 36 }}
+                    onClick={() => {
+                      setSupplementTarget(r);
+                      setSupplementReason('');
+                    }}
+                  >
+                    补单
+                  </Button>
+                </Tooltip>
+              </Badge>
+            )
           ) : canRequestRefund(r) ? (
             // 陪玩这一格本来空着（第 5 格原来是「退款」，只有客服 / 店长有）。
             // 老板 2026-10-08：「陪玩端要退款也没用……你在陪玩端＋个按钮『退单』」——
@@ -1060,37 +1087,20 @@ const OrdersPage: React.FC = () => {
     );
   };
 
-  const submitRefund = async () => {
-    if (!refundOrder) return;
-    if (!refundReason.trim()) {
-      message.warning('请填写退款原因');
-      return;
-    }
-    setRefundSubmitting(true);
-    try {
-      await http.post(`/orders/${refundOrder.id}/refund`, { reason: refundReason.trim() });
-      message.success('已退款，该订单不再计入利润与提成');
-      setRefundOrder(null);
-      setRefundReason('');
-      fetch();
-    } catch (e: any) {
-      message.error(extractErrorMessage(e, '退款失败'));
-    } finally {
-      setRefundSubmitting(false);
-    }
-  };
-
   const submitSupplementOrder = async () => {
     if (!supplementTarget) return;
-    if (!supplementReason.trim()) {
+    // 这张单上本来就有陪玩的补单申请 → 这一次就是「核对 + 同意」，原因用他写的那段，不用再填一遍。
+    const approving = !!supplementTarget.supplementPending;
+    const reason = supplementReason.trim();
+    if (!approving && !reason) {
       message.warning('请填写补单原因');
       return;
     }
     setSupplementSubmitting(true);
     try {
-      await ordersApi.supplementOrder(supplementTarget.id, supplementReason.trim());
+      await ordersApi.supplementOrder(supplementTarget.id, reason || undefined);
       message.success(
-        `已补单：订单 ${supplementTarget.orderCode || ''} 的陪玩抢单次数 +1，已记入补单记录`,
+        `${approving ? '已同意补单' : '已补单'}：订单 ${supplementTarget.orderCode || ''} 的陪玩抢单次数 +1，已记入补单记录`,
       );
       setSupplementTarget(null);
       setSupplementReason('');
@@ -1621,48 +1631,55 @@ const OrdersPage: React.FC = () => {
         }}
       />
       <Modal
-        title="退款"
-        open={!!refundOrder}
-        onOk={submitRefund}
-        onCancel={() => setRefundOrder(null)}
-        okText="确认退款"
-        cancelText="取消"
-        confirmLoading={refundSubmitting}
-      >
-        <div style={{ marginTop: 8 }}>
-          <Text>
-            确认对订单 <Text strong>{refundOrder?.gameName}</Text> 退款？退款后该订单不计入利润与客服提成。
-          </Text>
-          <Text strong style={{ display: 'block', marginTop: 12 }}>退款原因（必填）</Text>
-          <Input.TextArea
-            rows={3}
-            value={refundReason}
-            onChange={(e) => setRefundReason(e.target.value)}
-            placeholder="例如：客户不满意要求退款 / 未按时开始"
-            style={{ marginTop: 8 }}
-          />
-        </div>
-      </Modal>
-      <Modal
-        title="补单"
+        title={supplementTarget?.supplementPending ? '补单：陪玩已申请，核对后同意' : '补单'}
         open={!!supplementTarget}
         onOk={submitSupplementOrder}
         onCancel={() => setSupplementTarget(null)}
-        okText="确认补单"
+        okText={supplementTarget?.supplementPending ? '同意补单' : '确认补单'}
         cancelText="取消"
         confirmLoading={supplementSubmitting}
       >
         <div style={{ marginTop: 8 }}>
           <Text>
             给订单 <Text strong>{supplementTarget?.orderCode || supplementTarget?.gameName}</Text>{' '}
-            的陪玩补 1 个抢单名额？补完会记在「补单审核 → 补单记录」里，方便回头查。
+            的陪玩补 1 个抢单名额？补完会记在「🧾 补单审核 → 补单记录」里，方便回头查。
           </Text>
-          <Text strong style={{ display: 'block', marginTop: 12 }}>补单原因（必填）</Text>
+          {supplementTarget?.supplementPending ? (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 10,
+                background: BG.containerSoft,
+                border: `1px solid ${BORDER.hairline}`,
+                borderRadius: 6,
+              }}
+            >
+              <Text strong>陪玩提交的补单申请</Text>
+              <div style={{ marginTop: 6 }}>
+                <Text style={{ fontSize: 12 }}>
+                  原因：{supplementTarget?.supplementPendingRequest?.reason || '（他没写）'}
+                </Text>
+              </div>
+              {supplementTarget?.supplementPendingRequest?.evidenceUrl ? (
+                <div style={{ marginTop: 6 }}>
+                  <Text style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>截图：</Text>
+                  <Image src={supplementTarget.supplementPendingRequest.evidenceUrl} width={160} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          <Text strong style={{ display: 'block', marginTop: 12 }}>
+            {supplementTarget?.supplementPending ? '补充说明（选填）' : '补单原因（必填）'}
+          </Text>
           <Input.TextArea
             rows={3}
             value={supplementReason}
             onChange={(e) => setSupplementReason(e.target.value)}
-            placeholder="例如：客户临时改时间 / 不是陪玩的责任"
+            placeholder={
+              supplementTarget?.supplementPending
+                ? '不填也行；填了会记进「补单记录」的处理备注'
+                : '例如：客户临时改时间 / 不是陪玩的责任'
+            }
             style={{ marginTop: 8 }}
           />
         </div>
