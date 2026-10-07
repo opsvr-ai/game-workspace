@@ -295,6 +295,21 @@ const CompanionPage: React.FC = () => {
     }
   };
 
+  // 老板 2026-10-08：玩不起就别让他点进去 —— 进去也会被踢回空闲，娱乐/空闲两份名单来回套，
+  // python 和三角洲左右都是被杀。口径跟服务端 checkEntertainmentEligibility 完全一致：
+  // 免单线到了随便玩；否则看「余额 + 押金」够不够玩满 1 分钟（每分钟价 = 时价 / 60）。
+  const entertainmentAffordable =
+    !!data?.entertainmentFreeToday ||
+    Number(data?.hourlyRate ?? 0) <= 0 ||
+    Number(data?.availableFunds ?? 0) * 60 >= Number(data?.hourlyRate ?? 0);
+  const entertainmentBlockReason = `余额 + 押金不够玩娱乐（现在 ¥${Number(
+    data?.availableFunds ?? 0,
+  )}，娱乐 ¥${Number(data?.hourlyRate ?? 0)}/小时，${
+    Number(data?.entertainmentThreshold ?? 0) > 0
+      ? `今天流水到 ¥${data.entertainmentThreshold} 就免单`
+      : '今天流水免单线没开'
+  }）—— 先充值或交押金，或者今天多打几单再进。`;
+
   if (loading) return <LoadingState size="large" minHeight={220} />;
   // 拉不到数据时原来只有一行灰字「加载失败」，既没说清也没法重试 —— 换成统一的报错条（带「重试」）。
   if (!data) {
@@ -381,14 +396,17 @@ const CompanionPage: React.FC = () => {
               {/* 门槛口径（老板 2026-10-04）：今天到手的钱 = 订单流水 + 打掉的存单 */}
               <Tooltip
                 title={
-                  data.entertainmentFreeToday
-                    ? `娱乐随时可进：今天流水 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，已到 ¥${data.entertainmentThreshold ?? 0} 门槛 → 今天免费`
-                    : `娱乐随时可进：今天流水 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，还没到 ¥${data.entertainmentThreshold ?? 0} → 按 ¥${data.hourlyRate ?? 0}/小时 计费`
+                  !entertainmentAffordable
+                    ? entertainmentBlockReason
+                    : data.entertainmentFreeToday
+                      ? `娱乐随时可进：今天流水 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，已到 ¥${data.entertainmentThreshold ?? 0} 门槛 → 今天免费`
+                      : `娱乐随时可进：今天流水 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，还没到 ¥${data.entertainmentThreshold ?? 0} → 按 ¥${data.hourlyRate ?? 0}/小时 计费`
                 }
               >
                 <Button
                   type={data.currentStatus === 'ENTERTAINMENT' ? 'primary' : 'default'}
                   icon={IconPlay}
+                  disabled={!entertainmentAffordable}
                   onClick={() => switchStatus('ENTERTAINMENT')}
                 >
                   娱乐

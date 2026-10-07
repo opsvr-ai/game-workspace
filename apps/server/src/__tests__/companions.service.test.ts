@@ -215,6 +215,13 @@ describe('CompanionsService', () => {
       mockPrisma.orderSession.findFirst.mockResolvedValue(null);
       mockPrisma.companionTimeLog.findFirst.mockResolvedValue(null);
       mockPrisma.companionTimeLog.create.mockResolvedValue({ id: 'log-1' });
+      // 娱乐是「要花钱」的状态：钱包里得够玩满 1 分钟，否则会被当成玩不起挡在门外（老板 2026-10-08）。
+      mockPrisma.companion.findUnique.mockResolvedValue({
+        status: 'AVAILABLE',
+        balance: 100,
+        deposit: 0,
+        studioId: 'studio-1',
+      });
 
       const updatedCompanion = { id: 'comp-1', status: 'ENTERTAINMENT' };
       mockPrisma.companion.update.mockResolvedValue(updatedCompanion);
@@ -228,6 +235,66 @@ describe('CompanionsService', () => {
       expect(result).toEqual(updatedCompanion);
     });
 
+    it('余额/押金不够、又没到免单线 → 当场拒绝进娱乐，娱乐名单根本不下发（老板 2026-10-08 张权那单）', async () => {
+      // 线上现场：余额 0、押金 0、娱乐费率 10 元/小时、免单线 0（= 没开）。
+      // 以前不判就让他进，下一个心跳（≤30 秒）又把他踢回空闲 —— 这十几秒里娱乐名单（python.exe）
+      // 和空闲名单（三角洲）各套了一遍：python 被杀、他一启动三角洲又被杀。现在进之前就拦掉。
+      const companionUser = {
+        id: 'u5',
+        username: 'zhangsan',
+        role: 'COMPANION' as const,
+        studioId: 'studio-1',
+        companionId: 'comp-1',
+      };
+      mockPrisma.companionPC.upsert.mockResolvedValue({ id: 'pc-1' });
+      mockPrisma.companion.findUnique.mockResolvedValue({
+        status: 'AVAILABLE',
+        balance: 0,
+        deposit: 0,
+        studioId: 'studio-1',
+      });
+      mockPrisma.orderSession.findFirst.mockResolvedValue(null);
+      mockPrisma.systemConfig.findMany.mockResolvedValue([
+        { key: 'entertainment.hourly_rate', value: 10 },
+        { key: 'entertainment.revenue_threshold', value: 0 },
+      ]);
+
+      await expect(service.updateStatus('comp-1', 'ENTERTAINMENT', companionUser)).rejects.toThrow(
+        /余额 \+ 押金不够玩娱乐/,
+      );
+      expect(mockPrisma.companion.update).not.toHaveBeenCalled();
+    });
+
+    it('今天流水到了免单线 → 余额 0 也能进娱乐', async () => {
+      const companionUser = {
+        id: 'u5',
+        username: 'zhangsan',
+        role: 'COMPANION' as const,
+        studioId: 'studio-1',
+        companionId: 'comp-1',
+      };
+      mockPrisma.companionPC.upsert.mockResolvedValue({ id: 'pc-1' });
+      mockPrisma.companion.findUnique.mockResolvedValue({
+        status: 'AVAILABLE',
+        balance: 0,
+        deposit: 0,
+        studioId: 'studio-1',
+      });
+      mockPrisma.orderSession.findFirst.mockResolvedValue(null);
+      mockPrisma.companionTimeLog.findFirst.mockResolvedValue(null);
+      mockPrisma.companionTimeLog.create.mockResolvedValue({ id: 'log-1' });
+      mockPrisma.order.findMany.mockResolvedValue([
+        { companionId: 'comp-1', coCompanionId: null, amount: 300, coAmount: null, customFields: {} },
+      ]);
+      mockPrisma.systemConfig.findMany.mockResolvedValue([
+        { key: 'entertainment.hourly_rate', value: 10 },
+        { key: 'entertainment.revenue_threshold', value: 300 },
+      ]);
+      mockPrisma.companion.update.mockResolvedValue({ id: 'comp-1', status: 'ENTERTAINMENT' });
+
+      const result = await service.updateStatus('comp-1', 'ENTERTAINMENT', companionUser);
+      expect(result).toEqual({ id: 'comp-1', status: 'ENTERTAINMENT' });
+    });
     it('rejects a manual switch to BUSY (接单状态只能由开始服务进入)', async () => {
       const companionUser = {
         id: 'u5',

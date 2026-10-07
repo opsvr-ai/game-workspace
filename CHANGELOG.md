@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+- **修：切「娱乐模式」不再「先放你进去、几秒后再踢出来」—— 玩不起当场拒绝（老板 2026-10-08，服务端 + 网页 `v990`）。**
+  老板原话：「刚才张权选择娱乐模式，怎么把 python 杀了，三角洲也进不去？」。查到的是一条来回横跳的链：
+  切「娱乐」时**压根没判过「玩不玩得起」** —— 先把他放进去，服务端随即下发**娱乐**黑名单（线上是 `python.exe`）把 python 杀掉；
+  下一个心跳（≤30 秒）才发现余额撑不住，把他踢回「空闲」，**空闲**黑名单（线上是 `DeltaForceClient-Win64-Shipping`）又下发，把三角洲杀掉；
+  他自己再点一次娱乐，二十秒后又被踢 —— 两边都玩不成。（线上流水：`ENTERTAINMENT 16:05:24→16:05:39`、`AVAILABLE 16:05:39→16:08:20`、
+  `ENTERTAINMENT 16:08:20→16:08:39`；杀进程记录 `python.exe 16:05:29`、`DeltaForceClient-Win64-Shipping 16:08:14`。张权余额 + 押金 = ¥0，
+  免单线线上没开（`entertainment.revenue_threshold = 0`）—— 所以「该踢」这件事本身没错，**错在让人先进去**。）
+  现在判定收成一处：`common/entertainment-fee.ts` 新增 `checkEntertainmentEligibility` / `entertainmentMinutesLeft` / `loadEntertainmentStanding`，
+  口径跟扣费完全一致（免单线到了随便玩；否则看「余额 + 押金」够不够玩满 1 分钟）—— **切状态时（`context: 'enter'`）不满足就直接 400 拒绝，娱乐名单根本不下发**；
+  陪玩端看到的是「余额 + 押金不够玩娱乐（现在 ¥X，娱乐 ¥Y/小时，今天流水到 ¥Z 就免单 / 今天流水免单线没开）—— 先充值或交押金，或者今天多打几单再进。」。
+  心跳里的兜底继续保留（`context: 'stay'`，玩到一半钱花完才踢），并给了 **60 秒宽限**，不会再出现「刚进去就被踢」的秒级来回。
+  陪玩端首页的「娱乐」按钮跟着做灰（玩不起点不动、鼠标停上去写明原因），不再让人点完才知道。
+  验证：服务端 `vitest run --maxWorkers=1` **749 / 749**（新增 9 条：费率 0 全免 / 够玩满 1 分钟 / `enter` 拒绝带原因 / 宽限只在 `stay` / 免单线到了能进 / 负数 NaN 不炸 /
+  切娱乐余额 0 当场拒绝且不改状态 / 到免单线余额 0 也能进 / 刚进娱乐 20 秒余额 0 不踢）；`tsc --noEmit` + `nest build` 通过；
+  网页 `tsc --noEmit` + `vite build` 通过；守门脚本全绿（`contract:check` 403 接口、`ui:tokens` 333、`routes:check` 89 条）。
 ## [Unreleased]
 
 ### Added

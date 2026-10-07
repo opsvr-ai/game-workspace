@@ -1,8 +1,10 @@
 // craftsman-ignore: TS001,TS003
 import { describe, it, expect } from 'vitest';
 import {
+  checkEntertainmentEligibility,
   computeEntertainmentFee,
   depositPlayedCredit,
+  entertainmentMinutesLeft,
   entertainmentBasisRevenue,
   isEntertainmentFree,
   sumDepositPlayedToday,
@@ -146,5 +148,57 @@ describe('打存单也算进娱乐门槛（老板 2026-10-04）', () => {
     expect(basis).toBe(300);
     expect(isEntertainmentFree(basis, 300)).toBe(true);
     expect(computeEntertainmentFee({ minutes: 540, todayRevenue: basis, hourlyRate: 10, freeThreshold: 300 })).toBe(0);
+  });
+});
+
+// ── 「能不能进娱乐 / 该不该踢回空闲」的唯一判定（老板 2026-10-08） ──
+// 老板报的原话：「刚才张权选择娱乐模式，怎么把 python 杀了，三角洲也进不去？」
+// 线上现场：余额 0、押金 0、娱乐费率 10 元/小时、免单线 0（= 没开）——
+// 于是「进娱乐 → 20 秒后被心跳按余额不足踢回空闲」，这十几秒里娱乐名单（python.exe）
+// 和空闲名单（三角洲）各套了一遍，两边的进程都被杀了。
+describe('娱乐能不能进 / 该不该踢（老板 2026-10-08）', () => {
+  it('费率 0（全免）→ 谁都能玩，永远不踢', () => {
+    expect(entertainmentMinutesLeft(0, 0)).toBe(Number.POSITIVE_INFINITY);
+    expect(
+      checkEntertainmentEligibility({ availableFunds: 0, hourlyRate: 0, freeThreshold: 0, freeToday: false }).ok,
+    ).toBe(true);
+  });
+
+  it('余额够玩满 1 分钟 → 能进', () => {
+    expect(entertainmentMinutesLeft(10, 60)).toBe(10);
+    expect(
+      checkEntertainmentEligibility({ availableFunds: 10, hourlyRate: 60, freeThreshold: 0, freeToday: false }).ok,
+    ).toBe(true);
+  });
+
+  it('余额 0、也没到免单线 → 切状态那一下（enter）就该拒绝，并说清怎么办', () => {
+    const verdict = checkEntertainmentEligibility({
+      availableFunds: 0,
+      hourlyRate: 10,
+      freeThreshold: 0,
+      freeToday: false,
+    });
+    expect(verdict.ok).toBe(false);
+    expect(verdict.minutesLeft).toBe(0);
+    expect(verdict.reason).toContain('余额 + 押金不够玩娱乐');
+  });
+
+  it('宽限只给「已经进去的人」：stay 刚进去 20 秒不踢，到 60 秒才踢；enter 一律不宽限', () => {
+    const params = { availableFunds: 0, hourlyRate: 10, freeThreshold: 0, freeToday: false };
+    expect(checkEntertainmentEligibility({ ...params, context: 'stay', elapsedSeconds: 20 }).ok).toBe(true);
+    expect(checkEntertainmentEligibility({ ...params, context: 'stay', elapsedSeconds: 60 }).ok).toBe(false);
+    expect(checkEntertainmentEligibility({ ...params, context: 'enter', elapsedSeconds: 20 }).ok).toBe(false);
+  });
+
+  it('免单线到了 → 余额 0 也能玩', () => {
+    expect(
+      checkEntertainmentEligibility({ availableFunds: 0, hourlyRate: 10, freeThreshold: 300, freeToday: true }).ok,
+    ).toBe(true);
+  });
+
+  it('钱是负的 / NaN 一律当 0 处理，不返回 NaN', () => {
+    expect(entertainmentMinutesLeft(-5, 60)).toBe(0);
+    expect(entertainmentMinutesLeft(Number.NaN, 60)).toBe(0);
+    expect(entertainmentMinutesLeft(100, Number.NaN)).toBe(Number.POSITIVE_INFINITY);
   });
 });

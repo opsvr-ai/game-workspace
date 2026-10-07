@@ -204,6 +204,23 @@ describe('HeartbeatService', () => {
     // =======================================================================
     // Force switch to AVAILABLE when balance exhausted
     // =======================================================================
+    it('刚进娱乐 20 秒（余额 0）→ 不踢：宽限防的是「刚进去就被踢」的秒级来回（老板 2026-10-08）', async () => {
+      mockPrisma.companionTimeLog.findFirst.mockResolvedValue({
+        id: 'log-grace',
+        companionId: 'companion-001',
+        mode: 'ENTERTAINMENT',
+        startedAt: new Date(Date.now() - 20_000),
+        endedAt: null,
+        durationSeconds: 0,
+      });
+      mockPrisma.companion.findUnique.mockResolvedValue({ balance: 0, deposit: 0, status: 'ENTERTAINMENT' });
+      mockPrisma.systemConfig.findMany.mockResolvedValue([{ key: 'entertainment.hourly_rate', value: 10 }]);
+
+      await service.process(BASE_DATA, BASE_USER);
+
+      expect(mockPrisma.companion.update).not.toHaveBeenCalled();
+      expect(wsGateway.pushCurrentBlacklist).not.toHaveBeenCalled();
+    });
     it('should force-switch to AVAILABLE and close entertainment log when balance exhausted', async () => {
       const startedAt = new Date(Date.now() - 30 * 60 * 1000);
       mockPrisma.companionTimeLog.findFirst.mockResolvedValue({

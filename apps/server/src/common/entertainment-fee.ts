@@ -11,6 +11,8 @@
  */
 import { roundToJiao } from './money';
 import { resolveConfigsRaw } from './studio-config';
+import { companionOrderRevenue } from './order-revenue';
+import { currentBusinessDayRange } from './business-day';
 
 /** 没配置时的兜底费率（元/小时） */
 export const DEFAULT_ENTERTAINMENT_HOURLY_RATE = 60;
@@ -68,6 +70,71 @@ export function computeEntertainmentFee(params: {
 /** 当日流水是否已达免单线 */
 export function isEntertainmentFree(todayRevenue: number, freeThreshold: number): boolean {
   return freeThreshold > 0 && todayRevenue >= freeThreshold;
+}
+/**
+ * 刚进娱乐的宽限（秒）：这段时间内不因为「余额判定」把人踢回空闲。
+ * 见 checkEntertainmentEligibility 的注释 —— 防的是「刚进去就被踢」那种秒级来回。
+ */
+export const ENTERTAINMENT_GRACE_SECONDS = 60;
+
+/** 余额 + 押金还能玩多少分钟（费率 ≤ 0 = 全免 → 无限；钱为负/NaN 一律按 0 算）。 */
+export function entertainmentMinutesLeft(availableFunds: number, hourlyRate: number): number {
+  const rate = Number(hourlyRate);
+  if (!Number.isFinite(rate) || rate <= 0) return Number.POSITIVE_INFINITY;
+  const funds = Math.max(0, Number(availableFunds) || 0);
+  return Math.floor(funds / (rate / 60));
+}
+
+export interface EntertainmentEligibility {
+  /** 能不能进 / 该不该留在娱乐 */
+  ok: boolean;
+  /** 不给进 / 该踢回去的原因（给陪玩看的中文；ok = true 时是空串） */
+  reason: string;
+  /** 余额还能玩几分钟（Infinity = 全免） */
+  minutesLeft: number;
+}
+
+/**
+ * 「能不能进 / 留不留在娱乐」的唯一判定（老板 2026-10-08）。
+ *
+ * 老板报的原话：「刚才张权选择娱乐模式，怎么把 python 杀了，三角洲也进不去？」
+ * 查到的是这条链：**切娱乐时压根没判过「玩不玩得起」** —— 先让他进去，
+ * 下一个心跳（≤30 秒）才发现余额撑不住，再把他踢回空闲。
+ * 这一进一出十几秒里，**娱乐名单（python.exe）和空闲名单（三角洲）各套了一遍**：
+ * python 被杀、他一启动三角洲又被杀，而他根本没真正玩上娱乐。
+ * 线上 2026-10-07 16:05:24 进娱乐 → 16:05:29 杀 python → 16:05:39 踢回空闲，就是这条链。
+ *
+ * 所以：**进之前先问一次**（context = 'enter'，撑不住就当场拒绝，娱乐名单根本不下发）；
+ * 心跳里的兜底继续保留（context = 'stay'，玩到中途钱花完了才踢），而且刚进去的
+ * ENTERTAINMENT_GRACE_SECONDS 内不踢，免得再出现「刚进去就被踢」的秒级来回。
+ *
+ * 判定口径跟扣费同一个：免单线到了随便玩；否则看余额 + 押金够不够玩满 1 分钟。
+ */
+export function checkEntertainmentEligibility(params: {
+  availableFunds: number;
+  hourlyRate: number;
+  freeThreshold: number;
+  freeToday: boolean;
+  /** enter = 切状态时判「能不能进」；stay = 心跳兜底判「该不该踢回空闲」。默认 enter。 */
+  context?: 'enter' | 'stay';
+  /** context = stay 时用：已经在娱乐里待了多久（秒）。 */
+  elapsedSeconds?: number;
+}): EntertainmentEligibility {
+  const minutesLeft = entertainmentMinutesLeft(params.availableFunds, params.hourlyRate);
+  if (params.freeToday || minutesLeft > 0) return { ok: true, reason: '', minutesLeft };
+  // 宽限只管「已经进去了的人」：切状态那一下（enter）不能宽限，否则等于没判。
+  const grace = params.context === 'stay' && (Number(params.elapsedSeconds) || 0) < ENTERTAINMENT_GRACE_SECONDS;
+  if (grace) return { ok: true, reason: '', minutesLeft };
+  const funds = Math.max(0, Number(params.availableFunds) || 0);
+  const rate = Math.max(0, Number(params.hourlyRate) || 0);
+  const line = Number(params.freeThreshold) > 0
+    ? `今天流水到 ¥${params.freeThreshold} 就免单`
+    : '今天流水免单线没开';
+  return {
+    ok: false,
+    minutesLeft,
+    reason: `余额 + 押金不够玩娱乐（现在 ¥${funds}，娱乐 ¥${rate}/小时，${line}）—— 先充值或交押金，或者今天多打几单再进。`,
+  };
 }
 
 /** 营业日窗口（12:00 为界由调用方算好传进来） */
@@ -158,3 +225,76 @@ export function entertainmentBasisRevenue(todayRevenue: number, depositPlayed: n
   const b = Number.isFinite(depositPlayed) ? depositPlayed : 0;
   return roundToJiao(a + b);
 }
+/** 「能不能玩娱乐」要用到的全部数（余额、费率、免单线、今日流水 + 打掉的存单） */
+export interface EntertainmentStanding {
+  /** 余额 + 押金 */
+  availableFunds: number;
+  hourlyRate: number;
+  freeThreshold: number;
+  /** 今日订单流水（口径 A：主陪拿主陪金额、搭档拿搭档金额，谁的钱算谁的） */
+  todayRevenue: number;
+  /** 今天「打掉的存单」金额（老板 2026-10-04：也算进娱乐门槛） */
+  depositPlayed: number;
+  /** 门槛口径：今日流水 + 打掉的存单 */
+  basisRevenue: number;
+  /** 今天流水是否已到免单线 */
+  freeToday: boolean;
+  /** 数据库里此刻的状态（心跳那条要拿它确认「人还在娱乐里」） */
+  status: string | null;
+}
+
+/**
+ * 把「娱乐能不能玩 / 该收多少钱」需要的数一次查齐。
+ *
+ * 为什么抽成一个：**切状态**（能不能进娱乐）和**心跳兜底**（该不该踢回空闲）原来是各查各的，
+ * 两处口径一旦不一致就会出现「能进、进去又被踢」（老板 2026-10-08 报的张权那单就是这个）。
+ * 现在两处都走这里，判断也只有一个 checkEntertainmentEligibility。
+ *
+ * 查不到人（数据异常）时返回 null —— 调用方按「不拦人」处理，别因为查库失败把人卡在门外。
+ */
+export async function loadEntertainmentStanding(
+  prisma: any,
+  companionId: string,
+  now: Date = new Date(),
+): Promise<EntertainmentStanding | null> {
+  const wallet = await prisma.companion
+    .findUnique({
+      where: { id: companionId },
+      select: { balance: true, deposit: true, status: true, studioId: true },
+    })
+    .catch(() => null);
+  if (!wallet) return null;
+
+  const { hourlyRate, freeThreshold } = await loadEntertainmentRule(prisma, wallet.studioId ?? null);
+  const { start: dayStart, end: dayEnd } = currentBusinessDayRange(now);
+  const dayOrders = await prisma.order
+    .findMany({
+      where: {
+        status: 'DONE',
+        createdAt: { gte: dayStart, lt: dayEnd },
+        OR: [{ companionId }, { coCompanionId: companionId }],
+      },
+      select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
+    })
+    .catch(() => [] as any[]);
+  const todayRevenue = (dayOrders as any[]).reduce(
+    (acc: number, o: any) => acc + companionOrderRevenue(o, companionId),
+    0,
+  );
+  const depositPlayed = await sumDepositPlayedToday(prisma, [companionId], { start: dayStart, end: dayEnd })
+    .then((m) => m.get(companionId) || 0)
+    .catch(() => 0);
+  const basisRevenue = entertainmentBasisRevenue(todayRevenue, depositPlayed);
+
+  return {
+    availableFunds: (wallet.balance || 0) + (wallet.deposit || 0),
+    hourlyRate,
+    freeThreshold,
+    todayRevenue,
+    depositPlayed,
+    basisRevenue,
+    freeToday: isEntertainmentFree(basisRevenue, freeThreshold),
+    status: wallet.status ?? null,
+  };
+}
+

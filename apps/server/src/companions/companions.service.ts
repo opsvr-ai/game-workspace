@@ -10,7 +10,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { companionMonthRevenueParts, companionOrderRevenue } from '../common/order-revenue';
-import { computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, sumDepositPlayedToday } from '../common/entertainment-fee';
+import { checkEntertainmentEligibility, computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, loadEntertainmentStanding, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { roundToJiao } from '../common/money';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { CompanionRevenueService } from './companion-revenue.service';
@@ -570,6 +570,10 @@ export class CompanionsService {
     if (status === 'RESTING' && current && current.status !== 'AVAILABLE' && current.status !== 'OFFLINE') {
       throw new BadRequestException('当前状态不能直接休息，请先切回空闲');
     }
+    // 娱乐是「要花钱」的状态：进之前先把账算清（老板 2026-10-08）。
+    if (status === 'ENTERTAINMENT') {
+      await this.assertEntertainmentAffordable(id, now);
+    }
 
     return this.applyStatusChange(id, status, now);
   }
@@ -619,6 +623,31 @@ export class CompanionsService {
     return this.applyStatusChange(id, 'RESTING', now);
   }
 
+  /**
+   * 娱乐「玩不玩得起」——进之前先问一次（老板 2026-10-08）。
+   *
+   * 老板报的原话：「张权选择娱乐模式，怎么把 python 杀了，三角洲也进不去？」
+   * 查到的根因是：以前**切娱乐时压根没判**，先让他进去，下一个心跳（≤30 秒）才发现余额撑不住，
+   * 再把他踢回空闲。这一进一出十几秒里，娱乐名单（python.exe）和空闲名单（三角洲）**各套了一遍** ——
+   * python 被杀、他一启动三角洲又被杀，而他根本没真正玩上娱乐。
+   *
+   * 现在撑不住就**当场拒绝**（把原因直说给陪玩听），娱乐名单根本不会下发；
+   * 判定跟心跳兜底共用 common/entertainment-fee.ts 的唯一口径，不会再出现两处不一致。
+   *
+   * 查不到钱包（数据异常）时不拦人 —— 宁可让他进，也别因为查库失败把人卡在门外。
+   */
+  private async assertEntertainmentAffordable(id: string, now: Date) {
+    const standing = await loadEntertainmentStanding(this.prisma as any, id, now);
+    if (!standing) return;
+    const verdict = checkEntertainmentEligibility({
+      availableFunds: standing.availableFunds,
+      hourlyRate: standing.hourlyRate,
+      freeThreshold: standing.freeThreshold,
+      freeToday: standing.freeToday,
+      context: 'enter',
+    });
+    if (!verdict.ok) throw new BadRequestException(verdict.reason);
+  }
   /**
    * 状态落库 + 维护计时日志（手动切状态和无操作自动休息共用）。
    * 关闭上一个计时日志、开新状态的，用于统计各状态时长 / 娱乐计费，

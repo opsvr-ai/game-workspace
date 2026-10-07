@@ -1,9 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, sumDepositPlayedToday } from '../common/entertainment-fee';
-import { companionOrderRevenue } from '../common/order-revenue';
-import { currentBusinessDayRange } from '../common/business-day';
+import { checkEntertainmentEligibility, computeEntertainmentFee, entertainmentMinutesLeft, loadEntertainmentStanding } from '../common/entertainment-fee';
 import { logger } from '../common/logger';
 import { WsGateway } from './ws.gateway';
 
@@ -78,41 +76,12 @@ export class HeartbeatService {
         data: { durationSeconds: elapsed },
       });
 
-      // Balance check: if in ENTERTAINMENT mode and running out of funds
+      // 娱乐余额检查：数从 loadEntertainmentStanding 一次取齐（跟「能不能进娱乐」同一处口径，
+      // 见 common/entertainment-fee.ts）—— 以前切状态和心跳各查各的，才会出现「能进、进去又被踢」。
       if (openLog.mode === 'ENTERTAINMENT') {
-        const companion = await this.prisma.companion.findUnique({
-          where: { id: user.companionId },
-          select: { balance: true, deposit: true, status: true, studioId: true },
-        });
-        if (companion) {
-          const availableFunds = (companion.balance || 0) + (companion.deposit || 0);
-          // 娱乐费/免单线统一走 common/entertainment-fee.ts：
-          // 当日流水达标就免单，此时不该再预警、更不该强行切回空闲。
-          const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma, companion.studioId);
-          const { start: dayStart, end: dayEnd } = currentBusinessDayRange(now);
-          // 口径 A（老板 2026-10-07「谁的钱算谁的」）：今日流水 = 主陪 amount + 他当搭档的 coAmount。
-          const dayOrders = await this.prisma.order
-            .findMany({
-              where: {
-                status: 'DONE',
-                createdAt: { gte: dayStart, lt: dayEnd },
-                OR: [{ companionId: user.companionId }, { coCompanionId: user.companionId }],
-              },
-              select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
-            })
-            .catch(() => [] as any[]);
-          const todayRevenue = user.companionId
-            ? dayOrders.reduce((acc: number, o: any) => acc + companionOrderRevenue(o, user.companionId!), 0)
-            : 0;
-          // 老板 2026-10-04：「打存单也算在娱乐那个门槛里」——
-          // 门槛看的是「今天到手的钱」：订单流水 + 今天打掉的存单（存单常加在老的续单上，订单算不到今天）。
-          const depositPlayed = await sumDepositPlayedToday(
-            this.prisma,
-            [user.companionId],
-            { start: dayStart, end: dayEnd },
-          ).then((m) => (user.companionId ? m.get(user.companionId) || 0 : 0)).catch(() => 0);
-          const basisRevenue = entertainmentBasisRevenue(todayRevenue, depositPlayed);
-          const freeToday = isEntertainmentFree(basisRevenue, freeThreshold);
+        const standing = await loadEntertainmentStanding(this.prisma as any, user.companionId, now);
+        if (standing) {
+          const { availableFunds, hourlyRate, freeThreshold, basisRevenue, freeToday } = standing;
           const feeMinutes = Math.floor(elapsed / 60);
           const fee = computeEntertainmentFee({
             minutes: feeMinutes,
@@ -120,7 +89,18 @@ export class HeartbeatService {
             hourlyRate,
             freeThreshold,
           });
-          const remainingMinutes = Math.floor(availableFunds / (hourlyRate / 60));
+          const remainingMinutes = entertainmentMinutesLeft(availableFunds, hourlyRate);
+
+          // 能不能继续留在娱乐：唯一口径（免单线到了随便玩；否则余额 + 押金够不够玩满 1 分钟），
+          // 且刚进娱乐的宽限期内不踢 —— 见 checkEntertainmentEligibility 的注释。
+          const verdict = checkEntertainmentEligibility({
+            availableFunds,
+            hourlyRate,
+            freeThreshold,
+            freeToday,
+            context: 'stay',
+            elapsedSeconds: elapsed,
+          });
 
           // 30 minute warning
           if (!freeToday && remainingMinutes <= 30 && remainingMinutes > 0) {
@@ -137,7 +117,7 @@ export class HeartbeatService {
           }
 
           // Balance exhausted — force switch to AVAILABLE
-          if (!freeToday && remainingMinutes <= 0 && companion.status === 'ENTERTAINMENT') {
+          if (!verdict.ok && standing.status === 'ENTERTAINMENT') {
             await this.prisma.companion.update({
               where: { id: user.companionId },
               data: { status: 'AVAILABLE' },
@@ -163,7 +143,7 @@ export class HeartbeatService {
               },
             });
             this.wsGateway.server.to(`user:${user.id}`).emit('entertainment:forceIdle', {
-              message: `余额不足，已自动切换到空闲状态。娱乐 ${feeMinutes} 分钟，费用 ¥${fee}（费率 ¥${hourlyRate}/小时）`,
+              message: `余额不足，已自动切换到空闲状态（娱乐 ${feeMinutes} 分钟，按 ¥${hourlyRate}/小时 该收 ¥${fee}）。${verdict.reason}`,
             });
             if (user.studioId) {
               this.wsGateway.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
@@ -179,6 +159,8 @@ export class HeartbeatService {
               companionId: user.companionId,
               fee,
               availableFunds,
+              elapsedSeconds: elapsed,
+              reason: verdict.reason,
             });
           }
         }
