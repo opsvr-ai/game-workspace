@@ -7,14 +7,17 @@ import http from '../../api/client';
 import { useAuthStore } from '../../stores/authStore';
 import ReplyBar from './ReplyBar';
 import { getImagesFromClipboard, isImageFile } from '../../utils/clipboardImage';
+import { clearDraft, loadDraft, useDraftSaver } from '../../utils/draft';
 
-import { BG } from '../../styles/tokens';
+import { BG, TEXT } from '../../styles/tokens';
 interface ChatComposerProps {
   onSend: (text: string, replyToId?: string, mentionUserIds?: string[]) => void;
   onUpload?: (file: File) => Promise<string | undefined>;
   uploading?: boolean;
   groupMembers?: Array<{ userId: string; username: string; displayName?: string; role: string }>;
   mentionRequest?: { nonce: number; name: string } | null;
+  /** 草稿键（每个会话一个）："chat:<会话id>" —— 页面被刷掉也能把没发出去的字捡回来 */
+  draftKey?: string | null;
 }
 
 const EMOJI_CATEGORIES: Record<string, string[]> = {
@@ -37,12 +40,24 @@ function saveCustomEmojis(emojis: string[]) {
   http.put('/auth/me/emojis', { emojis }).catch(() => {});
 }
 
-const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading, groupMembers = [], mentionRequest }) => {
+const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading, groupMembers = [], mentionRequest, draftKey }) => {
   const userId = useAuthStore((s) => s.user?.id || 'anonymous');
   const inputHeightStorageKey = `chat-input-height:${userId}`;
-  const [text, setText] = useState('');
+  // 老板 2026-10-08：「聊天的时候软件经常刷新一下，输入的东西就全没了」——
+  // 输入框里的字存一份草稿，页面被刷掉（客户端换版 / 休眠唤醒）也捡得回来。
+  // 会话切换靠父组件给的 key 重挂组件，所以这里读一次就够。
+  const [text, setText] = useState<string>(() => {
+    const saved = loadDraft<string>(draftKey);
+    return typeof saved === 'string' ? saved : '';
+  });
+  const [restoredFromDraft, setRestoredFromDraft] = useState<boolean>(() => {
+    const saved = loadDraft<string>(draftKey);
+    return typeof saved === 'string' && saved.trim().length > 0;
+  });
   const [replyTo, setReplyTo] = useState<{ id: string; content: string } | null>(null);
   const [showEmoji, setShowEmoji] = useState(false);
+  // 存草稿 + 登记「我在写」：有没发出去的字时，AppLayout 的自动换版刷新会被拦下来
+  useDraftSaver(draftKey, text, { busy: text.trim().length > 0 });
   const [dragOver, setDragOver] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -185,6 +200,8 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
     );
     onSend(trimmed, replyTo?.id, mentionUserIds);
     setText('');
+    clearDraft(draftKey);
+    setRestoredFromDraft(false);
     setReplyTo(null);
     setShowEmoji(false);
     setMentionOpen(false);
@@ -282,6 +299,13 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
       style={{ flexShrink: 0, borderTop: '1px solid #E8E9EB', background: dragOver ? '#EAF3FF' : BG.container, transition: 'background .15s' }}
     >
       {replyTo && <ReplyBar content={replyTo.content} onCancel={() => setReplyTo(null)} />}
+
+      {/* 页面被刷过、字是从草稿里捡回来的：说一声，免得让人以为是自己手滑打错了 */}
+      {restoredFromDraft && text.trim().length > 0 && (
+        <div style={{ padding: '4px 12px 0', fontSize: 12, color: TEXT.tertiary }}>
+          已恢复你上次没发出去的内容（页面被刷新时自动存下来的）
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, padding: '8px 12px' }}>
         <div style={{ display: 'flex', gap: 2, paddingBottom: 4 }}>

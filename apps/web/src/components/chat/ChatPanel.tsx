@@ -290,6 +290,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         isGroup={conv?.isGroup || participant?.role === 'GROUP'}
       />
       <ChatComposer
+        // 换会话就重挂：草稿按会话分开存、分开读（老板 2026-10-08 的「输入别丢」）
+        key={roomId || 'composer'}
+        draftKey={roomId ? `chat:${roomId}` : null}
         onSend={handleSend}
         onUpload={handleUpload}
         groupMembers={groupMembers}

@@ -24,6 +24,8 @@ import { showSystemNotification, showBannerNotification, playNotificationSound }
 import { notifyNotice, recordNotice } from '../utils/notice';
 import { useNotifStore, selectUnreadNotices, noticePath } from '../stores/notifStore';
 import { usePartnerInviteStore } from '../stores/partnerInviteStore';
+import { decideBuildRefresh } from '../utils/buildRefresh';
+import { installUnloadGuard, isAnyBusy } from '../utils/busyGuard';
 import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
 import { NoticeList } from '../components/NoticeList';
@@ -139,6 +141,13 @@ const AppLayout: React.FC = () => {
     const api = (window as any).electronAPI;
     api?.getAppVersion?.().then((v: string) => setAppVersion(v || '')).catch(() => {});
   }, []);
+  // 有没提交的内容时，拦下整页刷新（老板 2026-10-08）：
+  // 陪玩端主进程每次发现「网页版号变了」就 webContents.reload()、休眠唤醒也会 reload 一次 ——
+  // 正在打字也照刷，输入全没了。网页拦不住主进程主动发起的 reload，但 Electron 默认会**因为
+  // 页面的 beforeunload 取消这次 reload**（实测 Electron 30：有过用户交互的页面会被拦下）。
+  // 想彻底不刷，等客户端那一版（刷前先问页面 / 唤醒不再硬刷）发出去，见 CHANGELOG。
+  useEffect(() => installUnloadGuard(), []);
+
   useEffect(() => {
     const pageStartedAt = Date.now();
     const send = () => {
@@ -148,19 +157,20 @@ const AppLayout: React.FC = () => {
           const id = res?.data?.data?.webBuildId;
           if (!id) return;
           setWebBuild(id);
-          const prev = localStorage.getItem('webBuildId');
-          if (!prev) {
-            localStorage.setItem('webBuildId', id);
-            return;
-          }
-          if (prev === id) return;
-          // 有新版本前端页面。以前这里无条件刷新，服务端每重启一次大家就整页刷一次，
-          // 看起来就是「动不动掉线」。现在：服务中不刷、刚打开页面先等一会儿、5 分钟内只刷一次。
-          if (res?.data?.data?.inService) return;
-          if (Date.now() - pageStartedAt < 120_000) return;
-          const lastReloadAt = Number(localStorage.getItem('webBuildReloadAt') || 0);
-          if (Date.now() - lastReloadAt < 5 * 60_000) return;
+          // 有新版本前端页面要不要现在刷：判定收在 utils/buildRefresh.ts（老板 2026-10-08）。
+          // 规则：服务中不刷、刚打开页面先等 2 分钟、5 分钟内只刷一次，**有人在写东西（有没提交的
+          // 内容）也不刷** —— 以前漏了最后这条，打字打一半被整页刷掉、输入全没了。
+          const decision = decideBuildRefresh({
+            prev: localStorage.getItem('webBuildId'),
+            next: id,
+            pageAgeMs: Date.now() - pageStartedAt,
+            lastReloadAt: Number(localStorage.getItem('webBuildReloadAt') || 0),
+            inService: !!res?.data?.data?.inService,
+            busy: isAnyBusy(),
+          });
+          if (!decision.remember) return;
           localStorage.setItem('webBuildId', id);
+          if (!decision.reload) return;
           localStorage.setItem('webBuildReloadAt', String(Date.now()));
           window.location.reload();
         })

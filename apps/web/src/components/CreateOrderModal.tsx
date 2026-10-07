@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS002
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import { Modal, Form, Input, Select, InputNumber, Upload, Button, Checkbox } from 'antd';
 import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
@@ -11,6 +11,8 @@ import http from '../api/client';
 import PasteImageBox from './PasteImageBox';
 import { TransferNote, transferList } from './OrderTransferNote';
 import { orderTypeConfig, dispatchTypeConfig, deltaMissionDefaultPrice } from '../constants/orders';
+import { clearDraft, loadDraft, saveDraft } from '../utils/draft';
+import { clearBusy, setBusy } from '../utils/busyGuard';
 
 import { SEMANTIC } from '../styles/tokens';
 const { Option } = Select;
@@ -48,6 +50,43 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
   const [showInactiveAccounts, setShowInactiveAccounts] = useState(false);
   const [customerWechatQr, setCustomerWechatQr] = useState('');
   const [uploading, setUploading] = useState(false);
+  // 老板 2026-10-08：「发布订单的时候软件经常刷新一下，输入的东西就全没了」——
+  // ① 弹窗开着就登记「有人在写东西」，AppLayout 的自动换版刷新会被拦下（见 utils/busyGuard.ts）；
+  // ② 填到一半的内容存一份草稿：万一还是被刷掉（客户端主进程硬刷 / 休眠唤醒），重开弹窗自动回填。
+  //    编辑既有订单不存（免得把老单数据当草稿回填）；「开始服务」/ 派单页带来的预填也不存 —— 那些
+  //    是别处传进来的数据，回填会跟它打架。
+  const [restoredDraft, setRestoredDraft] = useState(false);
+  const skipDraftSaveRef = useRef(false);
+  const draftKey =
+    editingOrder || customerPreFill || initialValues
+      ? null
+      : `order:${directAddMode ? 'direct' : 'publish'}:${userId || 'anon'}`;
+
+  // 弹窗一开着就登记「在填单」：这期间整页刷新会被拦下来（老板 2026-10-08）。
+  useEffect(() => {
+    if (!open) return undefined;
+    const id = `order-form:${userId || 'anon'}`;
+    setBusy(id, true);
+    return () => clearBusy(id);
+  }, [open, userId]);
+
+  // 重开弹窗：把上次没发出去的草稿捡回来。只有「被刷新打掉」才会走到这里 ——
+  // 主动点取消 / 发布成功都会把草稿清掉，免得把上一单的客户信息带进下一单。
+  useEffect(() => {
+    skipDraftSaveRef.current = false;
+    if (!open || !draftKey) {
+      setRestoredDraft(false);
+      return;
+    }
+    const saved = loadDraft<Record<string, any>>(draftKey);
+    if (!saved || typeof saved !== 'object') {
+      setRestoredDraft(false);
+      return;
+    }
+    form.setFieldsValue(saved);
+    if (typeof saved.customerWechatQr === 'string') setCustomerWechatQr(saved.customerWechatQr);
+    setRestoredDraft(true);
+  }, [open, draftKey, form]);
 
   /**
    * 「先给谁抢」的默认值来自发单客服自己的档位（老板 2026-09-29）：
@@ -206,6 +245,8 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         await ordersApi.create(payload);
         message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入「管理端直添客户流转明细」' : '订单已发布');
       }
+      skipDraftSaveRef.current = true;
+      clearDraft(draftKey);
       form.resetFields();
       onClose();
       onCreated();
@@ -222,6 +263,9 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
       open={open}
       onOk={handleOk}
       onCancel={() => {
+        // 主动取消 = 这单不发了：草稿一起清掉，免得下一单把上一位客户的信息带进来。
+        skipDraftSaveRef.current = true;
+        clearDraft(draftKey);
         form.resetFields();
         onClose();
       }}
@@ -234,8 +278,23 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
       {/* 转让留痕（老板 2026-10-03「400 订单转给王甲振，怎么没看到转让记录」）：
           订单管理里老板点开这一单走的是编辑弹窗，之前这里一个字都没有。 */}
       {transferList(editingOrder?.transfers).length > 0 && (
-        <div style={{ marginBottom: 12, padding: '8px 10px', background: SEMANTIC.orangeSoft, border: '1px solid #FED7AA', borderRadius: 6 }}>
+        <div style={{ marginBottom: 12, padding: '8px 10px', background: SEMANTIC.orangeSoft, border: `1px solid ${SEMANTIC.orangeBorder}`, borderRadius: 6 }}>
           <TransferNote transfers={editingOrder?.transfers} />
+        </div>
+      )}
+      {restoredDraft && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '6px 10px',
+            background: SEMANTIC.orangeSoft,
+            border: `1px solid ${SEMANTIC.orangeBorder}`,
+            borderRadius: 6,
+            fontSize: 12,
+            color: SEMANTIC.warningDeep,
+          }}
+        >
+          已恢复你上次没发出去的内容（页面被刷新时自动存下来的）
         </div>
       )}
       <Form
@@ -243,6 +302,11 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         layout="vertical"
         style={{ marginTop: 8 }}
         size="small"
+        // 填一下存一下（写 localStorage，顺手把「我在写」登记到 busyGuard）
+        onValuesChange={(_, all) => {
+          if (!draftKey || skipDraftSaveRef.current) return;
+          saveDraft(draftKey, all);
+        }}
         initialValues={{
           type: 'NEW',
           gameName: '三角洲行动',

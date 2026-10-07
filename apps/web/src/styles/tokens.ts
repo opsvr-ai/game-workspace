@@ -148,6 +148,8 @@ export const SEMANTIC = {
   orangeDeeper: '#C2410C',
   /** orange-50 底（统计卡） */
   orangeSoft: '#FFF7ED',
+  /** orange-100 描边（浅橙底提示条：转让留痕 / 草稿恢复提示那种） */
+  orangeBorder: '#FED7AA',
   /** 亮蓝（信息类数字） */
   infoBright: '#3B82F6',
   /** 深蓝（统计卡字） */
