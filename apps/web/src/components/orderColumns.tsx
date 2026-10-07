@@ -10,11 +10,14 @@ import {
 import { orderStatusConfig, orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import {
   ORDER_FIELD_LABELS,
+  ORDER_DISPATCH_TEXT_COLOR,
+  ORDER_DISPATCH_TIP,
   ORDER_STATUS_TEXT_COLOR,
   fieldVisibleTo,
   isOrderStuck,
   orderAmountText,
   orderCustomerWechat,
+  orderDispatchTypeLabel,
   orderUrgencyText,
 } from '../constants/orderFields';
 import { OutcomeSuffix, outcomeSuffixText } from './OrderOutcome';
@@ -168,6 +171,27 @@ export function buildOrderColumns({
         );
       },
     },
+    {
+      // 老板 2026-10-07：「怎么看不到订单类型比如指定单」——派单方式是「指定 / 入池」，
+      // 和「订单类型」（首单 / 续单 / 复购 / 打赏）是两回事，所以单占一列、紧跟在状态后面。
+      // 定宽不参与补宽（和「转让记录」一个道理）：窗口再窄也看得到这张单是不是指定单。
+      title: ORDER_FIELD_LABELS.dispatchType,
+      key: 'dispatchType',
+      width: W('dispatchType', FIELD_WIDTH.dispatchType),
+      render: (_: unknown, o: any) => {
+        const label = orderDispatchTypeLabel(o);
+        // 认不出来的值（老数据 / 新加的枚举）宁可留空，也不把英文原文打到界面上
+        if (!label) return <div style={CELL_ONE_LINE} />;
+        return (
+          <div style={CELL_ONE_LINE} title={ORDER_DISPATCH_TIP[o.dispatchType] || label}>
+            <span style={{ color: ORDER_DISPATCH_TEXT_COLOR[o.dispatchType] || TEXT.secondary }}>
+              {label}
+            </span>
+          </div>
+        );
+      },
+    },
+
     {
       title: ORDER_FIELD_LABELS.game,
       key: 'game',

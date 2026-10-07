@@ -48,6 +48,15 @@ export const FIELD_WIDTH = {
    *  老板说的「距离太大」就是这里。线上 / 桥接单的结果小字现在放不下就省略号，
    *  鼠标悬停看全（orderColumns.tsx 的状态格把结果拼进了 title）。 */
   orderStatus: 46,
+  /**
+   * 「派单方式」单行：指定（紫字）/ 入池（灰字）。
+   * 老板 2026-10-07：「怎么看不到订单类型比如指定单」——以前这张表一个字都不显示派单方式，
+   * 客服 / 老板只能点进订单详情才猜得出来；「订单类型」那个筛选下拉里也只有首单 / 续单 / 复购 / 打赏。
+   * 和「转让记录」一个道理：**定宽、不参与补宽**（见 ORDER_COLUMN_FIT_ORDER 里故意没有它），
+   * 窗口再窄也看得到。内容最多 2 个字（12px = 24px）+ 左右各 5px 内边距 = 34px；
+   * 表头「派单方式」4 个字 11px = 44px + 10px → **54px**。
+   */
+  dispatchType: 54,
   /** 「游戏 / 服务」单行：游戏名 + 双 + 机密/绝密（空格分隔，省下的宽度留给客户列）。
    *  2026-09-28 第三次调整：客服默认窗口 1320 宽时，订单管理那张表真正能用的只有 985px
    *  （卡片内边距 14×2 之后的宽度），而九列加起来是 986 → 多出来的 1px 会让表格长出横向滚动条。
@@ -206,13 +215,13 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
 
 /**
  * 订单管理表的列（管理端，顺序即表头顺序），scroll.x 直接用它算。
- * 顺序 = constants/orderFields.ts 的字段口径（订单 → 状态 → 游戏 / 服务 → 金额 / 打单 →
+ * 顺序 = constants/orderFields.ts 的字段口径（订单 → 状态 → 派单方式 → 游戏 / 服务 → 金额 / 打单 →
  * 来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式 → 备注 → 主陪 / 副陪 → 发布 → 操作）。
- * 管理端 13 列；合计 66+46+112+74+50+116+96+88+132+84+66+116+254 = **1300px**。
+ * 管理端 15 列；合计 66+46+54+112+74+50+116+96+88+132+84+66+64+116+254 = **1418px**。
  * 窗口比这宽时多出来的宽度怎么分，见下面的 fitOrderColumnWidths（按 ORDER_COLUMN_FIT_ORDER
  * 先补给客户那五列，不再堆在「退款」右边，也不会把「主陪 / 副陪」撑出一截空白）。 */
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
-  'orderCode', 'orderStatus', 'game', 'amount',
+  'orderCode', 'orderStatus', 'dispatchType', 'game', 'amount',
   'customerSource', 'customerSourceAccount', 'customerNickname', 'customerAccountId', 'customerContact',
   'orderNote', 'studio', 'transfer', 'createdAt', 'orderActions',
 ];
@@ -222,16 +231,16 @@ export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
  * 「来源 / 引流账号 / 客户昵称 / 客户账号ID」四列按 orderFields.ts 的 COMPANION_HIDDEN_FIELDS 去掉
  * （老板 2026-09-29「陪玩端 隐藏 客户小红书信息」；2026-09-30「只是有些数据不展示给陪玩端而已」）——
  * 不再是另写一套「客户微信 / 编号 + 客户账号」。
- * 合计 66+46+112+74+132+84+84+116+214 = **928px**（比改造前还窄 70px，陪玩端更不用横向拖）。
+ * 合计 66+46+54+112+74+132+84+84+116+214 = **982px**（陪玩端能用的宽度约 998px，仍然不用横向拖）。
  */
 export const ORDER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
-  'orderCode', 'orderStatus', 'game', 'amount',
+  'orderCode', 'orderStatus', 'dispatchType', 'game', 'amount',
   'customerContact', 'orderNote', 'studioCompanion', 'createdAt', 'companionOrderActions',
 ];
 
 /**
  * 订单管理表的基准宽度之和 —— 也是这张表 scroll.x 的下限
- * （66+46+112+74+50+116+96+88+132+84+66+64+116+254 = 1364px）。
+ * （66+46+54+112+74+50+116+96+88+132+84+66+64+116+254 = 1418px）。
  */
 export const ORDER_TABLE_BASE_WIDTH = sumWidths(ORDER_TABLE_KEYS);
 
@@ -260,6 +269,7 @@ export const ORDER_COLUMN_MAX_WIDTH: Record<string, number> = {
   createdAt: 118, // 基础 116 就够（发布人 +「MM-DD HH:mm」），留 2px 余量
   // 这里**故意没有 transfer**：转让列按基础宽度 64px 固定走（老板 2026-10-03 要「一眼能看到」，
   // 「已转让」三个字只要 44px，宽度必须恒定、不随窗口变，免得窗口一窄它就被省略号吃掉）。
+  // 同上，「派单方式」也**故意没有**：它只有「指定 / 入池」两个字，54px 固定走，不跟着窗口变宽变窄。
 };
 
 /**
@@ -341,12 +351,12 @@ export const CUSTOMER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
  * 派单管理下面三张订单列表的列（订单池流转失败明细 / 跟进列表 / 流转明细）。
  * 和订单管理同一套列宽（同样拆成来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式五列，
  * 多一个「说明」列、操作列窄一些，并且三张表都用 hideStudio 去掉「主陪 / 副陪」）：
- * 66+46+112+74+50+116+96+88+132+150+116+178 = **1224px**，1320 窗口（可用 991px）会有横向滚动
+ * 66+46+54+112+74+50+116+96+88+132+150+116+178 = **1278px**，1320 窗口（可用 991px）会有横向滚动
  * （和订单管理共用同一份列宽，所以这几张表也一起变宽了）。
  * 注意：这三张列表实际用 OrderTable 渲染，scroll.x 是按真实列宽之和算的，这里只是留档。
  */
 export const ORDER_PANEL_KEYS: Array<keyof typeof FIELD_WIDTH> = [
-  'orderCode', 'orderStatus', 'game', 'amount',
+  'orderCode', 'orderStatus', 'dispatchType', 'game', 'amount',
   'customerSource', 'customerSourceAccount', 'customerNickname', 'customerAccountId', 'customerContact',
   'panelNote', 'createdAt', 'panelActions',
 ];

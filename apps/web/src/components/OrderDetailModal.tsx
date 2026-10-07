@@ -11,12 +11,14 @@ import {
 } from '../constants/datasetColumns';
 import {
   ORDER_FIELD_LABELS,
+  ORDER_DISPATCH_TEXT_COLOR,
   ORDER_STATUS_TEXT_COLOR,
   orderAmountText,
   orderBillingModeText,
   orderCompanionText,
   orderCustomerContact,
   orderDeltaCountText,
+  orderDispatchTypeLabel,
   orderDurationText,
   orderGameText,
   orderServiceTypeText,
@@ -102,6 +104,11 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
         </Descriptions.Item>
         <Descriptions.Item label={ORDER_FIELD_LABELS.status}>
           <span style={{ color: ORDER_STATUS_TEXT_COLOR[order.status] || TEXT.heading }}>{orderStatusLabel(order)}</span>
+        </Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.dispatchType}>
+          <span style={{ color: ORDER_DISPATCH_TEXT_COLOR[order.dispatchType] || TEXT.heading }}>
+            {orderDispatchTypeLabel(order) || '-'}
+          </span>
         </Descriptions.Item>
         <Descriptions.Item label={ORDER_FIELD_LABELS.game}>{orderGameText(order)}</Descriptions.Item>
         <Descriptions.Item label={ORDER_FIELD_LABELS.amount}>

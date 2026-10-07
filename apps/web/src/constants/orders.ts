@@ -34,6 +34,27 @@ export const dispatchTypeConfig: Record<string, { color: string; label: string }
   DIRECT: { color: 'green', label: '指定' },
 };
 
+/**
+ * 派单方式的显示名（指定 / 入池 / 广播）。取不到值就返回空串，
+ * **绝不把英文枚举原文打给用户看**（老板 2026-09-30：「标签都用一样的」）。
+ * 订单管理表的「派单方式」列、订单详情的同一行、工具条筛选下拉全部走这一份。
+ *
+ * 注意：发布订单表单里选「广播」时，服务端存的是 `POOL`（见 orders.service.ts ——
+ * 广播本来就是「进抢单池」的一种），所以库里只有 POOL / DIRECT 两种值；
+ * 陪玩自建、续单、直添客户那些同样是 POOL。
+ */
+export const dispatchTypeLabel = (dispatchType?: string | null): string =>
+  dispatchTypeConfig[String(dispatchType ?? '')]?.label ?? '';
+
+/** 派单方式的固定顺序：**指定排最前**（老板天天要找的就是它），后面才是入池 / 广播。 */
+export const dispatchTypeOrder = ['DIRECT', 'POOL', 'BROADCAST'];
+
+/** 订单管理工具条「派单方式」筛选下拉的选项，标签取上面那一份，不另写中文。 */
+export const dispatchTypeOptions = dispatchTypeOrder.map((value) => ({
+  value,
+  label: dispatchTypeConfig[value]?.label ?? value,
+}));
+
 export const contactStatusConfig: Record<string, { color: string; label: string }> = {
   added: { color: 'green', label: '联系方式添加成功' },
   not_accepted: { color: 'orange', label: '已添加未同意' },

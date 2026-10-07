@@ -17,7 +17,13 @@
  * 页面里不再写死中文标签 —— 以后改名只要改这一个文件。
  * 陪玩端只是**少几个字段**（老板 2026-09-29「陪玩端 隐藏 客户小红书信息」），不是换一套写法。
  */
-import { billingModeConfig, orderTypeConfig, orderStatusConfig, serviceTypeConfig } from './orders';
+import {
+  billingModeConfig,
+  dispatchTypeLabel,
+  orderTypeConfig,
+  orderStatusConfig,
+  serviceTypeConfig,
+} from './orders';
 import { TEXT, SEMANTIC } from '../styles/tokens';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -42,6 +48,7 @@ export const ORDER_FIELD_LABELS = {
   createdAt: '发布',
   // 详情弹窗里那些单独成行的字段（名字跟发布订单表单 CreateOrderModal 里的 label 一模一样）
   orderType: '订单类型',
+  dispatchType: '派单方式',
   serviceType: '服务类型',
   deltaMission: '任务类型',
   deltaCount: '单/双陪',
@@ -129,6 +136,26 @@ export const ORDER_STATUS_TEXT_COLOR: Record<string, string> = {
   DONE: SEMANTIC.successDeep,
   CANCELLED: TEXT.tertiary,
 };
+
+/** 「派单方式」那一列 / 详情那一行的文字颜色（同样是彩色文字，不用彩色标签块）。 */
+export const ORDER_DISPATCH_TEXT_COLOR: Record<string, string> = {
+  DIRECT: SEMANTIC.direct,
+  POOL: TEXT.tertiary,
+  BROADCAST: TEXT.tertiary,
+};
+
+/**
+ * 鼠标停在「派单方式」上时的那句话 —— 把「发布订单里选的广播，这里为什么写入池」说清楚，
+ * 免得老板以为存错了（服务端确实把 BROADCAST 归一化成 POOL 了）。
+ */
+export const ORDER_DISPATCH_TIP: Record<string, string> = {
+  DIRECT: '指定单：发布的时候就点名叫了主陪，不进抢单池，别的陪玩看不到',
+  POOL: '入池单：进抢单池等陪玩抢（发布订单里默认的「广播」存的就是这个）',
+  BROADCAST: '广播单：进抢单池等陪玩抢',
+};
+
+/** 派单方式的取值（订单详情 / 抢单浮窗那一行用），取不到返回空串。 */
+export const orderDispatchTypeLabel = (o: any): string => dispatchTypeLabel(o?.dispatchType);
 
 // ── 取值（纯文本，一个字段一行）─────────────────────────────────────────────
 // 表格单元格、订单详情、订单池那一行用的是同一份取值函数，保证「同一个数据在哪儿都是同一段文字」。
@@ -232,6 +259,7 @@ export const ORDER_FIELD_TEXT: Record<string, (o: any) => string | null> = {
     return code ? `${code} · ${orderTypeLabel(o)}` : null;
   },
   status: (o) => orderStatusLabel(o),
+  dispatchType: (o) => orderDispatchTypeLabel(o) || null,
   game: (o) => orderGameText(o),
   amount: (o) => `${orderAmountText(o)} · ${orderUrgencyText(o)}`,
   customerSource: (o) => o?.customFields?.customerSource || o?.customer?.platform || null,
@@ -287,6 +315,7 @@ export const ORDER_CARD_FIELD_ORDER: string[] = [
 export const ORDER_DETAIL_FIELD_ORDER: string[] = [
   'orderCode',
   'status',
+  'dispatchType',
   'game',
   'serviceType',
   'deltaMission',

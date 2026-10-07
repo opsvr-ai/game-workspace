@@ -35,7 +35,7 @@ import { isRowClickIgnored } from '../utils/rowClick';
 import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
 import { orderMatchesSearch } from '../utils/orderPool';
 import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
-import { orderStatusConfig } from '../constants';
+import { orderStatusConfig, dispatchTypeOptions } from '../constants';
 import { ORDER_FIELD_LABELS, ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
 import PageHeader from '../components/PageHeader';
 import SupplementReviewButton from '../components/SupplementReviewButton';
@@ -109,6 +109,9 @@ const OrdersPage: React.FC = () => {
   const [preFill, setPreFill] = useState<any>(null);
   const [dateFilter, setDateFilter] = useState<any>(null);
   const [typeFilter, setTypeFilter] = useState<string>('');
+  // 「派单方式」筛选（指定 / 入池）：老板 2026-10-07「怎么看不到订单类型比如指定单」——
+  // 它和上面的「订单类型」（首单 / 续单 / 复购 / 打赏）是两回事，所以单独一个下拉。
+  const [dispatchFilter, setDispatchFilter] = useState<string>('');
   // 客服端默认只看自己发布/认领的单，需要时可切到全店（服务端 scope 参数）
   const [csScope, setCsScope] = useState<'mine' | 'all'>('mine');
   // 陪玩端的三个口径（服务端 scope 参数），老板 2026-10-03：
@@ -1071,6 +1074,10 @@ const OrdersPage: React.FC = () => {
       return o.type === typeFilter;
     })
     .filter((o: any) => {
+      if (!dispatchFilter) return true;
+      return o.dispatchType === dispatchFilter;
+    })
+    .filter((o: any) => {
       if (!orderSearch) return true;
       return orderMatchesSearch(o, orderSearch);
     })
@@ -1180,6 +1187,15 @@ const OrdersPage: React.FC = () => {
             <Option value="TIP">打赏</Option>
           </Select>
           <Select
+            placeholder={ORDER_FIELD_LABELS.dispatchType}
+            allowClear
+            value={dispatchFilter || undefined}
+            onChange={(v) => setDispatchFilter(v || '')}
+            style={{ width: 100 }}
+            size="small"
+            options={dispatchTypeOptions}
+          />
+          <Select
             placeholder="员工筛选"
             allowClear
             value={companionFilter || undefined}
@@ -1231,7 +1247,7 @@ const OrdersPage: React.FC = () => {
               ]}
             />
           )}
-          {(orderSearch || typeFilter || companionFilter || csFilter || dateFilter) && (
+          {(orderSearch || typeFilter || dispatchFilter || companionFilter || csFilter || dateFilter) && (
             <Text type="secondary" style={{ fontSize: 12, lineHeight: '24px' }}>
               筛选结果: {sorted.length}/{orders.length}
             </Text>
