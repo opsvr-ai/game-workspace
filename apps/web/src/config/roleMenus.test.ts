@@ -149,6 +149,44 @@ describe('左侧导航菜单（roleMenus）', () => {
     expect(missing).toEqual([]);
   });
 
+  it('左侧菜单最多两级（第三级一律换成不折叠的分组标题）', () => {
+    // 老板 2026-10-08：「很多菜单都得点开好几个子菜单」—— 现在最多两级：
+    // 一级点开就是能点的页面，中间那层换成 type: 'group' 的分组标题（点了不跳转、也不用再展开）。
+    const problems: string[] = [];
+    const walk = (items: MenuItemDef[], depth: number, lane: string): void => {
+      for (const item of items) {
+        const kids = item.children ?? [];
+        if (depth >= 2 && kids.length > 0) {
+          problems.push(lane + ' 的「' + String(item.label) + '」已经是第三级，下面还挂着子菜单');
+        }
+        if (kids.length) walk(kids, depth + 1, lane + ' / ' + String(item.label));
+      }
+    };
+    for (const role of ROLES) walk(roleMenus[role], 0, role);
+    expect(problems).toEqual([]);
+  });
+
+  it('分组标题（type: group）只做视觉分段：不空、key 不是路径、里面都是能点的页面', () => {
+    const problems: string[] = [];
+    for (const role of ROLES) {
+      for (const top of roleMenus[role]) {
+        for (const kid of top.children ?? []) {
+          if (kid.type !== 'group') continue;
+          if (!(kid.children ?? []).length) problems.push(role + ' 的分组「' + String(kid.label) + '」是空的');
+          if (String(kid.key).startsWith('/')) {
+            problems.push(role + ' 的分组「' + String(kid.label) + '」的 key 是路径「' + kid.key + '」');
+          }
+          for (const leaf of kid.children ?? []) {
+            if ((leaf.children ?? []).length) {
+              problems.push(role + ' 的分组「' + String(kid.label) + '」里的「' + String(leaf.label) + '」还挂着子菜单');
+            }
+          }
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
   it('整棵菜单树快照（重构 AppLayout 时，菜单一改这里就红）', () => {
     const tree = Object.fromEntries(
       ROLES.map((role) => [

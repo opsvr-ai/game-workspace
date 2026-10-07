@@ -1679,283 +1679,95 @@ const AppLayout: React.FC = () => {
     const rvCount = reviewBadge;
     const orCount = outcomeReviewBadge;
     const REVIEW_LABELS = ['工作室管理', '实名审核'];
-    const CHAT_LABELS = ['陪玩管理', '员工管理', '首页'];
+    const CHAT_LABELS = ['员工管理', '首页'];
     const CONTACT_LABELS = ['派单工作台'];
     const PENDING_START_LABELS = ['订单管理'];
     const OUTCOME_REVIEW_LABELS = ['成交核对'];
-    const REVIEW_WORK_LABELS = ['陪玩管理', '陪玩'];
-    const badged = items.map((item) => {
-      // Check children (group items) for badge targets
-      if (item.children) {
-        const hasPending = item.children.some((c: any) => REVIEW_LABELS.includes(c.label) && pCount > 0);
-        const hasBridgePending = item.children.some((c: any) => c.label === '工作室桥接' && bpCount > 0);
-        const hasBilling = item.children.some((c: any) => c.label === '报账系统' && bCount > 0);
-        const hasUnread = item.children.some((c: any) => CHAT_LABELS.includes(c.label) && directUnread > 0);
-        const hasReview = item.children.some((c: any) => REVIEW_WORK_LABELS.includes(c.label) && rvCount > 0);
-        const hasContact = item.children.some((c: any) => CONTACT_LABELS.includes(c.label) && cCount > 0);
-        const hasPendingStart = item.children.some((c: any) => PENDING_START_LABELS.includes(c.label) && psCount > 0);
-        const hasOutcomeReview = item.children.some(
-          (c: any) => OUTCOME_REVIEW_LABELS.includes(c.label) && orCount > 0,
+    // 工作抽查异常挂在「陪玩列表 / 人员管理」上（以前挂在折叠的「陪玩管理」上，点不动）。
+    const REVIEW_WORK_LABELS = ['陪玩列表', '人员管理'];
+    // ── 菜单角标 ──
+    // 表驱动：命中 label 的菜单项就在后面挂一个红点 / 黄点（一级、二级、分组标题都能挂）。
+    // 老板 2026-10-08 起左侧菜单最多两级，第三级变成不折叠的分组标题，所以这里按 label 递归找。
+    const BADGE_RULES: Array<{
+      labels: string[];
+      count: number;
+      color: string;
+      /** 点掉角标时顺手标记「看过了」 */
+      markSeen?: () => void;
+      /** 点击时改跳哪儿（默认跳这个菜单项自己的页面） */
+      to?: (key: string) => string;
+      /** 点进去之前先记一笔「刚清掉了什么」（陪玩「订单管理」用） */
+      onOpen?: (key: string) => void;
+      title?: string;
+    }> = [
+      { labels: REVIEW_LABELS, count: pCount, color: SEMANTIC.danger, markSeen },
+      { labels: ['工作室桥接'], count: bpCount, color: SEMANTIC.danger, markSeen: markBridgeSeen },
+      { labels: ['报账系统'], count: bCount, color: SEMANTIC.danger, markSeen: markBillingSeen },
+      // 工作抽查异常（/admin/review-queue-count，见上面 reviewBadge）挂在「陪玩列表」上：
+      // 点进去就是陪玩列表，能看到那个人的工作记录。以前挂在折叠的「陪玩管理」上，点不动。
+      { labels: REVIEW_WORK_LABELS, count: rvCount, color: SEMANTIC.warning, markSeen: markReviewSeen },
+      { labels: CHAT_LABELS, count: directUnread, color: SEMANTIC.danger },
+      {
+        labels: CONTACT_LABELS, count: cCount, color: SEMANTIC.warning, markSeen: markContactSeen,
+        // 「客服跟进台账」已并进「管理端直添客户流转明细」（老板 2026-09-30）
+        to: (key) => key + '?tab=converted',
+      },
+      {
+        labels: PENDING_START_LABELS, count: psCount, color: SEMANTIC.warning, markSeen: markPendingStartSeen,
+        onOpen: (key) =>
+          rememberCleared(noticePath(key), [`${psCount} 张单已抢到/已确认，还没点「开始首单」`]),
+      },
+      {
+        labels: OUTCOME_REVIEW_LABELS, count: orCount, color: SEMANTIC.danger,
+        title: `${orCount} 张报「不成功」的单还没拍板 —— 去定责：谁的问题找谁`,
+      },
+    ];
+
+    /** 这个菜单项点了要跳哪：自己就是页面就用自己；是分组 / 折叠项就跳进去第一个能点的页面。 */
+    const jumpKeyOf = (node: any): string | null => {
+      if (typeof node?.key === 'string' && node.key.startsWith('/')) return node.key;
+      for (const kid of node?.children || []) {
+        const found = jumpKeyOf(kid);
+        if (found) return found;
+      }
+      return null;
+    };
+
+    const applyBadges = (list: any[]): any[] =>
+      list.map((node: any) => {
+        const next: any = Array.isArray(node.children) && node.children.length
+          ? { ...node, children: applyBadges(node.children) }
+          : { ...node };
+        const rule = BADGE_RULES.find((r) => r.count > 0 && r.labels.includes(next.label));
+        if (!rule) return next;
+        const label = (
+          <span
+            onClick={(e: any) => {
+              e.stopPropagation();
+              rule.onOpen?.(next.key);
+              rule.markSeen?.();
+              const jump = jumpKeyOf(next);
+              if (jump) {
+                clearNoticesByKey(next.key);
+                navigate(rule.to ? rule.to(jump) : jump);
+              }
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+            title={rule.title}
+          >
+            {next.label}
+            <Badge
+              count={rule.count}
+              size="small"
+              overflowCount={99}
+              style={{ boxShadow: badgeGlow(rule.color) }}
+            />
+          </span>
         );
-        if (
-          hasPending ||
-          hasBridgePending ||
-          hasBilling ||
-          hasUnread ||
-          hasReview ||
-          hasContact ||
-          hasPendingStart ||
-          hasOutcomeReview
-        ) {
-          return {
-            ...item,
-            children: item.children.map((child: any) => {
-              if (!child.children && REVIEW_LABELS.includes(child.label) && pCount > 0) {
-                return {
-                  ...child,
-                  label: (
-                    <span
-                      onClick={(e: any) => {
-                        e.stopPropagation();
-                        markSeen();
-                        clearNoticesByKey(child.key);
-                        navigate(child.key);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
-                    >
-                      {child.label}
-                      <Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
-                    </span>
-                  ),
-                };
-              }
-              if (!child.children && child.label === '工作室桥接' && bpCount > 0) {
-                return {
-                  ...child,
-                  label: (
-                    <span
-                      onClick={(e: any) => {
-                        e.stopPropagation();
-                        markBridgeSeen();
-                        clearNoticesByKey(child.key);
-                        navigate(child.key);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
-                    >
-                      {child.label}
-                      <Badge
-                        count={bpCount}
-                        size="small"
-                        overflowCount={99}
-                        style={{ boxShadow: badgeGlow(SEMANTIC.danger) }}
-                      />
-                    </span>
-                  ),
-                };
-              }
-              if (!child.children && child.label === '报账系统' && bCount > 0) {
-                return {
-                  ...child,
-                  label: (
-                    <span
-                      onClick={(e: any) => {
-                        e.stopPropagation();
-                        markBillingSeen();
-                        clearNoticesByKey(child.key);
-                        navigate(child.key);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
-                    >
-                      {child.label}
-                      <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
-                    </span>
-                  ),
-                };
-              }
-              if (!child.children && REVIEW_WORK_LABELS.includes(child.label) && rvCount > 0) {
-                return {
-                  ...child,
-                  label: (
-                    <span
-                      onClick={(e: any) => {
-                        e.stopPropagation();
-                        markReviewSeen();
-                        clearNoticesByKey(child.key);
-                        navigate(child.key);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
-                    >
-                      {child.label}
-                      <Badge
-                        count={rvCount}
-                        size="small"
-                        overflowCount={99}
-                        style={{ boxShadow: badgeGlow(SEMANTIC.warning) }}
-                      />
-                    </span>
-                  ),
-                };
-              }
-              if (!child.children && CHAT_LABELS.includes(child.label) && directUnread > 0) {
-                return {
-                  ...child,
-                  label: (
-                    <span
-                      onClick={(e: any) => {
-                        e.stopPropagation();
-                        clearNoticesByKey(child.key);
-                        navigate(child.key);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
-                    >
-                      {child.label}
-                      <Badge
-                        count={directUnread}
-                        size="small"
-                        overflowCount={99}
-                        style={{ boxShadow: directUnread > 0 ? badgeGlow(SEMANTIC.danger) : undefined }}
-                      />
-                    </span>
-                  ),
-                };
-              }
-              if (!child.children && CONTACT_LABELS.includes(child.label) && cCount > 0) {
-                return {
-                  ...child,
-                  label: (
-                    <span
-                      onClick={(e: any) => {
-                        e.stopPropagation();
-                        markContactSeen();
-                        clearNoticesByKey(child.key);
-                        // 「客服跟进台账」已并进「管理端直添客户流转明细」（老板 2026-09-30），
-                        // 待跟进角标点进去就是那一页
-                        navigate(`${child.key}?tab=converted`);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
-                    >
-                      {child.label}
-                      <Badge
-                        count={cCount}
-                        size="small"
-                        overflowCount={99}
-                        style={{ boxShadow: badgeGlow(SEMANTIC.warning) }}
-                      />
-                    </span>
-                  ),
-                };
-              }
-              if (!child.children && PENDING_START_LABELS.includes(child.label) && psCount > 0) {
-                return {
-                  ...child,
-                  label: (
-                    <span
-                      onClick={(e: any) => {
-                        e.stopPropagation();
-                        // 陪玩的「订单管理」红点 = 有几张单已抢到/已确认但还没点「开始首单」，
-                        // 原来点掉就没了、页面里什么都不说 —— 一并记进「刚清掉」，进页面顶头写清。
-                        rememberCleared(
-                          noticePath(child.key),
-                          [`${psCount} 张单已抢到/已确认，还没点「开始首单」`],
-                        );
-                        markPendingStartSeen();
-                        clearNoticesByKey(child.key);
-                        navigate(child.key);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
-                    >
-                      {child.label}
-                      <Badge
-                        count={psCount}
-                        size="small"
-                        overflowCount={99}
-                        style={{ boxShadow: badgeGlow(SEMANTIC.warning) }}
-                      />
-                    </span>
-                  ),
-                };
-              }
-              if (!child.children && OUTCOME_REVIEW_LABELS.includes(child.label) && orCount > 0) {
-                return {
-                  ...child,
-                  label: (
-                    <span
-                      onClick={(e: any) => {
-                        e.stopPropagation();
-                        clearNoticesByKey(child.key);
-                        navigate(child.key);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
-                      title={`${orCount} 张报「不成功」的单还没拍板 —— 去定责：谁的问题找谁`}
-                    >
-                      {child.label}
-                      <Badge
-                        count={orCount}
-                        size="small"
-                        overflowCount={99}
-                        style={{ boxShadow: badgeGlow(SEMANTIC.danger) }}
-                      />
-                    </span>
-                  ),
-                };
-              }
-              return child;
-            }),
-          };
-        }
-      }
-      // Top-level item check (fallback)
-      if (REVIEW_LABELS.includes(item.label as string) && pCount > 0) {
-        return {
-          ...item,
-          label: (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {item.label}
-              <Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
-            </span>
-          ),
-        };
-      }
-      if (item.label === '工作室桥接' && bpCount > 0) {
-        return {
-          ...item,
-          label: (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {item.label}
-              <Badge count={bpCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
-            </span>
-          ),
-        };
-      }
-      if (item.label === '报账系统' && bCount > 0) {
-        return {
-          ...item,
-          label: (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {item.label}
-              <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
-            </span>
-          ),
-        };
-      }
-      if (CHAT_LABELS.includes(item.label as string) && directUnread > 0) {
-        return {
-          ...item,
-          label: (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {item.label}
-              <Badge
-                count={directUnread}
-                size="small"
-                overflowCount={99}
-                style={{ boxShadow: directUnread > 0 ? badgeGlow(SEMANTIC.danger) : undefined }}
-              />
-            </span>
-          ),
-        };
-      }
-      return item;
-    });
+        return { ...next, label };
+      });
+
+    const badged = applyBadges(items);
     // 先把「模块图标色 + 流水比例小字」挂好，再平铺单子菜单 ——
     // 平铺时父级的图标/文字会被搬到子项上，顺序反了颜色就丢了。
     const decorated = decorateMenu(badged, shareRatios);
@@ -2012,13 +1824,23 @@ const AppLayout: React.FC = () => {
         ? { ...it, label: menuBadgeLabel(it.label, todosBadge, todosHint || undefined) }
         : it,
     );
-  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey, rememberCleared, todosBadge, todosHint]);
+  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, reviewBadge, outcomeReviewBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey, rememberCleared, navigate, markSeen, markBridgeSeen, markBillingSeen, markReviewSeen, markContactSeen, markPendingStartSeen, todosBadge, todosHint]);
 
   const selectedKeys = useMemo(() => {
+    // 高亮当前页。菜单 key 有的一级直接就是页面（单子菜单会被平铺），有的藏在二级 / 分组里，
+    // 所以先把整棵树里「能点的页面 key」全收集起来，再取最长前缀命中的那一个。
+    // （以前只看一级菜单的 key，于是除了「待处理」，点进任何页面左侧都不高亮 —— 2026-10-08 修。）
+    const pageKeys: string[] = [];
+    const collect = (list: any[]) => {
+      for (const node of list) {
+        if (Array.isArray(node.children) && node.children.length) collect(node.children);
+        else if (typeof node.key === 'string') pageKeys.push(node.key.split('?')[0]);
+      }
+    };
+    collect(menuItems);
     const path = location.pathname;
-    const matched = menuItems
-      .map((item) => item.key)
-      .filter((key) => path.startsWith(key))
+    const matched = pageKeys
+      .filter((key) => key.startsWith('/') && (path === key || path.startsWith(key + '/')))
       .sort((a, b) => b.length - a.length);
     return matched.length > 0 ? [matched[0]] : [];
   }, [location.pathname, menuItems]);
