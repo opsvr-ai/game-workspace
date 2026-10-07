@@ -59,9 +59,9 @@ describe('HeartbeatService', () => {
     wsGateway = mockWsGateway();
     service = new HeartbeatService(mockPrisma as any, wsGateway as any);
     vi.clearAllMocks();
-    // 娱乐余额判定会聚合「今日已完成流水」；真实 Prisma 一定返回对象，
-    // mock 返回 undefined 会让 `order.aggregate(...).catch(...)` 直接炸掉。
-    mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+    // 娱乐余额判定会取「今日已完成流水」（口径 A：主陪 + 搭档）；
+    // 真实 Prisma 一定返回数组，mock 返回 undefined 会让 `order.findMany(...).catch(...)` 直接炸掉。
+    mockPrisma.order.findMany.mockResolvedValue([]);
   });
 
   // =========================================================================

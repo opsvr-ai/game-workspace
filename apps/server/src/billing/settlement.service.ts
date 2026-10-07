@@ -164,10 +164,22 @@ export class SettlementService {
       // Today's date range（营业日：当日 12:00 至次日 11:59）
       const { start: todayStart, end: todayEnd } = currentBusinessDayRange();
 
+    // 口径（老板 2026-10-07「口径 A：谁的钱算谁的」）：**指定某个陪玩时**，
+    // 他的业绩 = 主陪 amount + 他当搭档挣的 coAmount；全店视图仍是「整店订单金额」，不变。
+    const singleCompanionId = typeof companionId === 'string' && companionId ? companionId : null;
+    const scopeWhere: any = singleCompanionId
+      ? { OR: [{ companionId: singleCompanionId }, { coCompanionId: singleCompanionId }] }
+      : { companionId: companionFilter };
+    const orderSelect = { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true } as const;
+    const sumRev = (rows: any[]): number =>
+      singleCompanionId
+        ? rows.reduce((s, o) => s + companionOrderRevenue(o, singleCompanionId), 0)
+        : rows.reduce((s, o) => s + (Number(o.amount) || 0), 0);
+
     // Today's DONE revenue
-    const todayAgg = await this.prisma.order.aggregate({
-      where: { studioId, status: 'DONE', companionId: companionFilter, createdAt: { gte: todayStart, lt: todayEnd } },
-      _sum: { amount: true },
+    const todayRows = await this.prisma.order.findMany({
+      where: { studioId, status: 'DONE', ...scopeWhere, createdAt: { gte: todayStart, lt: todayEnd } },
+      select: orderSelect,
     });
 
     // 当月业绩：口径见需求文档 §7.1，结算月 = 当月 1 日 12:00 至次月 1 日 12:00
@@ -175,24 +187,24 @@ export class SettlementService {
     const targetMonth = month || nowMonth;
     const { start: monthStart, end: monthEnd } = settlementMonthRange(targetMonth);
 
-    const monthAgg = await this.prisma.order.aggregate({
+    const monthRows = await this.prisma.order.findMany({
       where: {
         studioId,
         status: 'DONE',
-        companionId: companionFilter,
+        ...scopeWhere,
         createdAt: { gte: monthStart, lt: monthEnd },
       },
-      _sum: { amount: true },
+      select: orderSelect,
     });
-    const monthRevenue = monthAgg._sum.amount ?? 0;
+    const monthRevenue = sumRev(monthRows as any[]);
 
     // 历史累计（只用于展示）
-    const totalAgg = await this.prisma.order.aggregate({
-      where: { studioId, status: 'DONE', companionId: companionFilter },
-      _sum: { amount: true },
+    const totalRows = await this.prisma.order.findMany({
+      where: { studioId, status: 'DONE', ...scopeWhere },
+      select: orderSelect,
     });
 
-    const totalRevenue = totalAgg._sum.amount ?? 0;
+    const totalRevenue = sumRev(totalRows as any[]);
 
     // Deposit
     let deposit = 0;
@@ -261,7 +273,7 @@ export class SettlementService {
 
     return {
       summary: {
-        todayRevenue: todayAgg._sum.amount ?? 0,
+        todayRevenue: sumRev(todayRows as any[]),
         monthRevenue,
         month: targetMonth,
         totalRevenue,

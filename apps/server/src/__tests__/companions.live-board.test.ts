@@ -5,7 +5,7 @@ import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
 /**
  * 实时看板（老板 2026-10-03：「几十个小人按顺序排列…显示状态…谁在跟谁打什么、
  * 打了多久、目前多少业绩」）。这里锁住最容易错、也最不能错的三件事：
- *  1. 今日业绩必须走 companionOrderRevenue 统一口径（主陪扣搭档与分成、搭档拿 coAmount），
+ *  1. 今日业绩必须走 companionOrderRevenue 统一口径（口径 A：主陪拿「主陪金额」再扣分给他人的、搭档拿 coAmount），
  *     看板里不许另起一套算法 —— 否则跟结算/报账对不上；
  *  2. 排序：接单中 → 娱乐中 → 空闲 → 离线（管理端一眼扫过去要稳）；
  *  3. 打单中的人要带齐「跟谁打、打什么、多久、我拿多少」。
@@ -41,7 +41,7 @@ describe('CompanionsService.liveBoard（实时看板）', () => {
     service = buildService(prisma);
   });
 
-  it('今日业绩走统一口径：主陪扣搭档与分成、搭档拿 coAmount；排序与统计正确', async () => {
+  it('今日业绩走统一口径：主陪拿主陪金额（扣分给他人的）、搭档拿 coAmount；排序与统计正确', async () => {
     const startedAt = new Date(Date.now() - 3600 * 1000);
     const pc = (mode: string, hbMsAgo = 0) => ({ lastHeartbeat: new Date(Date.now() - hbMsAgo), currentMode: mode });
     (prisma.companion.findMany as any).mockResolvedValue([
@@ -66,8 +66,8 @@ describe('CompanionsService.liveBoard（实时看板）', () => {
     const board: any = await service.liveBoard({ role: 'OWNER', studioId: null });
     const byId = new Map<string, any>(board.rows.map((r: any) => [r.companionId, r] as [string, any]));
 
-    // 今日业绩：A 主陪 = 100 - 40(搭档) - 10(分给别人) = 50；B 搭档 = coAmount 40。
-    expect(byId.get('A').todayRevenue).toBe(50);
+    // 今日业绩（口径 A）：A 主陪 = 100 - 10(分给别人) = 90（不再扣搭档那份）；B 搭档 = coAmount 40。
+    expect(byId.get('A').todayRevenue).toBe(90);
     expect(byId.get('A').todayOrders).toBe(1);
     expect(byId.get('B').todayRevenue).toBe(40);
     // C 没出现在订单的主陪/搭档里（只是被分成的那个人），看板不给他算今日业绩。

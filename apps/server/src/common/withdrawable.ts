@@ -3,6 +3,7 @@ import { currentSettlementMonthRange, settlementMonthRange } from './business-da
 import { computeRevenueShare, effectiveTenureMonths } from './revenue-calculator';
 import type { RevenueSplitTier } from './revenue-calculator';
 import { resolveConfigs } from './studio-config';
+import { companionOrderRevenue } from './order-revenue';
 
 /**
  * 可支取余额（唯一口径，需求文档 §7.1）：
@@ -66,12 +67,22 @@ export async function computeWithdrawable(
   // 分店自己的配置优先（店长填的），没有才用老板的全局值 —— 见 common/studio-config.ts
   const studioId = (companion as any).studio?.id as string | undefined;
 
-  const [monthAgg, totalAgg, withdrawnAgg, pendingAgg, depositRows, cfg] = await Promise.all([
-    prisma.order.aggregate({
-      where: { companionId, status: 'DONE', createdAt: { gte: start, lt: end } },
-      _sum: { amount: true },
+  const orderSelect = { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true } as const;
+  const [monthOrders, totalOrders, withdrawnAgg, pendingAgg, depositRows, cfg] = await Promise.all([
+    // 业绩口径（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪算 amount、搭档算 coAmount。
+    // 以前只按 companionId 汇总 amount —— 他当搭档挣的那份既不进可支取、也不进分润档位。
+    prisma.order.findMany({
+      where: {
+        status: 'DONE',
+        createdAt: { gte: start, lt: end },
+        OR: [{ companionId }, { coCompanionId: companionId }],
+      },
+      select: orderSelect,
     }),
-    prisma.order.aggregate({ where: { companionId, status: 'DONE' }, _sum: { amount: true } }),
+    prisma.order.findMany({
+      where: { status: 'DONE', OR: [{ companionId }, { coCompanionId: companionId }] },
+      select: orderSelect,
+    }),
     prisma.walletTransaction.aggregate({
       where: { companionId, type: 'WITHDRAW', status: 'APPROVED', createdAt: { gte: start, lt: end } },
       _sum: { amount: true },
@@ -90,8 +101,8 @@ export async function computeWithdrawable(
     resolveConfigs(prisma as any, studioId, ['revenue.club_companion_share', 'revenue.share_tiers']),
   ]);
 
-  const monthRevenue = monthAgg._sum.amount || 0;
-  const totalRevenue = totalAgg._sum.amount || 0;
+  const monthRevenue = monthOrders.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0);
+  const totalRevenue = totalOrders.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0);
   const approvedWithdrawn = withdrawnAgg._sum.amount || 0;
   const pendingWithdraw = pendingAgg.reduce((s, t) => s + (t.amount || 0), 0);
 

@@ -2,6 +2,7 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, sumDepositPlayedToday } from '../common/entertainment-fee';
+import { companionOrderRevenue } from '../common/order-revenue';
 import { currentBusinessDayRange } from '../common/business-day';
 import { logger } from '../common/logger';
 import { WsGateway } from './ws.gateway';
@@ -89,17 +90,20 @@ export class HeartbeatService {
           // 当日流水达标就免单，此时不该再预警、更不该强行切回空闲。
           const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma, companion.studioId);
           const { start: dayStart, end: dayEnd } = currentBusinessDayRange(now);
-          const dayAgg = await this.prisma.order
-            .aggregate({
+          // 口径 A（老板 2026-10-07「谁的钱算谁的」）：今日流水 = 主陪 amount + 他当搭档的 coAmount。
+          const dayOrders = await this.prisma.order
+            .findMany({
               where: {
-                companionId: user.companionId,
                 status: 'DONE',
                 createdAt: { gte: dayStart, lt: dayEnd },
+                OR: [{ companionId: user.companionId }, { coCompanionId: user.companionId }],
               },
-              _sum: { amount: true },
+              select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
             })
-            .catch(() => null);
-          const todayRevenue = dayAgg?._sum?.amount || 0;
+            .catch(() => [] as any[]);
+          const todayRevenue = user.companionId
+            ? dayOrders.reduce((acc: number, o: any) => acc + companionOrderRevenue(o, user.companionId!), 0)
+            : 0;
           // 老板 2026-10-04：「打存单也算在娱乐那个门槛里」——
           // 门槛看的是「今天到手的钱」：订单流水 + 今天打掉的存单（存单常加在老的续单上，订单算不到今天）。
           const depositPlayed = await sumDepositPlayedToday(

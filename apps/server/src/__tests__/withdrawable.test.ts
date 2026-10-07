@@ -10,6 +10,7 @@ import { createMockPrisma } from '../__mocks__/prisma.mock';
 // ---------------------------------------------------------------------------
 function setup(opts: {
   monthRevenue: number;
+  coRevenue?: number;
   withdrawn?: number;
   pending?: number[];
   deposits?: number[];
@@ -22,9 +23,15 @@ function setup(opts: {
     isSeniorStaff: false,
     studio: { splitMode: 'FIXED' },
   } as never);
-  prisma.order.aggregate
-    .mockResolvedValueOnce({ _sum: { amount: opts.monthRevenue } })
-    .mockResolvedValueOnce({ _sum: { amount: opts.monthRevenue } });
+  // 业绩取数：口径 A（主陪 amount + 搭档 coAmount）。opts.coRevenue 用来验证搭档那份也进业绩：
+  // 这时候再补一条「他是搭档」的单（主陪是别人、coCompanionId 是他）。
+  const orderRows: any[] = [
+    { companionId: 'comp-1', coCompanionId: null, amount: opts.monthRevenue, coAmount: null, customFields: {} },
+  ];
+  if (opts.coRevenue) {
+    orderRows.push({ companionId: 'someone-else', coCompanionId: 'comp-1', amount: 999, coAmount: opts.coRevenue, customFields: {} });
+  }
+  prisma.order.findMany.mockResolvedValue(orderRows as never);
   prisma.walletTransaction.aggregate.mockResolvedValue({ _sum: { amount: opts.withdrawn ?? 0 } });
   prisma.walletTransaction.findMany.mockImplementation(async (args: any) => {
     const rows = (opts.pending ?? []).map((amount, i) => ({ amount, id: `tx-${i + 1}` }));
@@ -75,6 +82,14 @@ describe('computeWithdrawable：未打存单预留', () => {
     const r = await computeWithdrawable(prisma as unknown as never, 'comp-1');
     expect(r.depositReserve).toBe(500);
     expect(r.withdrawable).toBe(0);
+  });
+
+  it('口径 A：他当搭档挣的那份（coAmount）也算进业绩', async () => {
+    const prisma = setup({ monthRevenue: 1000, coRevenue: 500, deposits: [0], share: 0.5 });
+    const r = await computeWithdrawable(prisma as unknown as never, 'comp-1');
+    // 1000（主陪）+ 500（搭档）= 1500 业绩 → ×50% = 750
+    expect(r.totalRevenue).toBe(1500);
+    expect(r.withdrawable).toBe(750);
   });
 
   it('审核本笔待审支取时可以用 excludeTxId 把它排除掉', async () => {

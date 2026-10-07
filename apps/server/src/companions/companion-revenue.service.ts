@@ -6,6 +6,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { computeRevenueShare, effectiveTenureMonths } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { companionOrderRevenue } from '../common/order-revenue';
 
 @Injectable()
 export class CompanionRevenueService {
@@ -38,13 +39,25 @@ export class CompanionRevenueService {
 
     const companionIds = companions.map((c) => c.id);
 
-    // Single groupBy query replaces N per-companion findMany calls
+    // 业绩口径（老板 2026-10-07「口径 A：谁的钱算谁的」）：
+    //   主陪伴 = 他当主陪的「主陪金额」；搭档份 = 他当搭档的「搭档金额」都要算进他自己头上。
+    // 两个 groupBy 合并（主陪 by companionId/amount + 搭档 by coCompanionId/coAmount），
+    // 比逐人 findMany 省；人数里没有的（含跨店陪玩）不进榜。
     const orderStats =
       companionIds.length > 0
         ? await this.prisma.order.groupBy({
             by: ['companionId', 'type'],
             where: { companionId: { in: companionIds }, status: 'DONE' },
             _sum: { amount: true },
+            _count: { id: true },
+          })
+        : [];
+    const coOrderStats =
+      companionIds.length > 0
+        ? await this.prisma.order.groupBy({
+            by: ['coCompanionId', 'type'],
+            where: { coCompanionId: { in: companionIds }, status: 'DONE' },
+            _sum: { coAmount: true },
             _count: { id: true },
           })
         : [];
@@ -66,6 +79,15 @@ export class CompanionRevenueService {
       s.totalCount += row._count.id;
       s.typeCounts[row.type] = row._count.id;
       s.typeAmounts[row.type] = row._sum.amount || 0;
+    }
+    for (const row of coOrderStats) {
+      const cid = row.coCompanionId!;
+      if (!statsMap.has(cid)) statsMap.set(cid, defaultStats());
+      const s = statsMap.get(cid)!;
+      s.totalAmount += row._sum.coAmount || 0;
+      s.totalCount += row._count.id;
+      s.typeCounts[row.type] = (s.typeCounts[row.type] || 0) + row._count.id;
+      s.typeAmounts[row.type] = (s.typeAmounts[row.type] || 0) + (row._sum.coAmount || 0);
     }
 
     const results = companions.map((c) => {
@@ -180,12 +202,12 @@ export class CompanionRevenueService {
 
     const totalBalance = (companion.balance || 0) + (companion.deposit || 0);
 
-    // Total revenue from all DONE orders
-    const totalRevenue = await this.prisma.order.aggregate({
-      where: { companionId, status: 'DONE' },
-      _sum: { amount: true },
+    // 历史总业绩（口径 A：主陪算「主陪金额」、搭档算「搭档金额」）——分成档位按它走，必须跟可支取一致。
+    const totalOrders = await this.prisma.order.findMany({
+      where: { status: 'DONE', OR: [{ companionId }, { coCompanionId: companionId }] },
+      select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
     });
-    const totalRev = totalRevenue._sum.amount || 0;
+    const totalRev = totalOrders.reduce((acc, o) => acc + companionOrderRevenue(o, companionId), 0);
 
     // 分成比例（委托给 revenue-calculator）：按「本店店长填的 → 老板全局默认」解析
     const cfg = await resolveConfigsRaw(this.prisma, companion.studio?.id, [

@@ -12,6 +12,7 @@ import { maskCustomerWechat, maskPartnerContactView, stripPoolCustomerContact } 
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { switchCompanionStatus } from '../common/companion-status-switch';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
+import { companionOrderRevenue } from '../common/order-revenue';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { DIRECT_ALERT_SECONDS } from './direct-assignment-reminder.service';
@@ -3936,19 +3937,20 @@ export class OrdersService implements OnModuleInit {
         // 娱乐费统一口径（当日流水达标免单），避免和看板/工作台算法不一致
         const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma, partner?.studioId);
         const { start: entDayStart, end: entDayEnd } = currentBusinessDayRange();
-        const entDayRevenue = await this.prisma.order
-          .aggregate({
+        // 口径 A（老板 2026-10-07「谁的钱算谁的」）：今日流水 = 主陪 amount + 他当搭档的 coAmount。
+        const entDayOrders = await this.prisma.order
+          .findMany({
             where: {
-              companionId: partnerId,
               status: 'DONE',
               createdAt: { gte: entDayStart, lt: entDayEnd },
+              OR: [{ companionId: partnerId }, { coCompanionId: partnerId }],
             },
-            _sum: { amount: true },
+            select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
           })
-          .catch(() => null);
+          .catch(() => [] as any[]);
         entertainmentFee = computeEntertainmentFee({
           minutes: elapsed / 60,
-          todayRevenue: entDayRevenue?._sum?.amount || 0,
+          todayRevenue: entDayOrders.reduce((acc: number, o: any) => acc + companionOrderRevenue(o, partnerId), 0),
           hourlyRate,
           freeThreshold,
         });

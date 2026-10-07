@@ -9,6 +9,7 @@ import {
 import { roundToJiao } from '../common/money';
 import { computeEntertainmentFee, entertainmentBasisRevenue, loadEntertainmentRule, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { companionOrderRevenue } from '../common/order-revenue';
 
 /** 计「在线时长」时认可的模式，与 onlineCount 保持一致 */
 const ONLINE_MODES = new Set(['AVAILABLE', 'BUSY', 'ENTERTAINMENT']);
@@ -31,7 +32,7 @@ export class DashboardService {
         ...studioWhere,
         createdAt: { gte: today, lt: tomorrow },
       },
-      select: { status: true, amount: true, companionId: true },
+      select: { status: true, amount: true, companionId: true, coCompanionId: true, coAmount: true, customFields: true },
     });
     const doneOrders = todayOrders.filter((o) => o.status === 'DONE');
 
@@ -108,9 +109,13 @@ export class DashboardService {
 
     // H3 fix: use Order table for alerts (same source as KPI)
     // 直接用上面那份「今日已完成单」，不再重复查一遍。
+    // 口径（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪算 amount、搭档算 coAmount，
+    // 谁打的那份算谁头上。娱乐费门槛用的就是这份「今日流水」，两边必须是一回事。
     const revMap = new Map<string, number>();
     for (const o of doneOrders) {
-      if (o.companionId) revMap.set(o.companionId, (revMap.get(o.companionId) || 0) + o.amount);
+      for (const cid of new Set([o.companionId, o.coCompanionId].filter(Boolean) as string[])) {
+        revMap.set(cid, (revMap.get(cid) || 0) + companionOrderRevenue(o as any, cid));
+      }
     }
     // 娱乐费：走全系统唯一口径（门槛 = 订单流水 + 今天打掉的存单，达标免单，否则按配置时薪折算）
     // 老板 2026-10-04：「打存单也算在娱乐那个门槛里」——存单常加在老的续单上打，
@@ -249,7 +254,10 @@ export class DashboardService {
     });
     const companionRevenue: any[] = [];
     for (const c of companions) {
-      const rev = monthOrders.filter(o => o.companionId === c.id).reduce((s, o) => s + o.amount, 0);
+      // 本月流水（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪 amount + 他当搭档的 coAmount。
+      const rev = monthOrders
+        .filter((o) => o.companionId === c.id || o.coCompanionId === c.id)
+        .reduce((s, o) => s + companionOrderRevenue(o as any, c.id), 0);
       if (rev > 0) companionRevenue.push({ companionId: c.id, name: c.user?.username || '?', revenue: roundToJiao(rev) });
     }
     companionRevenue.sort((a, b) => b.revenue - a.revenue);
@@ -258,11 +266,16 @@ export class DashboardService {
 
   async getCompanionRevenueDetail(companionId: string) {
     const { start: monthStart } = currentSettlementMonthRange();
+    // 口径（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪算 amount、搭档算 coAmount。
     const orders = await this.prisma.order.findMany({
-      where: { companionId, status: 'DONE', createdAt: { gte: monthStart } },
+      where: {
+        status: 'DONE',
+        createdAt: { gte: monthStart },
+        OR: [{ companionId }, { coCompanionId: companionId }],
+      },
     });
     const breakdown: Record<string, number> = { NEW: 0, RENEW: 0, REPURCHASE: 0, TIP: 0 };
-    for (const o of orders) breakdown[o.type] = (breakdown[o.type] || 0) + o.amount;
-    return { companionId, totalRevenue: orders.reduce((s, o) => s + o.amount, 0), orderCount: orders.length, breakdown };
+    for (const o of orders) breakdown[o.type] = (breakdown[o.type] || 0) + companionOrderRevenue(o as any, companionId);
+    return { companionId, totalRevenue: orders.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0), orderCount: orders.length, breakdown };
   }
 }

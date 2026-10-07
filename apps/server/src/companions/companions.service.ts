@@ -933,26 +933,39 @@ export class CompanionsService {
   async getWorkbench(companionId: string) {
     const { start: today, end: tomorrow } = currentBusinessDayRange();
 
-    // Today's revenue from completed orders
+    // 今日流水（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪算「主陪金额」、搭档算
+    // 「搭档金额」，他当搭档打的那份也进今日流水。以前只查 companionId（他自己当主陪的单），
+    // 当搭档挣的一分不加，同一天「今日」和「本月」两个数就对不上。
     const todayOrders = await this.prisma.order.findMany({
       where: {
-        companionId,
         status: 'DONE',
         createdAt: { gte: today, lt: tomorrow },
+        OR: [{ companionId }, { coCompanionId: companionId }],
+      },
+      select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
+    });
+    const todayRevenue = todayOrders.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0);
+
+    // 订单分型（口径 A：主陪算「主陪金额」、搭档算「搭档金额」；他当搭档打的那份也算他自己打过的单）
+    const typeOrders = await this.prisma.order.findMany({
+      where: { status: 'DONE', OR: [{ companionId }, { coCompanionId: companionId }] },
+      select: {
+        type: true,
+        createdAt: true,
+        companionId: true,
+        coCompanionId: true,
+        amount: true,
+        coAmount: true,
+        customFields: true,
       },
     });
-    const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
-
-    // Order type breakdown (single query with groupBy)
-    const typeStats = await this.prisma.order.groupBy({
-      by: ['type'],
-      where: { companionId, status: 'DONE' },
-      _sum: { amount: true },
-      _count: { id: true },
-    });
     const orderStats = ['NEW', 'RENEW', 'REPURCHASE', 'TIP'].map((type) => {
-      const row = typeStats.find((r) => r.type === type);
-      return { type, count: row?._count?.id ?? 0, amount: row?._sum?.amount ?? 0 };
+      const rows = typeOrders.filter((o) => o.type === type);
+      return {
+        type,
+        count: rows.length,
+        amount: rows.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0),
+      };
     });
     const totalCount = orderStats.reduce((s, o) => s + o.count, 0);
     const statsMap: Record<string, any> = {};
@@ -964,18 +977,16 @@ export class CompanionsService {
       };
     });
 
-    // Today's order type breakdown（营业日 12:00 至次日 12:00）
+    // Today's order type breakdown（营业日 12:00 至次日 12:00；口径同上）
     const { start: todayStart, end: todayEnd } = currentBusinessDayRange();
-    const todayTypeStats = await this.prisma.order.groupBy({
-      by: ['type'],
-      where: { companionId, status: 'DONE', createdAt: { gte: todayStart, lt: todayEnd } },
-      _sum: { amount: true },
-      _count: { id: true },
-    });
+    const todayTypeOrders = typeOrders.filter((o) => o.createdAt >= todayStart && o.createdAt < todayEnd);
     const todayStats: Record<string, any> = {};
     ['NEW', 'RENEW', 'REPURCHASE', 'TIP'].forEach((t) => {
-      const row = todayTypeStats.find((r) => r.type === t);
-      todayStats[t] = { count: row?._count?.id ?? 0, amount: roundToJiao(row?._sum?.amount ?? 0) };
+      const rows = todayTypeOrders.filter((o) => o.type === t);
+      todayStats[t] = {
+        count: rows.length,
+        amount: roundToJiao(rows.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0)),
+      };
     });
     const todayTotal = Object.values(todayStats).reduce((s: number, v: any) => s + v.amount, 0);
     Object.keys(todayStats).forEach((k) => {

@@ -504,19 +504,40 @@ export class ExcellenceService implements OnModuleInit {
     //   原来按「营业月」（当月 1 日 12:00 至次月 1 日 12:00）取，月初几天全员流水从 0 起算，
     //   连最厉害的陪玩也会暂时掉成下等马；改成滚动 30 天，跟续单率 / 复购率 / 首单成功率同窗口，
     //   月初不再清零。变量名仍叫 monthlyRevenue*（避免牵动前端与快照结构），语义已是「最近 30 天」。
-    const monthlyRevenue = await this.prisma.order.groupBy({
-      by: ['companionId'],
-      where: {
-        companionId: { in: ids },
-        status: 'DONE',
-        type: { in: ['NEW', 'RENEW', 'REPURCHASE'] },
-        createdAt: { gte: rateWindowStart },
-      },
-      _sum: { amount: true },
-    });
-    const monthlyRevenueMap = new Map(
-      monthlyRevenue.map((r) => [r.companionId!, r._sum.amount || 0]),
-    );
+    // 口径（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪算 amount、搭档算 coAmount，
+    // 两条一起进「最近 30 天流水」。以前只按 companionId 汇总 amount，常当搭档的人这一段被少算，
+    // 跟首页「本月流水」对不上（同一页两个流水不是一回事）。
+    const [mainRevenue, coRevenue] = await Promise.all([
+      this.prisma.order.groupBy({
+        by: ['companionId'],
+        where: {
+          companionId: { in: ids },
+          status: 'DONE',
+          type: { in: ['NEW', 'RENEW', 'REPURCHASE'] },
+          createdAt: { gte: rateWindowStart },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['coCompanionId'],
+        where: {
+          coCompanionId: { in: ids },
+          status: 'DONE',
+          type: { in: ['NEW', 'RENEW', 'REPURCHASE'] },
+          createdAt: { gte: rateWindowStart },
+        },
+        _sum: { coAmount: true },
+      }),
+    ]);
+    const monthlyRevenueMap = new Map<string, number>();
+    for (const r of mainRevenue) {
+      if (!r.companionId) continue;
+      monthlyRevenueMap.set(r.companionId, (monthlyRevenueMap.get(r.companionId) || 0) + (r._sum.amount || 0));
+    }
+    for (const r of coRevenue) {
+      if (!r.coCompanionId) continue;
+      monthlyRevenueMap.set(r.coCompanionId, (monthlyRevenueMap.get(r.coCompanionId) || 0) + (r._sum.coAmount || 0));
+    }
 
     // 首单成功率（老板 2026-10-04 分母口径 + 2026-10-05 分子口径）：
     //   分子 = 「成交首单」的客户数 —— **这张首单打完了（父单 DONE）才算成交**
