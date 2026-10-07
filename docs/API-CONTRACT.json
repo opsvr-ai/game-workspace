@@ -9,7 +9,7 @@
   "httpPrefix": "/api",
   "stats": {
     "controllers": 28,
-    "endpoints": 400,
+    "endpoints": 402,
     "socketEmitters": 3,
     "socketInbound": 15,
     "socketOutbound": 19
@@ -1287,6 +1287,20 @@
       "path": "/api/stats/daily",
       "controller": "StatsController",
       "handler": "getDailyStats",
+      "file": "apps/server/src/stats/stats.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats/daily-kpi",
+      "controller": "StatsController",
+      "handler": "getDailyKpi",
+      "file": "apps/server/src/stats/stats.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats/daily-kpi/detail",
+      "controller": "StatsController",
+      "handler": "getDailyKpiDetail",
       "file": "apps/server/src/stats/stats.controller.ts"
     },
     {

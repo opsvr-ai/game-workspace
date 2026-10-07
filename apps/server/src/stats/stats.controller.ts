@@ -36,4 +36,35 @@ export class StatsController {
     }, req.user);
     return { code: 200, message: 'ok', data };
   }
+
+  /**
+   * 每日数据（老板 2026-10-07）：「每天打了多少单、多少续了、多少复购了、什么客户」，
+   * 一个营业日一行，点开某一天看明细。陪玩端只能看自己；管理端看全店，可筛某个陪玩。
+   */
+  @Get('daily-kpi')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS, UserRole.COMPANION)
+  async getDailyKpi(
+    @Query('dateFrom') dateFrom: string,
+    @Query('dateTo') dateTo: string,
+    @Query('companionId') companionId: string,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.statsService.getDailyKpi({ dateFrom, dateTo, companionId }, req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 每日数据 · 明细：某一天的每张单 + 每个客户的当天 / 累计情况。 */
+  @Get('daily-kpi/detail')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS, UserRole.COMPANION)
+  async getDailyKpiDetail(
+    @Query('date') date: string,
+    @Query('companionId') companionId: string,
+    @Query('kind') kind: string,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.statsService.getDailyKpiDetail({ date, companionId, kind }, req.user);
+    return { code: 200, message: 'ok', data };
+  }
 }

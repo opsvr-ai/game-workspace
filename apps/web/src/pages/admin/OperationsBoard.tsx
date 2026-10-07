@@ -12,6 +12,7 @@ import { BG, BORDER, BRAND, TEXT, SEMANTIC } from '../../styles/tokens';
 import PageHeader from '../../components/PageHeader';
 import StatCard from '../../components/StatCard';
 import { tierMeta } from '../../constants/tiers';
+import DailyKpiPanel from '../../components/DailyKpiPanel';
 
 const { Text } = Typography;
 
@@ -268,6 +269,10 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           </Card>
         </Col>
       </Row>
+
+      {/* ── 每日数据（老板 2026-10-07）：每天多少单 / 多少续 / 续单率 / 多少复购 / 复购率 / 客户，
+          点开某一天看明细。管理端看全店，可筛某个陪玩。 ── */}
+      <DailyKpiPanel showCompanionFilter style={{ marginBottom: 14 }} />
 
       {/* ── 陪玩状态墙 ── */}
       <Card

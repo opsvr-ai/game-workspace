@@ -5,6 +5,15 @@
 
 ## 新增功能
 
+- **「每日数据」（2026-10-07，`GET /api/stats/daily-kpi` + `GET /api/stats/daily-kpi/detail` + `components/DailyKpiPanel.tsx`）**：
+  `StatsService.getDailyKpi(filters, user)` 按**营业日**（`currentBusinessDayRange` 12:00 换日）一天一行聚合 ——
+  单量 / 金额 / 客户数取订单 `createdAt` 落在该营业日且 `status='DONE'`（`RENEW` / `REPURCHASE` 单型分别数「续单 / 复购」），
+  时长取会话 `startedAt` 落在该营业日且 `status='DONE'` 的 `duration` 之和（与客户看板 `orderSession.groupBy` 同源）；
+  `getDailyKpiDetail` 出某一天的每张单 + 每个客户的当天 / 累计。`dailyScope(user, companionId)`：`COMPANION` 强制回自己，
+  `OWNER` 不加店铺过滤、其余按 `user.studioId`；传 `companionId` 时 `OR: [{companionId}, {coCompanionId}]`（搭档单也计入）。
+  区间默认最近 14 个营业日、最多 62 天。前端两端共用 `DailyKpiPanel`（管理端「运营看板」`showCompanionFilter`、
+  陪玩端首页只看自己），行点开是抽屉（单 + 客户明细）。**页面的续单率 / 复购率按单算**，与运营看板「陪玩 KPI」的按客户口径不同。
+
 - **弹窗 / 邀请统一成「可点击横幅」（2026-10-03，客户端 `electron/main.ts` + `utils/notify.ts` + `layouts/AppLayout.tsx`）**：
   客服发单的横幅（桌面右下角、可点、点了进抢单池）以前和「搭档邀请 / 转让 / @提醒 / 账目异常」的弹窗是两套东西 ——
   后者是普通系统通知，点了不跳转。现在横幅模板吃 `action` / `actionPayload`，主进程新增 IPC `banner:action`

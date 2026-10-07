@@ -4,6 +4,7 @@ import { Alert, Card, Row, Col, Progress, Tag, Typography, Space, Empty } from '
 import { BRAND, TEXT, SEMANTIC, BORDER } from '../styles/tokens';
 import { tierMeta } from '../constants/tiers';
 import StatCard from './StatCard';
+import DailyKpiPanel from './DailyKpiPanel';
 
 const { Text } = Typography;
 
@@ -165,6 +166,10 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
           </Card>
         </Col>
       </Row>
+
+      {/* 每日数据（老板 2026-10-07）：我每天打了多少单 / 多少续 / 续单率 / 多少复购 / 复购率 / 客户，
+          点开某一天看明细。服务端只会给我自己的数。 */}
+      <DailyKpiPanel title="我每天打了多少单" style={{ marginTop: 12 }} />
     </div>
   );
 };

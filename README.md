@@ -40,6 +40,15 @@
   老板点名的「秦硕」已从「进程黑名单 · 按人单独设置」等列表里消失（23 → 21 人）。
 
 ## Recent Updates (v3.3.0)
+- **「每日数据」看板：每天多少单 / 多少续 / 续单率 / 多少复购 / 复购率 / 客户一目了然，点开某天看明细（2026-10-07，网页 `v984`）：**
+  两端共用 `components/DailyKpiPanel.tsx` —— 顶部 5 张卡（成交单 / 续单 / 复购 / 服务客户 / 区间流水）→ 一天一行
+  （营业日 / 成交单 / 首单 / 续单 / 复购 / 续单率 / 复购率 / 服务客户 / 新客 / 流水 + 合计行）→ **点一行开抽屉看明细**
+  （可切「全部 / 首单 / 续单 / 复购」；上半张＝这一天的每张单，下半张＝这一天服务过的每个客户当天 / 累计消费·时长）。
+  口径：营业日 12:00 换日；单量 / 金额取 `createdAt` 落在该营业日且 `status='DONE'` 的订单；时长取 `startedAt` 落在该营业日且
+  `status='DONE'` 的会话 `duration`；续单 / 复购数订单类型 `RENEW` / `REPURCHASE` 的**单**。**页面上的率是「按单」算**，
+  与运营看板「陪玩 KPI」的「按客户」口径**不同**（面板内已标注）。搭档单（`coCompanionId`）单独计数。
+  **陪玩端只能看自己 / 管理端看全店可筛人**。接口新增 `GET /api/stats/daily-kpi` 与 `GET /api/stats/daily-kpi/detail`。
+
 - **续单率 / 复购率：双陪单里「被邀请当搭档」打的也算他服务过这个客户（2026-10-07，服务端）：**
   老板「钱鸿鸣虽然被邀请，但是事实是没续单，应该被统计进去」—— 以前只统计「他当主陪的单」，被邀请打的单
   连分母都不进。现在 **「这张单我出力了（主陪或搭档），就记在我头上」**：双陪单同时记在两个人头上，
@@ -1458,6 +1467,14 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/dashboard/companion-revenue/:id` | JWT | ADMIN, OWNER | Single companion revenue detail. |
 | `GET` | `/api/dashboard/performance/daily` | JWT | ADMIN, OWNER | Daily KPI rankings. |
 | `GET` | `/api/dashboard/performance/monthly` | JWT | ADMIN, OWNER | Monthly KPI rankings. |
+
+### Stats
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| `GET` | `/api/stats/daily` | JWT | OWNER, ADMIN, CS, COMPANION | 「每日统计」：客服派单 / 提成核对用的一天全量明细（发单客服 / 认领客服 / 工作微信 / 付款去向 / 陪玩费状态）。Query: `?date=YYYY-MM-DD` 或 `?dateFrom=&dateTo=`，另可加 `csUserId` / `studioId` / `status` / `gameName` / `feeStatus`。 |
+| `GET` | `/api/stats/daily-kpi` | JWT | OWNER, ADMIN, CS, COMPANION | 「每日数据」按营业日（12:00 换日）汇总：成交单 / 首单 / 续单 / 复购 / 续单率 / 复购率（**按单**）/ 服务客户 / 新客 / 流水，按日期倒序 + 合计行。Query: `?dateFrom=&dateTo=&companionId=`；默认最近 14 个营业日、最多 62 天。**陪玩只能看自己**（服务端强制）；管理端看全店并可 `companionId` 筛人。 |
+| `GET` | `/api/stats/daily-kpi/detail` | JWT | OWNER, ADMIN, CS, COMPANION | 某一天的明细：`?date=YYYY-MM-DD&kind=ALL\|FIRST\|RENEW\|REPURCHASE&companionId=`。返回这一天的每张单（客户编号 / 微信 / 主陪 / 搭档 / 客服 / 时长 / `iAmPartner`）+ 每个客户的当天与累计（单数 / 时长 / 金额）。 |
 
 ### Config
 
