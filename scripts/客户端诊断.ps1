@@ -29,7 +29,7 @@ function Try2([scriptblock]$block) {
 W ('诊断时间: ' + (Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))
 W ('任务编号: ' + $TaskId)
 W ('诊断原因: ' + $Reason)
-W ('脚本版本: 2026-09-30.1')
+W ('脚本版本: 2026-10-07.1')
 
 H '一、这台电脑'
 Try2 {
@@ -38,6 +38,12 @@ Try2 {
   $os = Get-CimInstance Win32_OperatingSystem
   if ($os) {
     W ('系统版本: ' + $os.Caption + ' (Build ' + $os.Version + ')')
+    $clvBits = '32 位 Windows'
+    if ([Environment]::Is64BitOperatingSystem) { $clvBits = '64 位 Windows' }
+    $clvProc = '32 位进程'
+    if ([Environment]::Is64BitProcess) { $clvProc = '64 位进程' }
+    $clvCs = Get-CimInstance Win32_ComputerSystem
+    W ('系统类型: ' + $clvBits + ' · ' + $clvProc + ' · ' + [string]$clvCs.SystemType)
     W ('开机时间: ' + $os.LastBootUpTime)
     W ('已连续运行: ' + [math]::Round(((Get-Date) - $os.LastBootUpTime).TotalHours, 1) + ' 小时')
   }

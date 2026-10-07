@@ -8,7 +8,7 @@
  * 约定：正文用 String.raw 保存，不要出现模板字符串的插值符号和反引号。
  * 手工给一台机器取证用的副本在 scripts/客户端诊断.ps1，两处改动要同步。
  */
-export const CLIENT_DIAG_SCRIPT_VERSION = '2026-09-30.1';
+export const CLIENT_DIAG_SCRIPT_VERSION = '2026-10-07.1';
 
 export const CLIENT_DIAG_PS = String.raw`# 蠢驴电竞 · 客户端一键诊断（服务端下发，只读采集，不改任何设置）
 # 由「机器管理」页面点「一键诊断」时下发到目标电脑执行，报告回传服务器。
@@ -41,7 +41,7 @@ function Try2([scriptblock]$block) {
 W ('诊断时间: ' + (Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))
 W ('任务编号: ' + $TaskId)
 W ('诊断原因: ' + $Reason)
-W ('脚本版本: 2026-09-30.1')
+W ('脚本版本: 2026-10-07.1')
 
 H '一、这台电脑'
 Try2 {
@@ -50,6 +50,12 @@ Try2 {
   $os = Get-CimInstance Win32_OperatingSystem
   if ($os) {
     W ('系统版本: ' + $os.Caption + ' (Build ' + $os.Version + ')')
+    $clvBits = '32 位 Windows'
+    if ([Environment]::Is64BitOperatingSystem) { $clvBits = '64 位 Windows' }
+    $clvProc = '32 位进程'
+    if ([Environment]::Is64BitProcess) { $clvProc = '64 位进程' }
+    $clvCs = Get-CimInstance Win32_ComputerSystem
+    W ('系统类型: ' + $clvBits + ' · ' + $clvProc + ' · ' + [string]$clvCs.SystemType)
     W ('开机时间: ' + $os.LastBootUpTime)
     W ('已连续运行: ' + [math]::Round(((Get-Date) - $os.LastBootUpTime).TotalHours, 1) + ' 小时')
   }
