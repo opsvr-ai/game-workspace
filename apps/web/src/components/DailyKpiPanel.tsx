@@ -7,10 +7,11 @@
  * 一个营业日一行（12:00 为界，跟运营看板 / 实时看板 / 客户看板同一条时间线），
  * 点任意一行 → 抽屉里看这一天的**每张单**和**每个客户**（当天 + 累计）。
  *
- * ⚠️ 两套「率」别混：
- *   · 这里表格里的续单率 / 复购率是**按单**算的（续单数 ÷ 成交单数）—— 一眼看清当天构成；
- *   · 运营看板「陪玩 KPI」那一栏的续单率 / 复购率是**按客户**算的（30 天里打过首单的客户
- *     有多少续了）—— 考核用。两者本来就不是一个东西，页面上写清楚了，免得对不上数字。
+ * ⚠️ 续单率 / 复购率**全站只有一套「按客户」口径**（老板 2026-10-08：「续单率现在有两套算法……
+ * 统一成一套」）：这里跟优秀度 / 陪玩 KPI 共用同一套判定 —— 同一个单里加打一段也算续单。
+ *   · 续单客户 = 有第 2 段及以后打完的会话，或有一张完成的续单 / 复购单；
+ *   · 复购客户 = 今天来打的这个客户，之前（更早的营业日）已经成交过；
+ *   · 率 = 续单（复购）客户 ÷ 当天服务过、且在他这打过首单的客户数。
  *
  * 陪玩端（COMPANION）只能看自己（服务端强制），管理端看全店、可筛某一个陪玩。
  */
@@ -102,6 +103,12 @@ interface DetailCustomer {
   firstAt: string | null;
   lastAt: string | null;
   kinds: string[];
+  /** 当天算成续单客户（跟 KPI 同一套判定，且进了分母） */
+  renewed: boolean;
+  /** 当天算成复购客户 */
+  repurchased: boolean;
+  /** 在当天的分母里（服务过 + 在他这打过首单）—— 只有 counted 的客户才参与当天两栏的率 */
+  counted: boolean;
 }
 
 interface DetailData {
@@ -254,28 +261,44 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
       },
       { title: '首单', dataIndex: 'first', width: 56, align: 'right' as const },
       {
-        title: '续单',
+        title: (
+          <Tooltip title="按客户去重：有多少个客户续了（同一个单里加打一段也算，跟陪玩 KPI 同一套算法）">
+            <span>续单</span>
+          </Tooltip>
+        ),
         dataIndex: 'renew',
         width: 56,
         align: 'right' as const,
         render: (v: number) => (v ? <Text style={{ color: SEMANTIC.success, fontWeight: 600 }}>{v}</Text> : <Text type="secondary">0</Text>),
       },
       {
-        title: '复购',
+        title: (
+          <Tooltip title="按客户去重：有多少个客户「隔了一个营业日又回来打」">
+            <span>复购</span>
+          </Tooltip>
+        ),
         dataIndex: 'repurchase',
         width: 56,
         align: 'right' as const,
         render: (v: number) => (v ? <Text style={{ color: SEMANTIC.repurchase, fontWeight: 600 }}>{v}</Text> : <Text type="secondary">0</Text>),
       },
       {
-        title: '续单率',
+        title: (
+          <Tooltip title="续单客户 ÷ 当天服务过、且在他这打过首单的客户数（按客户，跟陪玩 KPI 同一套）">
+            <span>续单率</span>
+          </Tooltip>
+        ),
         dataIndex: 'renewRate',
         width: 68,
         align: 'right' as const,
         render: (v: number) => <Text style={{ color: v >= 30 ? SEMANTIC.success : TEXT.secondary }}>{pct(v)}</Text>,
       },
       {
-        title: '复购率',
+        title: (
+          <Tooltip title="复购客户 ÷ 当天服务过、且在他这打过首单的客户数（按客户，跟陪玩 KPI 同一套）">
+            <span>复购率</span>
+          </Tooltip>
+        ),
         dataIndex: 'repurchaseRate',
         width: 68,
         align: 'right' as const,
@@ -354,6 +377,23 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
         </Space>
       ),
     },
+    {
+      title: (
+        <Tooltip title="这一天算不算续单 / 复购客户（只有算的才进上面那两栏的率）；「未计」= 这天在他这还没打过首单，按 KPI 口径不进分母">
+          <span>判定</span>
+        </Tooltip>
+      ),
+      key: 'verdict',
+      width: 96,
+      render: (_: unknown, r: DetailCustomer) => {
+        if (!r.counted) return <Tag style={{ marginInlineEnd: 0 }}>未计</Tag>;
+        const tags: React.ReactNode[] = [];
+        if (r.renewed) tags.push(<Tag key="r" color="green" style={{ marginInlineEnd: 0 }}>续单客户</Tag>);
+        if (r.repurchased) tags.push(<Tag key="b" color="purple" style={{ marginInlineEnd: 0 }}>复购客户</Tag>);
+        if (!tags.length) tags.push(<Tag key="n" color="blue" style={{ marginInlineEnd: 0 }}>首单客户</Tag>);
+        return <Space size={4}>{tags}</Space>;
+      },
+    },
     { title: '当天单数', dataIndex: 'orders', width: 80, align: 'right' as const },
     { title: '当天时长', dataIndex: 'hours', width: 80, align: 'right' as const, render: (v: number) => hours(v) },
     { title: '当天金额', dataIndex: 'amount', width: 90, align: 'right' as const, render: (v: number) => yuan(v) },
@@ -380,7 +420,7 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
           <span>{title}</span>
           {data?.companionName ? <Tag color={BRAND.primary}>只看：{data.companionName}</Tag> : null}
           <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
-            单量 / 金额 / 客户按「下单时间 + 已完成」；时长按打完的会话；点一行看当天明细
+            单量按「下单时间 + 已完成」；时长按打完的会话（含加打的那段）；续单 / 复购按客户，跟陪玩 KPI 同一套口径；点一行看当天明细
           </Text>
         </Space>
       }
@@ -444,8 +484,8 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
               <StatCard
                 size="sm"
                 label="续单"
-                value={`${total?.renew ?? 0} 单`}
-                sub={`续单率 ${pct(total?.renewRate)}（按单）`}
+                value={`${total?.renew ?? 0} 个客户`}
+                sub={`续单率 ${pct(total?.renewRate)}（按客户）`}
                 tint={SEMANTIC.success}
               />
             </Col>
@@ -453,8 +493,8 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
               <StatCard
                 size="sm"
                 label="复购"
-                value={`${total?.repurchase ?? 0} 单`}
-                sub={`复购率 ${pct(total?.repurchaseRate)}（按单）`}
+                value={`${total?.repurchase ?? 0} 个客户`}
+                sub={`复购率 ${pct(total?.repurchaseRate)}（按客户）`}
                 tint={SEMANTIC.repurchase}
               />
             </Col>
@@ -568,7 +608,12 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
               scroll={{ x: 990 }}
               locale={{ emptyText: <Empty description="这一天没有这一类单" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             />
-            <Text strong>这一天服务过的客户（{detail.customers.length} 个）</Text>
+            <Space size={8} wrap>
+              <Text strong>这一天服务过的客户（{detail.customers.length} 个）</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                只加了段、没有新单的客户也在这儿（不再漏掉「同一个单里加打一段」）
+              </Text>
+            </Space>
             <Table
               size="small"
               rowKey="customerId"
@@ -576,7 +621,7 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
               dataSource={detail.customers}
               columns={customerColumns}
               pagination={false}
-              scroll={{ x: 900 }}
+              scroll={{ x: 990 }}
               locale={{ emptyText: <Empty description="没有客户" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             />
           </>

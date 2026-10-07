@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { businessDayKey } from '../common/business-day';
+import { computeCustomerRates } from '../common/customer-rates';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { logger } from '../common/logger';
 
@@ -390,10 +390,7 @@ export class ExcellenceService implements OnModuleInit {
     const RATE_WINDOW_DAYS = 30;
     const rateWindowStart = new Date(Date.now() - RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-    const m = new Map<string, { count: number; firstCustomers: number; renew: number; repurchase: number }>();
-    // 一单都没成交过的人也要有一份结果（哪怕全是 0）：否则调用方只能 ?? 兜底，
-    // 「评分说明」里连上等马线都拿不到真实配置（老板 2026-10-04 顺手修）。
-    for (const cid of ids) m.set(cid, { count: 0, firstCustomers: 0, renew: 0, repurchase: 0 });
+    // 一单都没成交过的人也要有一份结果（哪怕全是 0）：helper 会给名单里每个人都建一行。
 
     // 老板 2026-10-07：「双陪单里被邀请（当搭档）打的，也算他服务过这个客户」——
     // 所以取「他参与过的单」而不是「他当主陪的单」：一张双陪单同时记在主陪和搭档两个人头上。
@@ -431,75 +428,25 @@ export class ExcellenceService implements OnModuleInit {
         parentOrder: { select: { companionId: true, coCompanionId: true, customerId: true } },
       },
     });
-    const doneSegments = new Map<string, Map<string, number>>(); // companionId -> customerId -> 已打完的段数
-    for (const seg of windowDoneSessions) {
-      const cust = (seg as any).parentOrder?.customerId;
-      if (!cust) continue;
-      const mainId = (seg as any).companionId || (seg as any).parentOrder?.companionId;
-      const coId = (seg as any).coCompanionId || (seg as any).parentOrder?.coCompanionId;
-      for (const pid of new Set([mainId, coId].filter(Boolean) as string[])) {
-        if (!m.has(pid)) continue;
-        let segByCust = doneSegments.get(pid);
-        if (!segByCust) {
-          segByCust = new Map<string, number>();
-          doneSegments.set(pid, segByCust);
-        }
-        segByCust.set(cust, (segByCust.get(cust) || 0) + 1);
-      }
-    }
-    // companionId -> (customerId -> 这个客户在你这的汇总：单数 / 段数 / 有没有续复购单 / 出现过哪些营业日)
-    type CustAgg = {
-      orders: number;
-      hasRenewType: boolean;
-      days: Set<string>;
-      firstDone: boolean;
-      /** 这个客户他**自己主陪过**（窗口内当过主陪，不管什么单型）——判断「算不算他自己的客户」用 */
-      mainSeen: boolean;
-    };
-    const perCustomer = new Map<string, Map<string, CustAgg>>();
-    for (const o of windowOrders) {
-      if (!o.customerId) continue;
-      // 这张单的参与人：主陪 + 搭档（两个都在本次要算的人里才算）
-      const participants = Array.from(
-        new Set([o.companionId, (o as any).coCompanionId].filter((v): v is string => !!v && m.has(v))),
-      );
-      for (const pid of participants) {
-        const s = m.get(pid)!;
-        s.count += 1;
-        let byCust = perCustomer.get(pid);
-        if (!byCust) {
-          byCust = new Map<string, CustAgg>();
-          perCustomer.set(pid, byCust);
-        }
-        const agg =
-          byCust.get(o.customerId) ||
-          { orders: 0, hasRenewType: false, days: new Set<string>(), firstDone: false, mainSeen: false };
-        agg.orders += 1;
-        if (o.companionId === pid) agg.mainSeen = true; // 主陪过这个客户（哪怕首单在 30 天窗口外）
-        if (o.type === 'RENEW' || o.type === 'REPURCHASE') agg.hasRenewType = true;
-        if (o.type === 'NEW') agg.firstDone = true;
-        if (o.createdAt) agg.days.add(businessDayKey(o.createdAt as Date));
-        byCust.set(o.customerId, agg);
-      }
-    }
-    for (const [cid, byCust] of perCustomer) {
-      const s = m.get(cid)!;
-      for (const [custId, agg] of byCust) {
-        const doneSegs = doneSegments.get(cid)?.get(custId) || 0;
-        if (agg.firstDone) s.firstCustomers += 1; // 打了首单的客户数 = 续单率 / 复购率的分母
-        // 分子（续单 / 复购）只在「算得上他自己的客户」里数（老板 2026-10-07 双陪改动后的收口）：
-        //   · 在他这打过首单的客户 → 算；
-        //   · 他自己**主陪**过的客户 → 也算（老口径不动：首单在 30 天窗口外、窗口内又回来续单的照样算；
-        //     卡死这条会让 童祥瑞 那种「老客户回头」的续单凭空掉 2 个，92% → 75%）；
-        //   · **纯搭档**关系（他从没在这客户身上当过主陪、也没打过首单）→ 分母分子都不进。
-        // 收口前分子没卡这一条，线上 胡程硕 被算成 133%（分子 4 / 分母 3）。
-        if (!agg.firstDone && !agg.mainSeen) continue;
-        // 续单：该客户有 2 段及以后**打完的**会话（或一张 DONE 的 RENEW / REPURCHASE 单）。
-        // 「点了续单还在打」不算（老板 2026-10-05）。
-        if (doneSegs >= 2 || agg.hasRenewType) s.renew += 1;
-        if (agg.days.size >= 2) s.repurchase += 1; // 复购：隔了一个营业日又来打（另有成交单，且父单 DONE）
-      }
-    }
+    // 算法本体在 `common/customer-rates.ts`（**全站唯一一份**）：同一段判定同时喂给
+    // 优秀度 / 陪玩 KPI 和每日数据，保证「同一个单里加打一段」这种续单两边都算（老板 2026-10-08）。
+    const rates = computeCustomerRates(
+      ids,
+      windowOrders.map((o) => ({
+        type: o.type,
+        customerId: o.customerId,
+        companionId: o.companionId,
+        coCompanionId: (o as any).coCompanionId,
+        createdAt: o.createdAt,
+      })),
+      windowDoneSessions.map((seg: any) => ({
+        customerId: seg.parentOrder?.customerId ?? null,
+        companionId: seg.companionId ?? null,
+        coCompanionId: seg.coCompanionId ?? null,
+        parentCompanionId: seg.parentOrder?.companionId ?? null,
+        parentCoCompanionId: seg.parentOrder?.coCompanionId ?? null,
+      })),
+    );
     // 最近 30 天流水（老板 2026-10-04：「所有指标都按照最近 30 天统计」）：
     //   原来按「营业月」（当月 1 日 12:00 至次月 1 日 12:00）取，月初几天全员流水从 0 起算，
     //   连最厉害的陪玩也会暂时掉成下等马；改成滚动 30 天，跟续单率 / 复购率 / 首单成功率同窗口，
@@ -585,7 +532,7 @@ export class ExcellenceService implements OnModuleInit {
     const bonusMap = new Map(bonusRows.map((b) => [b.id, b.bonusScore || 0]));
     const studioIdOfCompanion = new Map(bonusRows.map((b) => [b.id, b.studioId as string | null]));
 
-    for (const [cid, s] of m) {
+    for (const [cid, s] of rates) {
       // 分母统一 = 打了首单的客户数（老板 2026-10-04）
       const rateDenom = s.firstCustomers;
       const renewRate = rateDenom > 0 ? (s.renew / rateDenom) * 100 : 0;
@@ -644,7 +591,7 @@ export class ExcellenceService implements OnModuleInit {
         renewRate: Math.round(renewRate),
         repurchaseRate: Math.round(repurchaseRate),
         newRate: Math.round(firstSuccessRate),
-        orderCount: s.count,
+        orderCount: s.orderCount,
         revenueYuan: Math.round(revenue),
         revenueTiers: metrics.revenueTiers,
         renewTiers: metrics.renewTiers,

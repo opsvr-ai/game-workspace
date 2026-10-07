@@ -1,6 +1,8 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { isRenewalSegment } from '../common/price-rules';
+import { ratePercent } from '../common/customer-rates';
 import { currentBusinessDayRange, businessDayRange, businessDayKey } from '../common/business-day';
 
 export interface DailyStatsItem {
@@ -58,21 +60,23 @@ export interface DailyStatsResponse {
   orders: any[];
 }
 
-// ── 每日数据（老板 2026-10-07）───────────────────────────────────────────────
+// ── 每日数据（老板 2026-10-07；口径 2026-10-08 统一）──────────────────────────
 // 老板原话：「陪玩端+管理端清清楚楚的知道每天打了多少单，多少续了，续单率多少，
 // 多少复购了，复购率多少，以及客户的情况，一目了然的那种，而且能点开查看明细」。
 //
 // 口径（全部按**营业日 12:00 为界**，跟运营看板 / 实时看板 / 客户看板同一条时间线）：
-//   · 单量 / 金额 / 客户数 / 单型：**订单** createdAt 落在该营业日、status = DONE；
+//   · 单量 / 金额 / 单型 / 新客：**订单** createdAt 落在该营业日、status = DONE；
 //   · 时长：**会话** startedAt 落在该营业日、status = DONE 的 duration 之和（与客户看板同口径）；
-//   · 续单 / 复购：直接数订单类型 RENEW / REPURCHASE 的**单**；
-//   · 「搭档单」= 他作为搭档（coCompanionId）参与的单 —— **参与即算他的量**，
-//     跟 2026-10-07「被邀请打的也算他服务过这个客户」同一条规矩；
+//   · 「搭档单」= 他作为搭档（coCompanionId）参与的单 —— **参与即算他的量**
+//     （2026-10-07「被邀请打的也算他服务过这个客户」）；
 //   · 陪玩端只能看自己；管理端看全店，也可以筛某一个陪玩。
 //
-// ⚠️ 这里给的是「**按单**」的续单率 / 复购率（续单 ÷ 成交单），跟 30 天 KPI 的
-// 「**按客户**」口径（打了首单的客户里有多少续了）不是一回事 —— 页面上必须写清楚，
-// 免得又被拿来互相对数字（2026-10-07「今日单量对么」就是这么来的）。
+// ⚠️ 续单 / 复购**全站只有一套「按客户」口径**（老板 2026-10-08：「续单率现在有两套算法……
+// 统一成一套」）。以前这里按「订单类型」数单，结果「同一个单里加打一段」这种续单根本进不了
+// 续单率。现在跟优秀度 / 陪玩 KPI 共用 `common/customer-rates.ts` 的判定：
+//   · 续单客户 = 他有第 2 段及以后打完的会话（同一个单里加打一段也算），或有一张 DONE 的续单 / 复购单；
+//   · 复购客户 = 今天来打的这个客户，之前（更早的营业日）已经成交过；
+//   · 分母 = 当天服务过、而且在他这**打过首单**的客户数（跟 KPI 的分母同一条线）。
 
 export interface DailyKpiRow {
   /** 营业日 YYYY-MM-DD（12:00 起算） */
@@ -81,12 +85,12 @@ export interface DailyKpiRow {
   orders: number;
   /** 其中他当搭档（被主陪邀请）参与的单 */
   partnerOrders: number;
-  /** 首单 / 续单 / 复购 / 其它（按订单类型） */
+  /** 首单（按单数）/ 续单、复购（按**客户**去重，见下面口径）/ 其它单型 */
   first: number;
   renew: number;
   repurchase: number;
   other: number;
-  /** 续单率 / 复购率：**按单**算（续单数 ÷ 成交单数） */
+  /** 续单率 / 复购率：**按客户**算（续单客户 ÷ 打过首单的客户），跟优秀度 / 陪玩 KPI 同一套 */
   renewRate: number;
   repurchaseRate: number;
   /** 当天服务过的客户数（去重） */
@@ -142,8 +146,14 @@ export interface DailyKpiDetailCustomer {
   totalAmount: number;
   firstAt: string | null;
   lastAt: string | null;
-  /** 当天在这个客户身上出现的单型（首单 / 续单 / 复购） */
+  /** 当天在这个客户身上出现的单型（首单 / 续单 / 复购）；「加打一段」也补一个续单 */
   kinds: string[];
+  /** 当天算成续单客户（跟 KPI 同一套判定，且进了分母） */
+  renewed: boolean;
+  /** 当天算成复购客户 */
+  repurchased: boolean;
+  /** 在当天的分母里（服务过 + 在他这打过首单）—— 只有 counted 的客户才参与当天两栏的率 */
+  counted: boolean;
 }
 
 export interface DailyKpiDetailResponse {
@@ -548,20 +558,24 @@ export class StatsService {
     return { dateFrom: from, dateTo: to, start: businessDayRange(from).start, end: businessDayRange(to).end };
   }
 
-  /** 每天打了多少单 / 多少续了 / 多少复购 / 什么客户 —— 陪玩端看自己，管理端看全店或某个人。 */
-  async getDailyKpi(
-    filters: { dateFrom?: string; dateTo?: string; companionId?: string },
-    user?: any,
-  ): Promise<DailyKpiResponse> {
-    const { dateFrom, dateTo, start, end } = this.dailyRange(filters.dateFrom, filters.dateTo);
-    const { scope, companionId, studioId } = this.dailyScope(user, filters.companionId);
+  /**
+   * 每日数据 / 明细共用的取数：
+   *   · 区间内「已打完」的成交单（他主陪或当搭档参与的都算）；
+   *   · 区间内「打完的会话」——「同一个单里加打一段」就靠这个才看得见；
+   *   · 这些客户的「首次成交 / 首次首单」时间 —— 判复购（隔了一个营业日）和分母（打过首单的客户）。
+   */
+  private async loadDailyRateFacts(
+    start: Date,
+    end: Date,
+    studioId: string | null,
+    companionId: string | null,
+  ) {
+    const who: any = {};
+    if (studioId) who.studioId = studioId;
+    if (companionId) who.OR = [{ companionId }, { coCompanionId: companionId }];
 
-    const orderWhere: any = { status: 'DONE', createdAt: { gte: start, lt: end } };
-    if (studioId) orderWhere.studioId = studioId;
-    if (companionId) orderWhere.OR = [{ companionId }, { coCompanionId: companionId }];
-
-    const orders = (await this.prisma.order.findMany({
-      where: orderWhere,
+    const orders = ((await this.prisma.order.findMany({
+      where: { status: 'DONE', createdAt: { gte: start, lt: end }, ...who },
       select: {
         id: true,
         type: true,
@@ -571,22 +585,76 @@ export class StatsService {
         coCompanionId: true,
         createdAt: true,
       },
-    })) as any[];
+    })) || []) as any[];
 
-    // 时长跟客户看板同一个源（会话），按会话自己的 startedAt 归到那一天。
+    // 会话口径跟原来一致（只按会话自己的 status + 时间 + 父单的店铺/参与人过滤），
+    // 免得动了「时长」这栏的口径；续单判定只看这一段本身打完没有。
     const sessionWhere: any = { status: 'DONE', startedAt: { gte: start, lt: end } };
-    const parentScope: any = {};
-    if (studioId) parentScope.studioId = studioId;
-    if (companionId) parentScope.OR = [{ companionId }, { coCompanionId: companionId }];
-    if (Object.keys(parentScope).length) sessionWhere.parentOrder = parentScope;
-    const sessions = (await this.prisma.orderSession.findMany({
+    if (Object.keys(who).length) sessionWhere.parentOrder = who;
+    const sessions = ((await this.prisma.orderSession.findMany({
       where: sessionWhere,
-      select: { startedAt: true, duration: true },
-    })) as any[];
+      select: {
+        id: true,
+        seq: true,
+        duration: true,
+        startedAt: true,
+        companionId: true,
+        coCompanionId: true,
+        parentOrder: { select: { type: true, customerId: true, companionId: true, coCompanionId: true } },
+      },
+    })) || []) as any[];
+
+    const custIds = [
+      ...new Set(
+        [...orders.map((o) => o.customerId), ...sessions.map((s) => s.parentOrder?.customerId)].filter(
+          (v): v is string => !!v,
+        ),
+      ),
+    ];
+    const firstNewByCust = new Map<string, Date>();
+    const firstOrderByCust = new Map<string, Date>();
+    if (custIds.length) {
+      const [firstNew, firstAny] = await Promise.all([
+        this.prisma.order.groupBy({
+          by: ['customerId'],
+          where: { status: 'DONE', type: 'NEW', customerId: { in: custIds }, ...who },
+          _min: { createdAt: true },
+        } as any),
+        this.prisma.order.groupBy({
+          by: ['customerId'],
+          where: { status: 'DONE', customerId: { in: custIds }, ...who },
+          _min: { createdAt: true },
+        } as any),
+      ]);
+      for (const r of ((firstNew as any[]) || []) ) {
+        if (r?.customerId && r?._min?.createdAt) firstNewByCust.set(r.customerId, r._min.createdAt);
+      }
+      for (const r of ((firstAny as any[]) || []) ) {
+        if (r?.customerId && r?._min?.createdAt) firstOrderByCust.set(r.customerId, r._min.createdAt);
+      }
+    }
+    return { orders, sessions, firstNewByCust, firstOrderByCust };
+  }
+
+  /** 每天打了多少单 / 多少续了 / 多少复购 / 什么客户 —— 陪玩端看自己，管理端看全店或某个人。 */
+  async getDailyKpi(
+    filters: { dateFrom?: string; dateTo?: string; companionId?: string },
+    user?: any,
+  ): Promise<DailyKpiResponse> {
+    const { dateFrom, dateTo, start, end } = this.dailyRange(filters.dateFrom, filters.dateTo);
+    const { scope, companionId, studioId } = this.dailyScope(user, filters.companionId);
+    const { orders, sessions, firstNewByCust, firstOrderByCust } = await this.loadDailyRateFacts(
+      start,
+      end,
+      studioId,
+      companionId,
+    );
 
     const byDay = new Map<string, DailyKpiRow>();
     const custByDay = new Map<string, Set<string>>();
     const newCustByDay = new Map<string, Set<string>>();
+    const renewCustByDay = new Map<string, Set<string>>();
+    const buyAgainCustByDay = new Map<string, Set<string>>();
     const ensure = (date: string): DailyKpiRow => {
       let row = byDay.get(date);
       if (!row) {
@@ -595,6 +663,14 @@ export class StatsService {
       }
       return row;
     };
+    const addTo = (m: Map<string, Set<string>>, day: string, id: string) => {
+      let s2 = m.get(day);
+      if (!s2) {
+        s2 = new Set<string>();
+        m.set(day, s2);
+      }
+      s2.add(id);
+    };
 
     for (const o of orders) {
       if (!o.createdAt) continue;
@@ -602,71 +678,84 @@ export class StatsService {
       const row = ensure(day);
       row.orders += 1;
       if (o.type === 'NEW') row.first += 1;
-      else if (o.type === 'RENEW') row.renew += 1;
-      else if (o.type === 'REPURCHASE') row.repurchase += 1;
-      else row.other += 1;
+      else if (o.type !== 'RENEW' && o.type !== 'REPURCHASE') row.other += 1;
       row.amount += Number(o.amount) || 0;
       // 他当搭档（被邀请）参与的单：单独列出来，一眼看得出「这里面有几张不是我主陪的」
       if (companionId && o.coCompanionId === companionId) row.partnerOrders += 1;
-
-      if (o.customerId) {
-        let set = custByDay.get(day);
-        if (!set) {
-          set = new Set();
-          custByDay.set(day, set);
-        }
-        set.add(o.customerId);
-        if (o.type === 'NEW') {
-          let ns = newCustByDay.get(day);
-          if (!ns) {
-            ns = new Set();
-            newCustByDay.set(day, ns);
-          }
-          ns.add(o.customerId);
-        }
+      if (!o.customerId) continue;
+      addTo(custByDay, day, o.customerId);
+      if (o.type === 'NEW') addTo(newCustByDay, day, o.customerId);
+      // 续单客户：这一张就是续单 / 复购单
+      if (o.type === 'RENEW' || o.type === 'REPURCHASE') addTo(renewCustByDay, day, o.customerId);
+      // 复购客户：客服明确标了复购单的照旧算；另外「今天来打、之前（更早的营业日）也来过」的也算
+      const firstOrder = firstOrderByCust.get(o.customerId);
+      if (o.type === 'REPURCHASE' || (firstOrder && businessDayKey(firstOrder) < day)) {
+        addTo(buyAgainCustByDay, day, o.customerId);
       }
     }
 
     for (const s of sessions) {
       if (!s.startedAt) continue;
-      const row = byDay.get(businessDayKey(s.startedAt));
-      if (row) row.hours += Number(s.duration) || 0;
+      const day = businessDayKey(s.startedAt);
+      const row = ensure(day);
+      row.hours += Number(s.duration) || 0;
+      const cust = s.parentOrder?.customerId;
+      if (!cust) continue;
+      addTo(custByDay, day, cust);
+      // 「同一个单里加打一段」也是续单 —— 这一段被判成续单段（seq > 1，或父单本身就是续单 / 复购）
+      if (isRenewalSegment(s.parentOrder?.type, s.seq)) addTo(renewCustByDay, day, cust);
     }
 
-    // 合计按原始值算（先加再四舍五入），免得逐行取整后加出来对不上。
+    // 分母（跟优秀度 / 陪玩 KPI 同一个口径）：当天服务过、而且在他这**打过首单**的客户
+    const denomByDay = new Map<string, Set<string>>();
+    for (const [day, served] of custByDay) {
+      const d = new Set<string>();
+      for (const c of served) {
+        const firstNew = firstNewByCust.get(c);
+        if (firstNew && businessDayKey(firstNew) <= day) d.add(c);
+      }
+      denomByDay.set(day, d);
+    }
+
+    const allServed = new Set<string>();
+    const allNew = new Set<string>();
+    const allDenom = new Set<string>();
+    const allRenew = new Set<string>();
+    const allBuyAgain = new Set<string>();
     let tOrders = 0;
     let tPartner = 0;
     let tFirst = 0;
-    let tRenew = 0;
-    let tRepurchase = 0;
     let tOther = 0;
     let tAmount = 0;
     let tHours = 0;
-    const allCust = new Set<string>();
-    const allNewCust = new Set<string>();
-    for (const row of byDay.values()) {
+
+    // 合计按原始值算（先加再四舍五入），免得逐行取整后加出来对不上。
+    for (const [day, row] of byDay) {
+      const served = custByDay.get(day) || new Set<string>();
+      const denom = denomByDay.get(day) || new Set<string>();
+      const renew = [...(renewCustByDay.get(day) || [])].filter((c) => denom.has(c));
+      const buyAgain = [...(buyAgainCustByDay.get(day) || [])].filter((c) => denom.has(c));
+      row.customers = served.size;
+      row.newCustomers = newCustByDay.get(day)?.size || 0;
+      row.renew = renew.length;
+      row.repurchase = buyAgain.length;
+      row.renewRate = Math.round(ratePercent(renew.length, denom.size));
+      row.repurchaseRate = Math.round(ratePercent(buyAgain.length, denom.size));
       tOrders += row.orders;
       tPartner += row.partnerOrders;
       tFirst += row.first;
-      tRenew += row.renew;
-      tRepurchase += row.repurchase;
       tOther += row.other;
       tAmount += row.amount;
       tHours += row.hours;
-      for (const c of custByDay.get(row.date) || []) allCust.add(c);
-      for (const c of newCustByDay.get(row.date) || []) allNewCust.add(c);
+      for (const c of served) allServed.add(c);
+      for (const c of newCustByDay.get(day) || []) allNew.add(c);
+      for (const c of denom) allDenom.add(c);
+      for (const c of renew) allRenew.add(c);
+      for (const c of buyAgain) allBuyAgain.add(c);
     }
 
     const rows: DailyKpiRow[] = [...byDay.values()]
-      .map((row) => ({
-        ...row,
-        amount: round1(row.amount),
-        hours: round1(row.hours),
-        customers: custByDay.get(row.date)?.size || 0,
-        newCustomers: newCustByDay.get(row.date)?.size || 0,
-        renewRate: row.orders ? Math.round((row.renew / row.orders) * 100) : 0,
-        repurchaseRate: row.orders ? Math.round((row.repurchase / row.orders) * 100) : 0,
-      }))
+      .map((row) => ({ ...row, amount: round1(row.amount), hours: round1(row.hours) }))
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
     const total: DailyKpiRow = {
@@ -674,15 +763,15 @@ export class StatsService {
       orders: tOrders,
       partnerOrders: tPartner,
       first: tFirst,
-      renew: tRenew,
-      repurchase: tRepurchase,
       other: tOther,
       amount: round1(tAmount),
       hours: round1(tHours),
-      customers: allCust.size,
-      newCustomers: allNewCust.size,
-      renewRate: tOrders ? Math.round((tRenew / tOrders) * 100) : 0,
-      repurchaseRate: tOrders ? Math.round((tRepurchase / tOrders) * 100) : 0,
+      customers: allServed.size,
+      newCustomers: allNew.size,
+      renew: allRenew.size,
+      repurchase: allBuyAgain.size,
+      renewRate: Math.round(ratePercent(allRenew.size, allDenom.size)),
+      repurchaseRate: Math.round(ratePercent(allBuyAgain.size, allDenom.size)),
     };
 
     let companions: Array<{ id: string; name: string; resigned: boolean }> = [];
@@ -691,7 +780,7 @@ export class StatsService {
         where: studioId ? { studioId } : {},
         select: { id: true, isResigned: true, user: { select: { username: true, displayName: true } } },
       })) as any[];
-      companions = list
+      companions = (list || [])
         .map((c) => ({ id: c.id, name: companionLabel(c), resigned: !!c.isResigned }))
         .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
     }
@@ -720,10 +809,8 @@ export class StatsService {
     const orderWhere: any = { status: 'DONE', createdAt: { gte: start, lt: end } };
     if (studioId) orderWhere.studioId = studioId;
     if (companionId) orderWhere.OR = [{ companionId }, { coCompanionId: companionId }];
-    const kind = String(filters.kind || '').toUpperCase();
-    if (kind === 'NEW' || kind === 'RENEW' || kind === 'REPURCHASE') orderWhere.type = kind;
 
-    const orders = (await this.prisma.order.findMany({
+    const orders = ((await this.prisma.order.findMany({
       where: orderWhere,
       orderBy: { createdAt: 'asc' },
       select: {
@@ -742,11 +829,17 @@ export class StatsService {
         csUser: { select: { username: true, displayName: true } },
         sessions: { where: { status: 'DONE' }, select: { duration: true, startedAt: true, endedAt: true } },
       },
-    })) as any[];
+    })) || []) as any[];
 
-    const orderRows: DailyKpiDetailOrder[] = orders.map((o) => {
+    // 只看某一类（前端 Segmented）：只影响「这一天的单」那张表；客户表始终是全天完整口径，
+    // 免得「只看续单」把分母里的客户一起藏掉。
+    const kind = String(filters.kind || '').toUpperCase();
+    const visibleOrders =
+      kind === 'NEW' || kind === 'RENEW' || kind === 'REPURCHASE' ? orders.filter((o) => o.type === kind) : orders;
+
+    const orderRows: DailyKpiDetailOrder[] = visibleOrders.map((o) => {
       const sess = (o.sessions || []) as any[];
-      const hours = sess.reduce((s: number, x: any) => s + (Number(x.duration) || 0), 0);
+      const hours = sess.reduce((s2: number, x: any) => s2 + (Number(x.duration) || 0), 0);
       const starts = sess
         .map((x: any) => x.startedAt)
         .filter(Boolean)
@@ -775,35 +868,106 @@ export class StatsService {
       };
     });
 
-    const custIds = [...new Set(orderRows.map((r) => r.customerId).filter(Boolean))] as string[];
+    // 这一天的会话（含「同一个单里加打一段」）+ 客户的首次成交 / 首次首单
+    const { sessions, firstNewByCust, firstOrderByCust } = await this.loadDailyRateFacts(
+      start,
+      end,
+      studioId,
+      companionId,
+    );
+
+    type CustDay = {
+      orders: number;
+      hours: number;
+      amount: number;
+      kinds: Set<string>;
+      code: string;
+      wechat: string;
+      renewed: boolean;
+    };
+    const dayByCust = new Map<string, CustDay>();
+    const touch = (cid: string, code: string, wechat: string): CustDay => {
+      let e = dayByCust.get(cid);
+      if (!e) {
+        e = { orders: 0, hours: 0, amount: 0, kinds: new Set<string>(), code, wechat, renewed: false };
+        dayByCust.set(cid, e);
+      }
+      if (!e.code && code) e.code = code;
+      if (!e.wechat && wechat) e.wechat = wechat;
+      return e;
+    };
+
+    for (const o of orders) {
+      if (!o.customerId) continue;
+      const e = touch(
+        o.customerId,
+        (o.customer && o.customer.customerCode) || '',
+        (o.customer && o.customer.wechatId) || '',
+      );
+      e.orders += 1;
+      e.hours += ((o.sessions || []) as any[]).reduce((t: number, x: any) => t + (Number(x.duration) || 0), 0);
+      e.amount += Number(o.amount) || 0;
+      e.kinds.add(o.type);
+      if (o.type === 'RENEW' || o.type === 'REPURCHASE') e.renewed = true;
+    }
+    for (const s of sessions) {
+      const cust = s.parentOrder?.customerId;
+      if (!cust) continue;
+      const e = touch(cust, '', '');
+      e.hours += Number(s.duration) || 0;
+      if (isRenewalSegment(s.parentOrder?.type, s.seq)) {
+        e.renewed = true;
+        e.kinds.add('RENEW');
+      }
+    }
+
+    const custIds = [...dayByCust.keys()];
+    // 只加了段、这一天没有新单的客户：订单表里没有他们，补一下客户资料
+    const missingInfo = custIds.filter((c) => {
+      const e = dayByCust.get(c)!;
+      return !e.code && !e.wechat;
+    });
+    if (missingInfo.length) {
+      const infos = ((await this.prisma.customer.findMany({
+        where: { id: { in: missingInfo } },
+        select: { id: true, customerCode: true, wechatId: true },
+      })) || []) as any[];
+      for (const info of infos) {
+        const e = dayByCust.get(info.id);
+        if (!e) continue;
+        e.code = info.customerCode || '';
+        e.wechat = info.wechatId || '';
+      }
+    }
+
     const customers: DailyKpiDetailCustomer[] = [];
     if (custIds.length) {
       const histWhere: any = { status: 'DONE', customerId: { in: custIds } };
       if (studioId) histWhere.studioId = studioId;
       if (companionId) histWhere.OR = [{ companionId }, { coCompanionId: companionId }];
 
-      const hist = (await this.prisma.order.groupBy({
+      const hist = ((await this.prisma.order.groupBy({
         by: ['customerId'],
         where: histWhere,
         _count: { id: true },
         _sum: { amount: true },
         _min: { createdAt: true },
         _max: { createdAt: true },
-      } as any)) as any[];
+      } as any)) || []) as any[];
       const histById = new Map(hist.map((h) => [h.customerId, h]));
 
       // 累计时长：会话只挂在父单上，先取父单 → 客户，再按客户汇总。
-      const histOrders = (await this.prisma.order.findMany({
+      const histOrders = ((await this.prisma.order.findMany({
         where: histWhere,
         select: { id: true, customerId: true },
-      })) as any[];
+      })) || []) as any[];
       const custOfOrder = new Map(histOrders.map((o) => [o.id, o.customerId]));
       const sessSums = histOrders.length
         ? ((await this.prisma.orderSession.groupBy({
             by: ['parentOrderId'],
             where: { status: 'DONE', parentOrderId: { in: histOrders.map((o) => o.id) } },
             _sum: { duration: true },
-          } as any)) as any[])
+          } as any)) || []) as any[]
         : [];
       const hoursByCust = new Map<string, number>();
       for (const s of sessSums) {
@@ -812,25 +976,14 @@ export class StatsService {
         hoursByCust.set(cid, (hoursByCust.get(cid) || 0) + (Number(s._sum?.duration) || 0));
       }
 
-      const dayByCust = new Map<
-        string,
-        { orders: number; hours: number; amount: number; kinds: Set<string>; code: string; wechat: string }
-      >();
-      for (const r of orderRows) {
-        let e = dayByCust.get(r.customerId);
-        if (!e) {
-          e = { orders: 0, hours: 0, amount: 0, kinds: new Set<string>(), code: r.customerCode, wechat: r.customerWechat };
-          dayByCust.set(r.customerId, e);
-        }
-        e.orders += 1;
-        e.hours += r.hours;
-        e.amount += r.amount;
-        e.kinds.add(r.type);
-      }
-
       for (const cid of custIds) {
         const day = dayByCust.get(cid)!;
         const h: any = histById.get(cid);
+        const firstNew = firstNewByCust.get(cid);
+        const firstOrder = firstOrderByCust.get(cid);
+        // 跟每日数据同一套：分母 = 打过首单的客户；复购 = 今天有单 + 之前来过
+        const counted = !!firstNew && businessDayKey(firstNew) <= date;
+        const repurchased = counted && day.orders > 0 && !!firstOrder && businessDayKey(firstOrder) < date;
         customers.push({
           customerId: cid,
           customerCode: day.code,
@@ -844,9 +997,12 @@ export class StatsService {
           firstAt: h && h._min && h._min.createdAt ? new Date(h._min.createdAt).toISOString() : null,
           lastAt: h && h._max && h._max.createdAt ? new Date(h._max.createdAt).toISOString() : null,
           kinds: [...day.kinds],
+          renewed: day.renewed && counted,
+          repurchased,
+          counted,
         });
       }
-      customers.sort((a, b) => b.amount - a.amount);
+      customers.sort((a, b) => b.amount - a.amount || b.hours - a.hours);
     }
 
     return { date, scope, orders: orderRows, customers };
