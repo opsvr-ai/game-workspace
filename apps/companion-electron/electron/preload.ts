@@ -54,6 +54,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('banner-action', handler as any);
     return () => ipcRenderer.removeListener('banner-action', handler as any);
   },
+  /**
+   * 主进程通知：这台机器全屏打游戏时会被弹窗顶出游戏，已自动改成「只响提示音 + 闪任务栏」
+   * （老板 2026-10-08 童祥瑞那台）。返回取消订阅函数。
+   */
+  onBannerFsAdapted: (cb: (data: { exe?: string }) => void) => {
+    const handler = (_e: unknown, data: { exe?: string }) => cb(data || {});
+    ipcRenderer.on('banner-fs-adapted', handler as any);
+    return () => ipcRenderer.removeListener('banner-fs-adapted', handler as any);
+  },
   /** 群聊广播 / 各类提醒：弹一个 Windows 置顶小窗（可带点击动作），到时自动消失。 */
   broadcastPopup: (payload: {
     title?: string;

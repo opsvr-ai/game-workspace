@@ -12,6 +12,13 @@ import { handleUpdateCommand, checkForUpdates } from './updater';
 import { createTray, updateTrayTooltip } from './tray';
 import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending, pauseCapture, resumeCapture } from './capture';
 import { handleStatusChanged, ensureHibernateEnabled, setAppPassword, getAppPassword } from './screen-lock';
+import {
+  decideBannerRoute,
+  isFullscreenKicked,
+  resolveBannerMode,
+  type BannerFsMode,
+  type ForegroundProbe,
+} from './banner-policy';
 
 // 机器台账 / 远程一键诊断：把这块电脑报给服务端，并领远程任务回来执行。
 // 说明见 electron/machine-agent.js（和客服端同一套实现）。
@@ -245,7 +252,12 @@ const STORE_KEYS = new Set([
   'notificationPrefs',
   'notifSound',
   'notifVolume',
+  // 全屏打游戏时弹不弹窗：三档设置 + 本机学习标记 + 「本机陪玩端是新策略」的能力标记。
+  // 老键 bannerMuteWhileFullscreen 只留作读迁移，新代码不再写它（2026-10-08）。
   'bannerMuteWhileFullscreen',
+  'bannerFullscreenMode',
+  'bannerKicksGame',
+  'bannerPolicyVersion',
   'screenLocked',
   'lastStatus',
   'username',
@@ -1013,19 +1025,56 @@ type BannerPayload = {
 // Windows 的「全屏优化」），置顶窗一出现 Windows 就会把游戏顶回桌面；游戏设成「无边框窗口 /
 // 窗口化全屏」的机器上，横幅只是浮在游戏上面，什么都不影响。
 //
-// 给受影响的机器留一条路：设置里打开「全屏打游戏时不要弹窗」后，出横幅之前先问一句
-// 「最前面那个窗口是不是铺满整块屏」，是就先不画置顶窗 —— 提示音、铃铛里的提醒记录、抢单池
-// 全都照旧（一单不会漏），等游戏退到窗口 / 退出 / 切到桌面了，立刻把攒下的横幅补出来。
-// 默认关：没这个毛病的机器（大多数）保持原样，照旧在游戏上面弹。
-const BANNER_MUTE_WHILE_FULLSCREEN = 'bannerMuteWhileFullscreen';
+// 给受影响的机器留一条路（老板 2026-10-07 报「游戏被弹窗顶回桌面」，2026-10-08 童祥瑞那台又报一次
+// → 改成默认自己判断，不用谁去手动开开关）：出横幅之前先问一句「最前面那个窗口是不是铺满整块屏」，
+// 是就先不画置顶窗 —— 提示音、铃铛里的提醒记录、抢单池全都照旧（一单不会漏），等游戏退到窗口 /
+// 退出 / 切到桌面了，立刻把攒下的横幅补出来。
+//
+// 默认档 auto 只在「确实会被顶出去」的机器上压住：要么 Windows 说前台是独占全屏（探测脚本里的
+// SHQueryUserNotificationState 报 D3D 全屏），要么这台机器以前被横幅顶出去过（弹完复查一次记在本机）。
+// 「无边框窗口 / 窗口化全屏」的机器行为一个字不变，照旧弹在游戏上面。
+// 三档的取舍逻辑全在 electron/banner-policy.ts（单独测过），这里只管读本机存储 + 起探测。
+const BANNER_MUTE_WHILE_FULLSCREEN = 'bannerMuteWhileFullscreen'; // 老键（只读，用来迁移）
+const BANNER_FULLSCREEN_MODE = 'bannerFullscreenMode'; // 'auto' | 'hold' | 'show'
+const BANNER_KICKS_GAME = 'bannerKicksGame'; // 本机被横幅顶出去过（学到的，存本机）
 
-/** 设置里那个开关开着没。 */
-function bannerMuteWhileFullscreenOn(): boolean {
+/** 设置里那一档：auto（默认，自己判断）/ hold（全屏一律不弹）/ show（照旧弹在游戏上面）。 */
+function bannerFullscreenMode(): BannerFsMode {
   try {
-    return store.get(BANNER_MUTE_WHILE_FULLSCREEN) === true;
+    return resolveBannerMode(
+      store.get(BANNER_FULLSCREEN_MODE),
+      store.get(BANNER_MUTE_WHILE_FULLSCREEN),
+    );
+  } catch {
+    return 'auto';
+  }
+}
+
+/** 这台机器以前有没有被横幅顶出过游戏。 */
+function bannerKicksGameKnown(): boolean {
+  try {
+    return store.get(BANNER_KICKS_GAME) === true;
   } catch {
     return false;
   }
+}
+
+/**
+ * 探测「最前面那个窗口是不是铺满整块屏」，但最多只等 700 毫秒。
+ *
+ * 探测要起一个 PowerShell（几百毫秒）。这条快路只用在「不压住」的机器上（大多数）：万一
+ * PowerShell 起得慢，宁可先弹出来（跟老版本一样），也不能让新单提醒卡在这儿。
+ * 「要压住」的情况（手动选了 hold / 这台机器被顶出去过）走完整探测，慢一点没关系。
+ */
+const BANNER_PROBE_WAIT_MS = 700;
+function probeForegroundFullscreenQuick(): Promise<ForegroundProbe | null> {
+  return Promise.race([
+    probeForegroundFullscreen(),
+    new Promise<null>((resolve) => {
+      const t = setTimeout(() => resolve(null), BANNER_PROBE_WAIT_MS);
+      if ((t as any).unref) (t as any).unref();
+    }),
+  ]);
 }
 
 /**
@@ -1046,6 +1095,9 @@ const FG_PROBE_SCRIPT = [
   '  [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);',
   '  [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO mi);',
   '  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);',
+  '  // 前台窗口是不是「独占全屏」（D3D 真全屏）。这种机器上任何置顶窗都会把游戏顶回桌面，',
+  '  // 所以出横幅之前要先问一句（老板 2026-10-08 童祥瑞那台）。',
+  '  [DllImport("shell32.dll")] public static extern int SHQueryUserNotificationState(out int state);',
   '}',
   '"@',
   '$h = [ClvFgProbe]::GetForegroundWindow()',
@@ -1061,20 +1113,23 @@ const FG_PROBE_SCRIPT = [
   '$wpid = 0; $null = [ClvFgProbe]::GetWindowThreadProcessId($h, [ref]$wpid)',
   "$exe = ''",
   'try { $exe = (Get-Process -Id $wpid -ErrorAction Stop).ProcessName } catch {}',
-  '[pscustomobject]@{ full = $full; exe = $exe; w = $w; h = $ht; mw = $mw; mh = $mh } | ConvertTo-Json -Compress',
+  '$quns = 0',
+  'try { $null = [ClvFgProbe]::SHQueryUserNotificationState([ref]$quns) } catch {}',
+  '[pscustomobject]@{ full = $full; exe = $exe; quns = $quns; w = $w; h = $ht; mw = $mw; mh = $mh } | ConvertTo-Json -Compress',
 ].join('\n');
 
 // 探测结果缓存 3 秒：一单同时来几条横幅（本店广播 + 客服指定）不会连着开好几个 PowerShell。
-let fgProbeCache: { at: number; full: boolean; exe: string } | null = null;
-let fgProbeRunning: Promise<{ full: boolean; exe: string } | null> | null = null;
+// （复查「游戏被顶出去了没」必须绕开这个缓存，见 probeForegroundFullscreen 的 fresh 参数。）
+let fgProbeCache: ({ at: number } & ForegroundProbe) | null = null;
+let fgProbeRunning: Promise<ForegroundProbe | null> | null = null;
 
 /**
  * 最前面那个窗口是不是铺满整块屏（＝多半在全屏打游戏）。
  * 探不出来（PowerShell 起不来 / 超时 / 输出解析不了）一律返回 null，调用方按「没在全屏」处理 ——
  * 宁可照旧弹一下，也不能因为探测失败把新单提醒吞掉。
  */
-async function probeForegroundFullscreen(): Promise<{ full: boolean; exe: string } | null> {
-  if (fgProbeCache && Date.now() - fgProbeCache.at < 3000) return fgProbeCache;
+async function probeForegroundFullscreen(fresh = false): Promise<ForegroundProbe | null> {
+  if (!fresh && fgProbeCache && Date.now() - fgProbeCache.at < 3000) return fgProbeCache;
   if (fgProbeRunning) return fgProbeRunning;
   fgProbeRunning = new Promise((resolve) => {
     execFile(
@@ -1093,7 +1148,12 @@ async function probeForegroundFullscreen(): Promise<{ full: boolean; exe: string
         }
         try {
           const j = JSON.parse(String(stdout).trim().split('\n').pop() || '{}');
-          resolve({ full: !!j.full, exe: String(j.exe || '') });
+          resolve({
+            full: !!j.full,
+            exe: String(j.exe || '').toLowerCase(),
+            // 3 = QUNS_RUNNING_D3D_FULL_SCREEN：Windows 说前台是「独占全屏」（D3D 真全屏）
+            exclusive: Number(j.quns) === 3,
+          });
         } catch {
           resolve(null);
         }
@@ -1141,23 +1201,38 @@ function deferBannerWhileFullscreen(payload: BannerPayload, exe: string): void {
 }
 
 /**
- * 横幅入口：设置里打开「全屏打游戏时不要弹窗」时，先看一眼是不是正在全屏打游戏 ——
- * 是就不画置顶窗（那会把游戏顶到桌面），改成响提示音 + 闪任务栏，等退到窗口再补弹；
- * 没开这个开关（默认）就走原来的路：直接画。
+ * 横幅入口：新单提醒 / 群聊广播 / 杀进程提示都走这儿。
+ *
+ * 按本机那一档设置（auto / hold / show，见 banner-policy.ts）决定：
+ *   该压住 → 不画置顶窗（那会把独占全屏的游戏顶回桌面），改成响提示音 + 闪任务栏 + 铃铛里留
+ *            记录，游戏一退出全屏立刻把攒下的横幅补出来（deferBannerWhileFullscreen）；
+ *   该弹   → 跟以前完全一样，直接画。auto 档在「看起来不会被顶出去」时还会顺手复查一次
+ *            （见 watchFullscreenKick）：这台机器真被顶出去了就记下来，以后自动压住。
  */
 function showBroadcastPopup(payload: BannerPayload): void {
-  if (!bannerMuteWhileFullscreenOn()) {
+  const mode = bannerFullscreenMode();
+  if (mode === 'show') {
+    // 明确选了「照弹」：连探都不用探，行为跟老版本一模一样。
     showBannerNow(payload);
     return;
   }
+  const learned = bannerKicksGameKnown();
+  // 「全屏一律压住」和「这台机器被顶出去过」这两种情况必须等探测回来再决定：
+  // 宁可晚几百毫秒，也不能把正在打游戏的人从游戏里拽出来。
+  const mustHold = mode === 'hold' || learned;
   void (async () => {
-    const fg = await probeForegroundFullscreen();
-    if (!fg?.full) {
+    const fg = mustHold ? await probeForegroundFullscreen() : await probeForegroundFullscreenQuick();
+    if (decideBannerRoute({ mode, probe: fg, learnedKick: learned }) === 'show') {
       showBannerNow(payload);
+      // auto 档 + 正在全屏打游戏：这次先弹了，顺手验一下这台机器会不会被顶出去。
+      if (mode === 'auto' && fg?.full) watchFullscreenKick(fg);
       return;
     }
     logger.info('Banner held back: fullscreen game in foreground', {
-      exe: fg.exe,
+      mode,
+      exe: fg?.exe,
+      exclusive: fg?.exclusive,
+      learnedKick: learned,
       title: payload?.title,
       orderId: payload?.orderId,
     });
@@ -1166,8 +1241,40 @@ function showBroadcastPopup(payload: BannerPayload): void {
     } catch {
       /* 闪任务栏失败不影响什么 */
     }
-    deferBannerWhileFullscreen(payload, fg.exe);
+    if (fg) deferBannerWhileFullscreen(payload, fg.exe);
   })();
+}
+
+/**
+ * 弹完横幅 2.5 秒复查一次：全屏游戏是不是被这张横幅顶出去了。
+ *
+ * 是 → 把「这台机器会被顶出去」记在本机存储里，以后自动压住横幅，不再把人从游戏里拽出来；
+ *      顺带告诉界面一声（老板得知道这台机器为什么以后打游戏时不弹了）。
+ * 只认「弹之前在全屏 + 复查时不在全屏 / 换了别的进程」这一种情形；探测失败不记
+ * （宁可漏记一次下次再学，也不能把没毛病的机器记成有毛病）。判断本身在 banner-policy.ts。
+ */
+function watchFullscreenKick(before: ForegroundProbe): void {
+  setTimeout(() => {
+    void (async () => {
+      // 必须绕开 3 秒缓存：缓存里那条正是「弹之前」的旧结果，拿它复查等于什么都没验。
+      const after = await probeForegroundFullscreen(true);
+      if (!isFullscreenKicked(before, after)) return;
+      try {
+        store.set(BANNER_KICKS_GAME, true);
+      } catch {
+        /* 存不下就下次再学 */
+      }
+      logger.warn('Banner kicked the fullscreen game out; holding banners on this machine from now on', {
+        exe: before.exe,
+        afterExe: after?.exe,
+      });
+      try {
+        mainWindow?.webContents.send('banner-fs-adapted', { exe: before.exe });
+      } catch {
+        /* 通知不到界面也不影响「以后压住横幅」这件事 */
+      }
+    })();
+  }, 2500);
 }
 
 /**
@@ -1425,6 +1532,9 @@ function setupIPC(): void {
   ipcMain.handle('store:set', (_e, key: string, value: unknown) => {
     if (!STORE_KEYS.has(key)) return { success: false };
     store.set(key, value);
+    // 陪玩自己选了「全屏时照弹」= 明确接受被顶出去：把本机学到的「会被顶出去」清掉，
+    // 以后想切回自动档也是干干净净重新判断（老板 2026-10-08）。
+    if (key === BANNER_FULLSCREEN_MODE && value === 'show') store.set(BANNER_KICKS_GAME, false);
     if ((key === 'token' || key === 'refreshToken') && value) {
       connectWebSocket(getServerUrl(), getWsToken(), (store.get('companionId') || '') as string, refreshWsTokenAndReconnect);
     }
@@ -2080,6 +2190,13 @@ app.whenReady().then(() => {
   }, 90 * 1000);
 
   maybeCheckUpdates();
+  // 告诉网页「本机陪玩端已经带新版全屏弹窗策略」：设置页靠它决定要不要显示新的三档选择
+  // （老客户端里这个键读不到，网页就老实提示「升级后才生效」，不会显示得像已经生效了）。
+  try {
+    store.set('bannerPolicyVersion', 1);
+  } catch {
+    /* 存不下不影响弹窗策略本身 */
+  }
   // 前端版本热更检查：启动先记录一次，之后每 5 分钟查一次。
   // 以前是 60 秒一次：一个纯版本号查询，20 个客户端一天能打出近 3 万次请求，
   // 电脑也白跑一天。改 5 分钟后，仍然满足「发布后 5 分钟内自动更新」这条承诺。

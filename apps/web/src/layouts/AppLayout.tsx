@@ -771,6 +771,33 @@ const AppLayout: React.FC = () => {
     };
   }, [navigate, user?.role, openDirectChat, openGroupChat]);
 
+  // 主进程通知：这台电脑全屏打游戏时会被弹窗顶出游戏，已自动改成「只响提示音 + 闪任务栏」
+  // （老板 2026-10-08 童祥瑞那台）。跟主进程那套「压住横幅」配套 —— 得让人知道这台机器为什么
+  // 以后打游戏时不弹了，以及去哪儿改回来。
+  React.useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api?.onBannerFsAdapted) return;
+    const off = api.onBannerFsAdapted(() => {
+      message.info(
+        '这台电脑全屏打游戏时会被弹窗顶出游戏，已自动改成「只响提示音 + 闪任务栏」，退出全屏后补弹；想改回去「设置 → 通知」里选',
+        8,
+      );
+      recordNotice({
+        icon: '🖥️',
+        title: '全屏打游戏时已自动不弹窗',
+        desc: '检测到本机被弹窗顶出过游戏，已自动改成响提示音 + 闪任务栏（退出全屏后补弹），可在「设置 → 通知」改回',
+        href: '/companion',
+      });
+    });
+    return () => {
+      try {
+        off?.();
+      } catch {
+        /* 已经卸载了 */
+      }
+    };
+  }, []);
+
   // 右下角通知弹窗被点了一下（utils/notice.ts 派发的自定义事件）→ 跳到通知指向的页面。
   React.useEffect(() => {
     const onNoticeGoto = (e: Event) => {

@@ -28,6 +28,7 @@ import {
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { companionsApi } from '../api/companions';
 import { customersApi } from '../api/customers';
+import BannerFullscreenModeSetting from '../components/BannerFullscreenModeSetting';
 import { useAuthStore } from '../stores/authStore';
 import http from '../api/client';
 import {
@@ -226,8 +227,9 @@ const CompanionPage: React.FC = () => {
   const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [notifSound, setNotifSound] = useState(true);
   const [notifVolume, setNotifVolume] = useState(70);
-  // 全屏打游戏时要不要弹置顶窗：本地设置，每台机器各存各的（老板 2026-10-07）
-  const [bannerMuteFullscreen, setBannerMuteFullscreen] = useState(false);
+  // 「全屏打游戏时弹不弹窗」那一档存在本机（每台机器各存各的），界面抽成
+  // <BannerFullscreenModeSetting /> 自己读自己写 —— 老板 2026-10-08 童祥瑞那台被弹窗顶出游戏，
+  // 从「一个开关」改成「自动 / 全屏时都不弹 / 全屏时照弹」三档，逻辑在陪玩端主进程里单独测。
   const [todaySessions, setTodaySessions] = useState<any[]>([]);
   const [dormantCount, setDormantCount] = useState(0);
   const [notifPrefs, setNotifPrefs] = useState<any>({
@@ -249,16 +251,6 @@ const CompanionPage: React.FC = () => {
         setNotifyWhileEntertainment(data?.data?.notifyWhileEntertainment !== false);
       })
       .catch(() => {});
-    // 「全屏打游戏时不要弹窗」存在本机（electron-store）：网页里没有 electronAPI 就当没开。
-    try {
-      const api = (window as any).electronAPI;
-      if (api?.storeGet) {
-        api
-          .storeGet('bannerMuteWhileFullscreen')
-          .then((v: unknown) => setBannerMuteFullscreen(v === true))
-          .catch(() => {});
-      }
-    } catch {}
   }, []);
 
   const saveNotifPrefs = async (prefs: any) => {
@@ -873,29 +865,7 @@ const CompanionPage: React.FC = () => {
         <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
           娱乐中也能抢单（弹窗里带订单号，点一下跳到抢单池）；不想被打扰就关上。
         </Typography.Text>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6, gap: 12 }}>
-          <Typography.Text strong>全屏打游戏时不要弹窗</Typography.Text>
-          <Switch
-            checked={bannerMuteFullscreen}
-            onChange={async (v) => {
-              setBannerMuteFullscreen(v);
-              try {
-                await (window as any).electronAPI?.storeSet('bannerMuteWhileFullscreen', v);
-                message.success(
-                  v ? '已打开：全屏打游戏时不弹窗，退出全屏后补弹' : '已关闭：照旧弹在游戏上面',
-                );
-              } catch {
-                setBannerMuteFullscreen(!v);
-                message.error('保存失败，请重试');
-              }
-            }}
-          />
-        </div>
-        <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
-          「游戏一弹窗就被顶回桌面」的机器才需要开：打开后，全屏打游戏时新单只响提示音 + 闪任务栏
-          （铃铛里的提醒和抢单池照旧，一单不会漏），游戏退出全屏 / 切回桌面后立刻把横幅补出来。
-          游戏设成「无边框窗口 / 窗口化全屏」的机器不用开。
-        </Typography.Text>
+        <BannerFullscreenModeSetting />
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, gap: 16 }}>
           <Typography.Text strong>提示音</Typography.Text>
           <Switch
