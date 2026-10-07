@@ -12,6 +12,8 @@ import {
   Col,
   Drawer,
   Tooltip,
+  Input,
+  Segmented,
 } from 'antd';
 import { message } from '../../utils/feedback';
 import { ReloadOutlined, SettingOutlined } from '@ant-design/icons';
@@ -69,6 +71,12 @@ const STATE: Record<string, { label: string; color: string }> = {
 
 const yuan = (v: any, digits = 1) => `¥${Number(v || 0).toFixed(digits)}`;
 
+/** 表格列排序：按某个数值字段升 / 降序（点表头的小箭头切换）。 */
+const byNumber =
+  (key: string) =>
+  (a: Record<string, unknown>, b: Record<string, unknown>): number =>
+    Number(a[key] || 0) - Number(b[key] || 0);
+
 const CsCommissionTodayPage: React.FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -81,6 +89,11 @@ const CsCommissionTodayPage: React.FC = () => {
   // 「今天我们店接的单」（老板 2026-09-30）：桥接店 / 线上俱乐部看自己今天接的单和结果
   const [received, setReceived] = useState<any>(null);
   const [receivedLoading, setReceivedLoading] = useState(false);
+  // 客服明细的筛选（老板 2026-10-07：「不能筛选？」）。
+  // 全店合计在上面那排卡里，这张表是「一个人一行」——以前有 0 单的人也在表里，
+  // 想单独看谁都只能拿眼睛找。现在能按名字搜、也能把 0 单的人收起来（默认还是全看）。
+  const [csSearch, setCsSearch] = useState('');
+  const [csOnlyActive, setCsOnlyActive] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -154,6 +167,16 @@ const CsCommissionTodayPage: React.FC = () => {
 
   const s = data?.summary || null;
   const csList: any[] = data?.csList || [];
+  // 筛过的表（「全店今日应发」那张卡用的还是未筛的 todayPayTotal，不受影响）
+  const csFiltersOn = csSearch.trim() !== '' || csOnlyActive;
+  const csShown = !csFiltersOn
+    ? csList
+    : csList.filter((r) => {
+        if (csOnlyActive && !(Number(r.published) > 0)) return false;
+        const kw = csSearch.trim().toLowerCase();
+        if (!kw) return true;
+        return `${r.displayName || ''} ${r.username || ''}`.toLowerCase().includes(kw);
+      });
   const todayPayTotal = csList.reduce((sum, r) => sum + Number(r.todayPay || 0), 0);
   const failReasons: Array<[string, number]> = Object.entries(s?.failReasons || {}).sort(
     (a: any, b: any) => b[1] - a[1],
@@ -250,11 +273,13 @@ const CsCommissionTodayPage: React.FC = () => {
         </div>
       ),
     },
-    { title: '发单', dataIndex: 'published', width: 62, render: (v: number) => <Text strong>{v ?? 0}</Text> },
-    { title: '派出', dataIndex: 'dispatched', width: 62, render: (v: number) => <Text strong>{v ?? 0}</Text> },
+    { title: '发单', dataIndex: 'published', width: 74, sorter: byNumber('published'), render: (v: number) => <Text strong>{v ?? 0}</Text> },
+    { title: '派出', dataIndex: 'dispatched', width: 74, sorter: byNumber('dispatched'), render: (v: number) => <Text strong>{v ?? 0}</Text> },
     {
       title: '线下',
+      key: 'offlineOrders',
       width: 92,
+      sorter: byNumber('offlineOrders'),
       render: (_: unknown, r: any) => (
         <div>
           <Text strong>{r.offlineOrders ?? 0} 单</Text>
@@ -267,7 +292,9 @@ const CsCommissionTodayPage: React.FC = () => {
       // 桥接这块**按本月口径**显示（真正算钱的是本月单价阶梯）：
       // 以前这一列写的是「今天达标没有」，钱却按月度阶梯算，客服会看错。
       title: '桥接（本月）',
+      key: 'monthBridgeUnits',
       width: 168,
+      sorter: byNumber('monthBridgeUnits'),
       render: (_: unknown, r: any) => (
         <div>
           <Text strong>本月 {r.monthBridgeUnits ?? 0} 单</Text>
@@ -295,7 +322,9 @@ const CsCommissionTodayPage: React.FC = () => {
     },
     {
       title: '线上',
+      key: 'onlineOrders',
       width: 92,
+      sorter: byNumber('onlineOrders'),
       render: (_: unknown, r: any) => (
         <div>
           <Text strong>{r.onlineOrders ?? 0} 单</Text>
@@ -305,7 +334,9 @@ const CsCommissionTodayPage: React.FC = () => {
     },
     {
       title: '成功 / 不成功 / 待反馈',
-      width: 132,
+      key: 'success',
+      width: 190,
+      sorter: byNumber('success'),
       render: (_: unknown, r: any) => (
         <div>
           <span style={{ color: STATE.SUCCESS.color, fontWeight: 600 }}>{r.success ?? 0}</span>
@@ -319,13 +350,15 @@ const CsCommissionTodayPage: React.FC = () => {
     {
       title: '成功率',
       dataIndex: 'successRate',
-      width: 74,
+      width: 86,
+      sorter: byNumber('successRate'),
       render: (v: number | null) => (v == null ? <Text type="secondary">-</Text> : `${v.toFixed(0)}%`),
     },
     {
       title: '应发提成',
       dataIndex: 'totalCommission',
-      width: 84,
+      width: 94,
+      sorter: byNumber('totalCommission'),
       render: (v: number) => yuan(v),
     },
     {
@@ -341,7 +374,8 @@ const CsCommissionTodayPage: React.FC = () => {
     {
       title: '今日应发',
       dataIndex: 'todayPay',
-      width: 88,
+      width: 96,
+      sorter: byNumber('todayPay'),
       render: (v: number) => (
         <Text strong style={{ color: SEMANTIC.dangerDeep, fontSize: 15 }}>
           {yuan(v)}
@@ -351,7 +385,8 @@ const CsCommissionTodayPage: React.FC = () => {
     {
       title: '当月累计',
       dataIndex: 'monthTotalYuan',
-      width: 88,
+      width: 96,
+      sorter: byNumber('monthTotalYuan'),
       render: (v: number) => <Text type="secondary">{yuan(v)}</Text>,
     },
     {
@@ -557,15 +592,45 @@ const CsCommissionTodayPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Card size="small" title={`客服明细（${csList.length}人）`}>
+      <Card
+        size="small"
+        title={
+          csFiltersOn
+            ? `客服明细（筛出 ${csShown.length} / 共 ${csList.length} 人）`
+            : `客服明细（${csList.length}人）`
+        }
+        extra={
+          <Space size={8} wrap>
+            <Input.Search
+              placeholder="搜索客服姓名 / 账号"
+              allowClear
+              size="small"
+              style={{ width: 190 }}
+              value={csSearch}
+              onChange={(e) => setCsSearch(e.target.value)}
+            />
+            <Segmented
+              size="small"
+              value={csOnlyActive ? 'active' : 'all'}
+              onChange={(v) => setCsOnlyActive(v === 'active')}
+              options={[
+                { label: '全部', value: 'all' },
+                { label: '只看有发单的', value: 'active' },
+              ]}
+            />
+          </Space>
+        }
+      >
         <Table
           rowKey="userId"
           size="small"
           loading={loading}
           pagination={false}
-          dataSource={csList}
-          locale={{ emptyText: '今日暂无客服提成数据' }}
-          scroll={{ x: 1240 }}
+          dataSource={csShown}
+          locale={{ emptyText: csFiltersOn ? '没有符合筛选条件的客服' : '今日暂无客服提成数据' }}
+          // 横滚宽度 = 各列 width 之和（128+74+74+92+168+92+190+86+94+82+96+96+66=1338）。
+          // 写小了 antd 会把表头按比例压扁，「成功 / 不成功 / 待反馈」被挤成三条竖着念。
+          scroll={{ x: 1338 }}
           onRow={(r: any) => ({
             onClick: () => openRow(r),
             style: { cursor: canOpenRow(r) ? 'pointer' : 'default' },
