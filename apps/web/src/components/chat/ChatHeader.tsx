@@ -5,7 +5,8 @@ import { PushpinOutlined, PushpinFilled, CloseOutlined, PhoneOutlined, MinusOutl
 import { useNavigate } from 'react-router-dom';
 import { useVoiceCallStore } from '../../stores/voiceCallStore';
 import { useAuthStore } from '../../stores/authStore';
-import { ordersPathWithOrder, parseOrderInfo, orderInfoVisible, ORDER_INFO_TTL_MS } from '../../utils/chatOrder';
+import { ordersPathWithOrder, openOrdersWindow, parseOrderInfo, orderInfoVisible, ORDER_INFO_TTL_MS } from '../../utils/chatOrder';
+import { message } from '../../utils/feedback';
 import { BRAND, TEXT, BG, SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
@@ -24,6 +25,11 @@ interface ChatHeaderProps {
   onCallClick?: () => void;
   /** 群聊里可见：客服/店长发广播（弹到每个陪玩电脑右下角） */
   onBroadcast?: () => void;
+  /**
+   * 这个聊天框是不是「独立的系统窗口」（一个联系人一个窗口，见 pages/ChatWindowPage.tsx）。
+   * 是的话点「查看订单」不能 navigate —— 那会把聊天窗口自己换成订单管理页（老板 2026-10-07）。
+   */
+  standalone?: boolean;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -41,7 +47,7 @@ function formatCallDuration(seconds?: number) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, orderInfo, pinned, onTogglePin, onMinimize, onClose, onCallClick, onBroadcast }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, orderInfo, pinned, onTogglePin, onMinimize, onClose, onCallClick, onBroadcast, standalone }) => {
   const call = useVoiceCallStore((s) => s.call);
   const inCall = call.status === 'connected' && !!userId && call.peerId === userId;
   const navigate = useNavigate();
@@ -69,6 +75,23 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
     return () => clearTimeout(t);
   }, [orderInfo, orderAt]);
   const showOrder = !!orderRef && !orderExpired;
+
+  // 点「查看订单」：在订单管理里把这一单标出来（整行高亮 + 自动弹出它的详情）。
+  //
+  // **独立聊天窗口里不能用 navigate**：聊天窗口本身就是个独立窗口，navigate 会把
+  // 「跟这个人的聊天」整个换成订单管理页（老板 2026-10-07 报的那个）。独立窗口里
+  // 改成另开一个订单管理窗口 —— 聊天窗口原地不动，聊天记录一条不少。
+  const openOrderDetail = () => {
+    const orderId = orderRef?.orderId;
+    if (!orderId) return;
+    if (standalone) {
+      if (!openOrdersWindow(myRole, orderId)) {
+        message.warning('新窗口被浏览器拦住了，请允许弹出窗口后再点一次');
+      }
+      return;
+    }
+    navigate(ordersPathWithOrder(myRole, orderId));
+  };
 
   return (
     <div
@@ -111,7 +134,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
           (orderRef.orderId ? (
             <span
               role="button"
-              onClick={() => navigate(ordersPathWithOrder(myRole, orderRef.orderId!))}
+              onClick={openOrderDetail}
               title="点这里打开这一单：来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式 / 备注 都在订单详情里"
               style={{
                 fontSize: 12,

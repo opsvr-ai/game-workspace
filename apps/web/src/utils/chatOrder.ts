@@ -97,3 +97,41 @@ export function ordersPathForRole(role?: string | null): string {
 export function ordersPathWithOrder(role: string | null | undefined, orderId: string): string {
   return `${ordersPathForRole(role)}?orderId=${encodeURIComponent(orderId)}`;
 }
+
+/** 订单管理窗口的窗口名：同名窗口浏览器自己会复用 + 聚焦，不会点一次开一个。 */
+const ORDERS_WINDOW_NAME = 'chunlv-orders';
+const ORDERS_WINDOW_FEATURES = 'popup=yes,width=1320,height=860,left=120,top=80';
+let ordersWindow: Window | null = null;
+
+/**
+ * 单独开一个「订单管理」窗口，并把这一单标出来（整行高亮 + 自动打开它的详情）。
+ *
+ * 谁需要它：**独立聊天窗口**（一个联系人一个系统窗口，见 ChatWindowPage / utils/chatWindow.ts）
+ * 里点聊天框顶上那行「查看订单」。
+ *
+ * 为什么不能直接 navigate（老板 2026-10-07 报的就是这个）：
+ * 聊天窗口自己就是一个独立窗口，拿 react-router 的 navigate 跳订单管理，
+ * 等于把「跟某人的聊天」整个换成了订单管理页 —— 老板原话「关闭对话框就是订单管理页面，
+ * 点击任务栏宋树祥显示的还是订单管理页面，找不到跟宋树祥的聊天内容了」。
+ * 所以独立窗口里一律走这里：订单管理另开一个窗口，聊天窗口原地不动、消息一条不少。
+ *
+ * 已经开着就复用（先把地址换成新的这一单，再拉到最前）。返回 false = 弹窗被拦。
+ */
+export function openOrdersWindow(role?: string | null, orderId?: string): boolean {
+  const url = ordersPathWithOrder(role, orderId || '');
+  try {
+    if (ordersWindow && !ordersWindow.closed) {
+      ordersWindow.location.href = url;
+      ordersWindow.focus();
+      return true;
+    }
+  } catch {
+    /* 拿不到旧窗口（被拦 / 已经不能访问）就当没开过，下面重新开一个 */
+  }
+  try {
+    ordersWindow = window.open(url, ORDERS_WINDOW_NAME, ORDERS_WINDOW_FEATURES) || null;
+    return !!ordersWindow;
+  } catch {
+    return false;
+  }
+}

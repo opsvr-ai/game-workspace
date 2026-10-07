@@ -17,11 +17,13 @@ interface ChatPanelProps {
   participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
   orderInfo?: string | null;
   embedded?: boolean;
+  /** 独立系统窗口里的聊天框（一个联系人一个窗口）——点「查看订单」改为另开窗口，不把本窗口导航走 */
+  standalone?: boolean;
   onMinimize?: () => void;
   onClose?: () => void;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, embedded, onMinimize, onClose }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, embedded, standalone, onMinimize, onClose }) => {
   const user = useAuthStore((s) => s.user);
   // Use selectors — never subscribe to full store (causes infinite loops)
   const conv = useChatStore((s) => (roomId ? s.conversations[roomId] : undefined));
@@ -244,6 +246,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         // props 只在本地还没有这个会话时兜底（正常流程下 store 里已经有值）。
         orderInfo={conv ? conv.orderInfo : orderInfo}
         pinned={conv?.pinned}
+        standalone={standalone}
         onMinimize={onMinimize}
         onClose={onClose}
         onCallClick={participant?.userId ? () => {

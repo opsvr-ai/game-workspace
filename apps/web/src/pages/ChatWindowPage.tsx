@@ -118,6 +118,7 @@ const StandaloneChat: React.FC = () => {
         roomId={convId}
         participant={participant}
         orderInfo={order}
+        standalone
         onClose={() => window.close()}
       />
     </div>
