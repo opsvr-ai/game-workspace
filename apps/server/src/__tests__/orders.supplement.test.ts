@@ -429,10 +429,18 @@ describe('补单记录（scope=records）：让管理端看清今天到底给谁
 });
 
 describe('陪玩「退单」：客服先核对、无异议到店长拍板（老板 2026-10-08）', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   const COMPANION = { id: 'u-c1', role: 'COMPANION', studioId: 's1', companionId: 'c1' };
   const CS = { id: 'cs-1', role: 'CS', studioId: 's1' };
+  /** 新建一个 service，并默认「这张单还没有任何一段开打过」（要开打的用例自己覆盖）。 */
+  const setupRefund = () => {
+    const s = setup();
+    s.prisma.orderSession.count.mockResolvedValue(0);
+    return s;
+  };
   const REFUND_ROW = {
     id: 'sr9',
     type: 'REFUND',
@@ -477,7 +485,7 @@ describe('陪玩「退单」：客服先核对、无异议到店长拍板（老�
   });
 
   it('不是自己的单 → 拒绝（只能给自己的单发起退单）', async () => {
-    const { service, prisma } = setup();
+    const { service, prisma } = setupRefund();
     prisma.order.findUnique.mockResolvedValue({ id: 'o1', companionId: 'other', studioId: 's1', status: 'GRABBED' });
     await expect(service.requestRefund('o1', COMPANION, { reason: '不打了' })).rejects.toThrow(/只能给自己的订单/);
   });
@@ -488,10 +496,45 @@ describe('陪玩「退单」：客服先核对、无异议到店长拍板（老�
   });
 
   it('已经提交过、还在等审 → 拒绝重复提交', async () => {
-    const { service, prisma } = setup();
+    const { service, prisma } = setupRefund();
     prisma.order.findUnique.mockResolvedValue({ id: 'o1', companionId: 'c1', studioId: 's1', status: 'GRABBED' });
     prisma.supplementRequest.findFirst.mockResolvedValue({ id: 'sr9', status: 'PENDING' });
     await expect(service.requestRefund('o1', COMPANION, { reason: '不打了' })).rejects.toThrow(/已经提交过/);
+  });
+
+  it('已经开打了（有过一段 startedAt）→ 后台也拒绝 —— 老板：「打了就证明没问题 还退啥单」', async () => {
+    const { service, prisma } = setupRefund();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      orderCode: 'A100',
+      studioId: 's1',
+      companionId: 'c1',
+      status: 'GRABBED',
+      refundedAt: null,
+    });
+    prisma.orderSession.count.mockResolvedValue(1); // 已经点过「开始首单」
+
+    await expect(
+      service.requestRefund('o1', COMPANION, { reason: '客户最后不打了' }),
+    ).rejects.toThrow(/已经开打/);
+    expect(prisma.supplementRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('已经打完的单（DONE）→ 后台拒绝，别把打过的单退掉', async () => {
+    const { service, prisma } = setupRefund();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      orderCode: 'A100',
+      studioId: 's1',
+      companionId: 'c1',
+      status: 'DONE',
+      refundedAt: null,
+    });
+
+    await expect(
+      service.requestRefund('o1', COMPANION, { reason: '客户最后不打了' }),
+    ).rejects.toThrow(/已经打完/);
+    expect(prisma.supplementRequest.create).not.toHaveBeenCalled();
   });
 
   it('客服点「无异议，转店长」→ 只记客服核对 + 推店长，不给名额、不退单', async () => {

@@ -1424,6 +1424,19 @@ export class OrdersService implements OnModuleInit {
     if (order.refundedAt || order.status === 'CANCELLED') {
       throw new BadRequestException('这张单已经退过 / 已经取消了');
     }
+    // 老板 2026-10-08：「打了就证明没问题 还退啥单。有问题的单都不会打，加吧」。
+    // 「退单必须还没开打」以前**只在陪玩端按钮上拦**（`OrdersPage.canRequestRefund`），
+    // 后端没卡 —— 拿到订单号直接调接口的，能把已经开打的单退掉。这里补上同一道锁：
+    // 只要有过一段「已开始」的会话，就不给退（没打成请走「报结果」那套）。
+    if (order.status === 'DONE') {
+      throw new BadRequestException('这张单已经打完了，不能退单；没打成请走「报结果」');
+    }
+    const startedSegments = await this.prisma.orderSession.count({
+      where: { parentOrderId: orderId, startedAt: { not: null } },
+    });
+    if (startedSegments > 0) {
+      throw new BadRequestException('这张单已经开打了，不能退单；没打成请走「报结果」');
+    }
     const existing = await this.prisma.supplementRequest.findFirst({
       where: { orderId, type: REFUND_TYPE },
     });
