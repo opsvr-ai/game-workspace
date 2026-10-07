@@ -15,8 +15,10 @@ import { message } from '../utils/feedback';
  *
  * 三件事容易踩坑，所以单独成文件 + 单独测：
  *   ① 老键（bannerMuteWhileFullscreen = true）要当「全屏时都不弹」，不能掉回默认的「自动」；
- *   ② 本机陪玩端还是老版本（读不到 bannerPolicyVersion）时，得老实说「升级后才生效」，
- *      不能让老板以为点了没反应是坏了；
+ *   ② 本机陪玩端还是老版本时，新键（bannerFullscreenMode）它**根本不认** —— 所以每次都要**同时**写
+ *      老键（bannerMuteWhileFullscreen，true = 全屏时不弹）。老板 2026-10-08 拍板不推客户端升级
+ *      （改用「游戏设成无边框全屏」规避），于是「全屏时都不弹 / 全屏时照弹」这两档必须**现在就能
+ *      在老板现有的客户端上生效**，不能点了没反应还回一句「已保存」；
  *   ③ 存在本机（electron-store），每台机器各存各的 —— 网页里打开时没有 electronAPI，整块跳过。
  */
 export type BannerFsMode = 'auto' | 'hold' | 'show';
@@ -62,8 +64,28 @@ export default function BannerFullscreenModeSetting() {
     setMode(next);
     try {
       const api = (window as any).electronAPI;
-      if (api?.storeSet) await api.storeSet('bannerFullscreenMode', next);
-      message.success(SAVED_TEXT[next]);
+      if (api?.storeSet) {
+        // 新键 = 新版陪玩端（三档）；老键 = 老板现在这些客户端（只有「全屏时不弹」一个开关）。
+        // 两个都写：新版认新键（老键只是顺带留个底），老版认老键 —— 谁都能立刻生效。
+        const results = await Promise.all([
+          api.storeSet('bannerFullscreenMode', next),
+          api.storeSet('bannerMuteWhileFullscreen', next === 'hold'),
+        ]);
+        // 太老的客户端（比如还没有这个功能的 1.0.20261020）两个键都不认，回 success:false ——
+        // 那种情况不能骗人说存好了，得直接告诉他改游戏画面设置。
+        const stored = results.some((r) => (r as { success?: boolean } | undefined)?.success !== false);
+        if (!stored) {
+          setMode(previous);
+          message.warning('本机陪玩端版本太老，还改不了这个设置 —— 把游戏画面改成「无边框全屏」就不会被顶出去了');
+          return;
+        }
+      }
+      if (policyReady === false && next === 'auto') {
+        // 老客户端没有「自动」这一档的概念，只当成了「照弹」—— 先说清楚，别让人以为已经防住了。
+        message.warning('已保存，但「自动」要装上最新版客户端才有 —— 本机现在等同「照弹」；想不被顶出去请选「全屏时都不弹」');
+      } else {
+        message.success(SAVED_TEXT[next]);
+      }
     } catch {
       setMode(previous);
       message.error('保存失败，请重试');
@@ -92,7 +114,8 @@ export default function BannerFullscreenModeSetting() {
         改成响提示音 + 闪任务栏，退出全屏立刻补弹；「无边框窗口 / 窗口化全屏」的机器照旧弹在游戏上面。
         「铃铛里的提醒 + 抢单池」任何情况都照旧，一单不会漏。
         {policyReady === false
-          ? ' 本机陪玩端升级到最新版后，这里的三档设置才会生效（客户端会自己升级）。'
+          ? ' 本机陪玩端还是老版本：「全屏时都不弹 / 全屏时照弹」两档现在就生效；'
+            + '「自动」要装上最新版客户端才有（本机现在等同「照弹」）。'
           : ''}
       </Typography.Text>
     </>
