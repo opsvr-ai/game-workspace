@@ -9,7 +9,7 @@
   "httpPrefix": "/api",
   "stats": {
     "controllers": 28,
-    "endpoints": 403,
+    "endpoints": 404,
     "socketEmitters": 3,
     "socketInbound": 15,
     "socketOutbound": 19
@@ -2155,6 +2155,13 @@
       "path": "/api/orders/:id/refund",
       "controller": "OrdersController",
       "handler": "refund",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/refund-request",
+      "controller": "OrdersController",
+      "handler": "requestRefund",
       "file": "apps/server/src/orders/orders.controller.ts"
     },
     {

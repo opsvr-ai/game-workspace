@@ -480,6 +480,25 @@ export class OrdersController {
     return { code: 200, message: '已退款', data };
   }
 
+  /**
+   * 陪玩发起「退单」（老板 2026-10-08）：「客户同意了但是没打成」（客户没转钱 / 转钱了最后不打）。
+   * 写清原因 + 传截图 → 生成一条退单申请，跟「添加失败」走同一个审核入口：
+   * 客服先核对（无异议 → 转店长），店长 / 老板拍板；同意 = 这单按退款处理（不计利润与提成）+ 名额 +1。
+   *
+   * 单独开一个接口（不改原来的 /refund）的原因：陪玩端要的是「申请」，钱的事必须有客服 + 店长把关，
+   * 不能让陪玩自己把单退掉 —— 老板原话「陪玩端要退款也没用」，有用的是「退单申请」。
+   */
+  @Post('orders/:id/refund-request')
+  @Roles(UserRole.COMPANION)
+  async requestRefund(
+    @Param('id') id: string,
+    @Body() body: { reason?: string; evidenceUrl?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.requestRefund(id, req.user, body || {});
+    return { code: 201, message: '退单申请已提交，等客服核对 / 店长拍板', data };
+  }
+
   @Post('orders/:id/deposit')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
   async deposit(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {

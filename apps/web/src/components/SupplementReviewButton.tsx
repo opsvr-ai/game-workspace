@@ -117,13 +117,20 @@ const SupplementReviewButton: React.FC = () => {
     return () => window.removeEventListener('supplement:open', onOpen as EventListener);
   }, [loadSummary]);
 
-  const decide = async (row: any, decision: 'APPROVE' | 'REJECT') => {
+  const decide = async (row: any, decision: 'APPROVE' | 'REJECT' | 'CS_PASS') => {
     try {
       await ordersApi.decideSupplement(row.id, decision);
+      const isRefund = row.type === 'REFUND';
       message.success(
-        decision === 'APPROVE'
-          ? `已同意补单：${row.companionName || '该陪玩'} 的抢单次数 +1`
-          : '已驳回这条补单申请',
+        decision === 'CS_PASS'
+          ? '已核对无异议，这条退单已转到店长那里拍板'
+          : decision === 'APPROVE'
+            ? isRefund
+              ? `已同意退单：${row.companionName || '该陪玩'} 这张单已退掉（不计利润与提成），抢单次数 +1`
+              : `已同意补单：${row.companionName || '该陪玩'} 的抢单次数 +1`
+            : isRefund
+              ? '已驳回这条退单申请，这张单照旧'
+              : '已驳回这条补单申请',
       );
       await loadRows(tab);
       await loadSummary();
@@ -168,9 +175,16 @@ const SupplementReviewButton: React.FC = () => {
           <a onClick={() => gotoOrder(r)} style={{ fontSize: 12 }}>
             {r.order?.orderCode || r.orderId}
           </a>
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            {r.order?.gameName || ''} {r.order?.contactStatus === 'not_accepted' ? '· 未添加' : r.order?.contactStatus === 'added' ? '· 已添加' : ''}
-          </Text>
+          <Space size={4}>
+            {r.type === 'REFUND' && (
+              <Tag color="red" style={{ margin: 0 }}>
+                退单
+              </Tag>
+            )}
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {r.order?.gameName || ''} {r.order?.contactStatus === 'not_accepted' ? '· 未添加' : r.order?.contactStatus === 'added' ? '· 已添加' : ''}
+            </Text>
+          </Space>
         </Space>
       ),
     },
@@ -180,7 +194,7 @@ const SupplementReviewButton: React.FC = () => {
       render: (_: any, r: any) => <Text style={{ fontSize: 12 }}>{r.order?.customerWechat || '—'}</Text>,
     },
     {
-      title: '陪玩填的原因',
+      title: '原因（陪玩填的）',
       width: 140,
       render: (_: any, r: any) => (
         <Text style={{ fontSize: 12 }}>{REASON_LABEL[r.reason] || r.reason || '—'}</Text>
@@ -203,7 +217,13 @@ const SupplementReviewButton: React.FC = () => {
       width: 110,
       render: (_: any, r: any) =>
         tab === 'pending' ? (
-          <Tag color="warning">{STATUS_LABEL[r.status] || r.status}</Tag>
+          r.type === 'REFUND' ? (
+            <Tag color="warning">{r.csReviewedAt ? '待店长拍板' : '待客服核对'}</Tag>
+          ) : (
+            <Tag color="warning">{STATUS_LABEL[r.status] || r.status}</Tag>
+          )
+        ) : r.type === 'REFUND' ? (
+          <Tag color="red">已同意退单</Tag>
         ) : (
           <Tag color="processing">已同意 · 待核查</Tag>
         ),
@@ -213,14 +233,38 @@ const SupplementReviewButton: React.FC = () => {
       width: 190,
       render: (_: any, r: any) =>
         tab === 'pending' ? (
-          <Space>
-            <Button size="small" type="primary" onClick={() => decide(r, 'APPROVE')}>
-              同意补单
-            </Button>
-            <Button size="small" danger onClick={() => decide(r, 'REJECT')}>
-              驳回
-            </Button>
-          </Space>
+          // 「退单」是两段式（老板 2026-10-08：「客服端审核 无异议到店长这里」）：
+          // 客服只能「无异议，转店长」或「驳回」；真正拍板（同意退单 = 这单退掉 + 名额 +1）是店长 / 老板。
+          r.type === 'REFUND' ? (
+            role === 'CS' ? (
+              <Space>
+                <Button size="small" type="primary" onClick={() => decide(r, 'CS_PASS')}>
+                  无异议，转店长
+                </Button>
+                <Button size="small" danger onClick={() => decide(r, 'REJECT')}>
+                  驳回
+                </Button>
+              </Space>
+            ) : (
+              <Space>
+                <Button size="small" type="primary" danger onClick={() => decide(r, 'APPROVE')}>
+                  同意退单
+                </Button>
+                <Button size="small" danger onClick={() => decide(r, 'REJECT')}>
+                  驳回
+                </Button>
+              </Space>
+            )
+          ) : (
+            <Space>
+              <Button size="small" type="primary" onClick={() => decide(r, 'APPROVE')}>
+                同意补单
+              </Button>
+              <Button size="small" danger onClick={() => decide(r, 'REJECT')}>
+                驳回
+              </Button>
+            </Space>
+          )
         ) : (
           <Space>
             <Button size="small" type="primary" onClick={() => review(r, 'ACCEPTED')}>
@@ -255,10 +299,16 @@ const SupplementReviewButton: React.FC = () => {
       title: '来源',
       width: 110,
       render: (_: any, r: any) =>
-        r.byAdmin ? <Tag color="processing">管理端补单</Tag> : <Tag>陪玩申请</Tag>,
+        r.type === 'REFUND' ? (
+          <Tag color="red">退单</Tag>
+        ) : r.byAdmin ? (
+          <Tag color="processing">管理端补单</Tag>
+        ) : (
+          <Tag>陪玩申请</Tag>
+        ),
     },
     {
-      title: '补单原因',
+      title: '原因',
       width: 200,
       render: (_: any, r: any) => (
         <Text style={{ fontSize: 12 }}>
@@ -291,7 +341,7 @@ const SupplementReviewButton: React.FC = () => {
       </Badge>
       <Modal
         open={open}
-        title="🧾 补单审核 / 到期核查"
+        title="🧾 补单 / 退单审核"
         footer={null}
         width={980}
         onCancel={() => setOpen(false)}
@@ -302,6 +352,11 @@ const SupplementReviewButton: React.FC = () => {
             同意后 **24 小时**提醒你来核查「客户后来到底通过了没有」——通过就点一下，系统自动改成「已添加」。
             点「仍未通过」→ **再等 7 天**提醒你一次；第二次再点「仍未通过」就结案，不再提醒
             （客户哪天真通过了，去「客户管理」把他捞回来就行）。
+            <br />
+            <Text strong>退单</Text>（老板 2026-10-08）：「客户同意了但是没打成」（客户没转钱 / 转钱了最后不打）
+            也走这个入口 —— <Text strong>客服先核对，无异议转到店长拍板</Text>（客服那一格是「无异议，转店长」），
+            钱的事只有店长 / 老板能拍板；店长同意 = 这张单退掉（按退款处理，不计利润与提成）+ 陪玩抢单次数 +1。
+            **退单没有上面那段「24 小时核查」**：同意就结束。
             <br />
             点订单（或整行）直接跳到订单管理里那一单；「补单记录」里能看到今天给谁补过名额、是谁批的。
           </Text>

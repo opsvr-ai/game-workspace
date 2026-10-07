@@ -44,6 +44,7 @@ function renderButton() {
 }
 
 const ADMIN_USER = { role: 'ADMIN', id: 'admin-1', username: '店长甲' };
+const CS_USER = { role: 'CS', id: 'cs-1', username: '客服甲' };
 
 describe('补单审核 / 到期核查弹窗', () => {
   it('三个页签带上真实数字；点订单直接跳到订单管理的那一单', async () => {
@@ -114,5 +115,72 @@ describe('补单审核 / 到期核查弹窗', () => {
     expect(screen.getByText('店长甲')).toBeInTheDocument();
     expect(screen.getByText('客户临时改时间')).toBeInTheDocument();
     expect(screen.getByText('钱鸿鸣')).toBeInTheDocument();
+  });
+
+  it('「退单」在客服那一格是「无异议，转店长」—— 点它调 CS_PASS，不直接批', async () => {
+    useAuthStore.setState({ user: CS_USER as never, isAuthenticated: true });
+    vi.mocked(ordersApi.supplementSummary).mockResolvedValue({
+      data: { data: { pending: 1, due: 0, approvedToday: 0 } },
+    } as never);
+    vi.mocked(ordersApi.listSupplements).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'sr9',
+            type: 'REFUND',
+            orderId: 'o9',
+            companionId: 'c1',
+            companionName: '张三',
+            reason: '客户同意了，最后没打成',
+            status: 'PENDING',
+            csReviewedAt: null,
+            order: { id: 'o9', orderCode: 'A900', gameName: '三角洲行动', contactStatus: 'added' },
+          },
+        ],
+      },
+    } as never);
+    vi.mocked(ordersApi.decideSupplement).mockResolvedValue({ data: { data: {} } } as never);
+
+    renderButton();
+    fireEvent.click(screen.getByText('🧾 补单审核'));
+
+    expect(await screen.findByText('退单')).toBeInTheDocument();
+    expect(screen.getByText('待客服核对')).toBeInTheDocument();
+    expect(screen.queryByText('同意退单')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '无异议，转店长' }));
+    await waitFor(() => expect(ordersApi.decideSupplement).toHaveBeenCalledWith('sr9', 'CS_PASS'));
+  });
+
+  it('店长那一格才是「同意退单」—— 点它调 APPROVE（同意 = 这单退掉 + 名额 +1）', async () => {
+    useAuthStore.setState({ user: ADMIN_USER as never, isAuthenticated: true });
+    vi.mocked(ordersApi.supplementSummary).mockResolvedValue({
+      data: { data: { pending: 1, due: 0, approvedToday: 0 } },
+    } as never);
+    vi.mocked(ordersApi.listSupplements).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'sr9',
+            type: 'REFUND',
+            orderId: 'o9',
+            companionId: 'c1',
+            companionName: '张三',
+            reason: '客户同意了，最后没打成',
+            status: 'PENDING',
+            csReviewedAt: '2026-10-08T05:00:00.000Z',
+            order: { id: 'o9', orderCode: 'A900', gameName: '三角洲行动', contactStatus: 'added' },
+          },
+        ],
+      },
+    } as never);
+    vi.mocked(ordersApi.decideSupplement).mockResolvedValue({ data: { data: {} } } as never);
+
+    renderButton();
+    fireEvent.click(screen.getByText('🧾 补单审核'));
+
+    expect(await screen.findByText('待店长拍板')).toBeInTheDocument();
+    expect(screen.queryByText('无异议，转店长')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '同意退单' }));
+    await waitFor(() => expect(ordersApi.decideSupplement).toHaveBeenCalledWith('sr9', 'APPROVE'));
   });
 });

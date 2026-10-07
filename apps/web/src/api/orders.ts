@@ -112,10 +112,14 @@ export const ordersApi = {
   // 管理端直接补单（老板 2026-10-08）：订单管理里给店长 / 老板的「补单」按钮
   supplementOrder: (id: string, reason: string) =>
     http.post(`/orders/${id}/supplement`, { reason }),
+  /** 陪玩发起「退单」：写清原因 + 截图，进「补单审核」同一个入口（老板 2026-10-08） */
+  requestRefund: (id: string, reason: string, evidenceUrl?: string) =>
+    http.post(`/orders/${id}/refund-request`, { reason, evidenceUrl }),
   listSupplements: (scope?: 'pending' | 'due' | 'records' | 'all') =>
     http.get('/orders/supplements', { params: scope ? { scope } : {} }),
   supplementSummary: () => http.get('/orders/supplements/summary'),
-  decideSupplement: (id: string, decision: 'APPROVE' | 'REJECT', note?: string) =>
+  /** decision: APPROVE 同意 / REJECT 驳回 / CS_PASS 客服核对「无异议」转店长（退单专用） */
+  decideSupplement: (id: string, decision: 'APPROVE' | 'REJECT' | 'CS_PASS', note?: string) =>
     http.post(`/orders/supplements/${id}/decide`, { decision, note }),
   reviewSupplement: (id: string, result: 'ACCEPTED' | 'STILL_NOT') =>
     http.post(`/orders/supplements/${id}/review`, { result }),

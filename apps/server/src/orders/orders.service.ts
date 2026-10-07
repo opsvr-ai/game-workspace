@@ -48,6 +48,9 @@ const SUPPLEMENT_REVIEW_AGAIN_HOURS = 7 * 24;
 
 /** 管理端直接补单时给记录打的标记（老板 2026-10-08：订单管理里「退款」改成「补单」）。 */
 const ADMIN_SUPPLEMENT_TAG = '【管理端补单】';
+/** 申请类型（同一张表装两件事，老板 2026-10-08）：补单＝添加失败要名额；退单＝这单没打成要退掉。 */
+const SUPPLEMENT_TYPE = 'SUPPLEMENT';
+const REFUND_TYPE = 'REFUND';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -970,12 +973,14 @@ export class OrdersService implements OnModuleInit {
     if (!order?.companionId) return;
     const reason = String(body?.failReason || body?.reason || '').trim() || null;
     const evidenceUrl = String(body?.screenshotUrl || body?.evidenceUrl || '').trim() || null;
-    const existing = await this.prisma.supplementRequest.findUnique({ where: { orderId: order.id } });
+    const existing = await this.prisma.supplementRequest.findFirst({
+      where: { orderId: order.id, type: SUPPLEMENT_TYPE },
+    });
     if (existing) {
       // 已经补过的单不再重复开，避免同一张单被反复要名额
       if (existing.status === 'APPROVED') return;
       await this.prisma.supplementRequest.update({
-        where: { orderId: order.id },
+        where: { id: existing.id },
         data: {
           companionId: order.companionId,
           studioId: order.studioId ?? existing.studioId,
@@ -997,6 +1002,7 @@ export class OrdersService implements OnModuleInit {
     await this.prisma.supplementRequest.create({
       data: {
         orderId: order.id,
+        type: SUPPLEMENT_TYPE,
         companionId: order.companionId,
         studioId: order.studioId ?? null,
         reason,
@@ -1061,11 +1067,13 @@ export class OrdersService implements OnModuleInit {
     if (scope === 'pending') {
       where.status = 'PENDING';
     } else if (scope === 'due') {
+      // 「客户后来到底通过了没有」只对「添加失败」的补单有意义，退单没这一步。
+      where.type = SUPPLEMENT_TYPE;
       where.status = 'APPROVED';
       where.reviewStatus = { in: ['PENDING', 'STILL_NOT'] };
       where.reviewDueAt = { lte: new Date() };
     } else if (scope === 'records') {
-      // 已经同意过的（含管理端直接补单）：按处理时间倒序，谁补的、什么时候补的一目了然
+      // 已经同意过的（含管理端直接补单 + 同意的退单）：按处理时间倒序，谁批的、什么时候批的一目了然
       where.status = 'APPROVED';
       where.decidedAt = { not: null };
       orderBy = { decidedAt: 'desc' };
@@ -1153,13 +1161,19 @@ export class OrdersService implements OnModuleInit {
       this.prisma.supplementRequest.count({
         where: {
           ...base,
+          type: SUPPLEMENT_TYPE, // 退单没有「客户后来通过没」这一步，不进到期核查
           status: 'APPROVED',
           reviewStatus: { in: ['PENDING', 'STILL_NOT'] },
           reviewDueAt: { lte: new Date() },
         },
       }),
       this.prisma.supplementRequest.count({
-        where: { ...base, status: 'APPROVED', decidedAt: { gte: start, lt: end } },
+        where: {
+          ...base,
+          type: SUPPLEMENT_TYPE, // 订单管理顶头那句「今日 补单 N」只数补单
+          status: 'APPROVED',
+          decidedAt: { gte: start, lt: end },
+        },
       }),
     ]);
     return { pending, due, approvedToday };
@@ -1180,7 +1194,29 @@ export class OrdersService implements OnModuleInit {
       throw new ForbiddenException('无权操作其他工作室的补单申请');
     }
     if (req.status !== 'PENDING') throw new ForbiddenException('这条补单申请已经处理过了');
-    const approve = String(decision || '').toUpperCase() === 'APPROVE';
+    const isRefund = req.type === REFUND_TYPE;
+    const act = String(decision || '').toUpperCase();
+
+    // 「退单」是两段式（老板 2026-10-08：「客服端审核 无异议到店长这里」，跟「成交核对」一个路子）：
+    //   客服这一段：无异议 → 只是把这条**转给店长**（客服点不了「同意退单」）；有异议 → 直接驳回。
+    //   店长 / 老板：拍板 —— 同意 = 这张单作废（按退款处理，不计利润与提成）+ 陪玩名额 +1；驳回 = 只留痕。
+    //   （老板自己是最高权限，哪一段都能直接拍板，不用等客服先点一遍。）
+    if (isRefund && user?.role === 'CS' && act !== 'REJECT') {
+      const csPassed = await this.prisma.supplementRequest.update({
+        where: { id },
+        data: {
+          csReviewedAt: new Date(),
+          csReviewedByUserId: user?.id ?? null,
+          csReviewNote: (note || '').trim() || null,
+        },
+      });
+      await this.notifyRefundReviewers(req, ['ADMIN', 'OWNER'], '的退单申请客服已核对、无异议，等你拍板').catch(
+        () => null,
+      );
+      return csPassed;
+    }
+
+    const approve = isRefund ? act !== 'REJECT' : act === 'APPROVE';
     const reviewDueAt = new Date(Date.now() + SUPPLEMENT_REVIEW_HOURS * 3600 * 1000);
     const updated = await this.prisma.supplementRequest.update({
       where: { id },
@@ -1189,10 +1225,20 @@ export class OrdersService implements OnModuleInit {
         decidedByUserId: user?.id ?? null,
         decidedAt: new Date(),
         decisionNote: (note || '').trim() || null,
-        ...(approve ? { reviewDueAt, reviewStatus: 'PENDING' } : {}),
+        // 「到期核查」（这个客户后来到底通过了没有）只有补单才有这一步；退单同意就结束。
+        ...(approve && !isRefund ? { reviewDueAt, reviewStatus: 'PENDING' } : {}),
       },
     });
-    if (approve) {
+    if (approve && isRefund) {
+      // 同意退单 = 这张单没打成：按「退款」处理（refundedAt → 不计利润与提成），
+      // 并把陪玩的名额还回去（跟「添加失败」的补偿一致 —— 名额被这张单占掉了，老板 2026-10-08）。
+      await this.markRefund(req.orderId, undefined, req.reason || '陪玩申请退单', '退单').catch(() => null);
+      await this.quota.credit(req.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
+        refId: req.orderId,
+        note: '管理端同意退单，返还 1 个名额',
+      });
+    }
+    if (approve && !isRefund) {
       await this.quota.credit(req.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
         refId: req.orderId,
         note: '管理端同意补单，返还 1 个名额',
@@ -1226,9 +1272,13 @@ export class OrdersService implements OnModuleInit {
         orderId: req.orderId,
         approved: approve,
         note: (note || '').trim() || null,
-        message: approve
-          ? '管理端已同意补单，你的抢单次数 +1'
-          : '管理端驳回了补单申请，这次不返还名额',
+        message: isRefund
+          ? approve
+            ? '管理端已同意退单：这张单已退掉（不计利润与提成），你的抢单次数 +1'
+            : '管理端驳回了退单申请，这张单照旧'
+          : approve
+            ? '管理端已同意补单，你的抢单次数 +1'
+            : '管理端驳回了补单申请，这次不返还名额',
       });
     }
     return updated;
@@ -1258,7 +1308,9 @@ export class OrdersService implements OnModuleInit {
       throw new ForbiddenException('无权操作其他工作室的订单');
     }
     if (!order.companionId) throw new BadRequestException('这张单还没有陪玩接单，无法补单');
-    const existing = await this.prisma.supplementRequest.findUnique({ where: { orderId } });
+    const existing = await this.prisma.supplementRequest.findFirst({
+      where: { orderId, type: SUPPLEMENT_TYPE },
+    });
     if (existing?.status === 'APPROVED') {
       throw new BadRequestException('这张单已经补过名额了');
     }
@@ -1279,8 +1331,10 @@ export class OrdersService implements OnModuleInit {
       reviewedByUserId: null,
     };
     const record = existing
-      ? await this.prisma.supplementRequest.update({ where: { orderId }, data: fields })
-      : await this.prisma.supplementRequest.create({ data: { orderId, ...fields } });
+      ? await this.prisma.supplementRequest.update({ where: { id: existing.id }, data: fields })
+      : await this.prisma.supplementRequest.create({
+          data: { orderId, type: SUPPLEMENT_TYPE, ...fields },
+        });
     await this.quota.credit(order.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
       refId: order.id,
       note: `管理端直接补单：${reason}`,
@@ -1313,6 +1367,109 @@ export class OrdersService implements OnModuleInit {
     const st: any = await this.quota.status(order.companionId).catch(() => null);
     const balance = st?.balance ?? st?.remaining ?? null;
     return { ...record, balance, orderCode: order.orderCode };
+  }
+
+  /**
+   * 陪玩点「退单」（老板 2026-10-08）。
+   *
+   * 场景（老板原话）：「最多的情况就是添加成功了，客户没转钱或者转钱了最后不打了」——
+   * 也就是「客户同意了但是没打成」。陪玩点「退单」+ 写清原因 + 传截图 → 生成一条 REFUND 申请，
+   * **跟「添加失败」走同一个审核入口**（「订单管理 → 🧾 补单审核 / 退单审核」）：
+   * 客服先核对（无异议 → 转店长；有异议 → 直接驳回），店长 / 老板拍板。
+   * 同意 = 这张单按退款处理（不计利润与提成）+ 陪玩的抢单次数 +1。
+   *
+   * 为什么陪玩不能自己直接退：钱的事得有人核 —— 截图 + 原因摆在审核列表里，客服店长一眼能判断。
+   */
+  async requestRefund(orderId: string, user: any, body: { reason?: string; evidenceUrl?: string }) {
+    if (user?.role !== 'COMPANION') throw new ForbiddenException('只有陪玩能发起退单');
+    const reason = String(body?.reason || '').trim();
+    if (!reason) throw new BadRequestException('退单要写清楚原因（为什么没打成）');
+    const evidenceUrl = String(body?.evidenceUrl || '').trim() || null;
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, orderCode: true, studioId: true, companionId: true, status: true, refundedAt: true },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (!user?.companionId || order.companionId !== user.companionId) {
+      throw new ForbiddenException('只能给自己的订单发起退单');
+    }
+    if (order.refundedAt || order.status === 'CANCELLED') {
+      throw new BadRequestException('这张单已经退过 / 已经取消了');
+    }
+    const existing = await this.prisma.supplementRequest.findFirst({
+      where: { orderId, type: REFUND_TYPE },
+    });
+    if (existing?.status === 'PENDING') {
+      throw new BadRequestException('退单申请已经提交过了，等客服 / 店长处理');
+    }
+    if (existing?.status === 'APPROVED') throw new BadRequestException('这张单已经同意退单了');
+    const data = {
+      orderId,
+      type: REFUND_TYPE,
+      companionId: user.companionId,
+      studioId: order.studioId ?? null,
+      reason,
+      evidenceUrl,
+      status: 'PENDING',
+      csReviewedAt: null,
+      csReviewedByUserId: null,
+      csReviewNote: null,
+      decidedByUserId: null,
+      decidedAt: null,
+      decisionNote: null,
+    };
+    const record = existing
+      ? await this.prisma.supplementRequest.update({ where: { id: existing.id }, data })
+      : await this.prisma.supplementRequest.create({ data });
+    // 收件人的工作室 / 陪玩直接用本地这两个值，别指望创建返回值带全（DB 里带，但少一层依赖更稳）
+    await this.notifyRefundReviewers(
+      { orderId, studioId: order.studioId ?? null, companionId: user.companionId },
+      ['CS', 'ADMIN', 'OWNER'],
+      '提交了退单申请',
+    ).catch(() => null);
+    return record;
+  }
+
+  /**
+   * 退单申请的实时提醒（跟「补单申请」同一个渠道，只是收件人不同）：
+   *  - 刚提交 → 客服 / 店长 / 老板都收到，客服先去核对；
+   *  - 客服点「无异议」转上去 → 只推店长 / 老板去拍板。
+   */
+  private async notifyRefundReviewers(
+    req: { orderId: string; studioId: string | null; companionId: string },
+    roles: string[],
+    verb: string,
+  ): Promise<void> {
+    const studioId: string | null = req?.studioId ?? null;
+    const where: any = { isAuthorized: true, role: { in: roles } };
+    if (studioId) where.OR = [{ studioId }, { role: 'OWNER', studioId: null }];
+    else where.role = 'OWNER';
+    const found = await this.prisma.user.findMany({ where, select: { id: true } }).catch(() => []);
+    const reviewers = Array.isArray(found) ? found : [];
+    if (!reviewers.length) return;
+    const order = await this.prisma.order
+      .findUnique({ where: { id: req.orderId }, select: { orderCode: true } })
+      .catch(() => null);
+    const companion = await this.prisma.companion
+      .findUnique({
+        where: { id: req.companionId },
+        select: { user: { select: { displayName: true, username: true } } },
+      })
+      .catch(() => null);
+    const name =
+      (companion as any)?.user?.displayName || (companion as any)?.user?.username || '有陪玩';
+    const code = (order as any)?.orderCode || req.orderId;
+    const payload = {
+      orderId: req.orderId,
+      orderCode: (order as any)?.orderCode ?? null,
+      companionId: req.companionId,
+      companionName: name,
+      type: REFUND_TYPE,
+      message: `${name} ${verb}（订单 ${code}），去「订单管理 → 🧾 补单审核」处理`,
+    };
+    for (const reviewer of reviewers) {
+      this.wsGateway.notifyUser((reviewer as any).id, 'order:supplement_request', payload);
+    }
   }
 
   /** 到期核查：客户后来其实通过了 → 系统把这张单改成「已添加」，别把客户浪费掉。 */
@@ -3534,7 +3691,7 @@ export class OrdersService implements OnModuleInit {
     return this.workflowService.cancel(orderId, userStudioId, companionId, role, reason);
   }
 
-  async markRefund(orderId: string, companionId?: string, reason?: string) {
+  async markRefund(orderId: string, companionId?: string, reason?: string, label = '退款') {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new ForbiddenException('订单不存在');
     if (companionId && order.companionId !== companionId) throw new ForbiddenException('只能操作自己的订单');
@@ -3550,7 +3707,9 @@ export class OrdersService implements OnModuleInit {
         status: 'CANCELLED',
         refundedAt: new Date(),
         refundReason: reason || null,
-        notes: order.notes ? `${order.notes}\n[退款] ${reason || ''}` : `[退款] ${reason || ''}`,
+        notes: order.notes
+          ? `${order.notes}\n[${label}] ${reason || ''}`
+          : `[${label}] ${reason || ''}`,
       },
     });
     if (order.companionId) {

@@ -16,6 +16,8 @@ function setup() {
     broadcastToBridgedStudios: vi.fn(),
     pushOrder: vi.fn(),
     notifyUser: vi.fn(),
+    // markRefund（同意退单 → 这张单按退款处理）会调它刷新黑名单
+    refreshCompanionBlacklist: vi.fn().mockResolvedValue(undefined),
   };
   const bridgeService = {
     getBridgedStudioIds: vi.fn().mockResolvedValue([]),
@@ -56,7 +58,7 @@ describe('补单申请：陪玩点「添加失败」自动建档', () => {
       customerId: 'cus1',
       customFields: { customerWechat: 'wx1' },
     });
-    prisma.supplementRequest.findUnique.mockResolvedValue(null);
+    prisma.supplementRequest.findFirst.mockResolvedValue(null);
     prisma.supplementRequest.create.mockResolvedValue({ id: 'sr1' });
 
     await service.updateContact('o1', {
@@ -87,14 +89,14 @@ describe('补单申请：陪玩点「添加失败」自动建档', () => {
       customerId: 'cus1',
       customFields: {},
     });
-    prisma.supplementRequest.findUnique.mockResolvedValue({ id: 'sr1', status: 'PENDING' });
+    prisma.supplementRequest.findFirst.mockResolvedValue({ id: 'sr1', status: 'PENDING' });
     prisma.supplementRequest.update.mockResolvedValue({ id: 'sr1' });
 
     await service.updateContact('o1', { contactStatus: 'not_accepted' });
 
     expect(prisma.supplementRequest.create).not.toHaveBeenCalled();
     expect(prisma.supplementRequest.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { orderId: 'o1' } }),
+      expect.objectContaining({ where: { id: 'sr1' } }),
     );
   });
 
@@ -109,7 +111,7 @@ describe('补单申请：陪玩点「添加失败」自动建档', () => {
       customerId: 'cus1',
       customFields: {},
     });
-    prisma.supplementRequest.findUnique.mockResolvedValue(null);
+    prisma.supplementRequest.findFirst.mockResolvedValue(null);
     prisma.supplementRequest.create.mockResolvedValue({ id: 'sr1' });
     prisma.user.findMany.mockResolvedValue([{ id: 'admin-1' }, { id: 'cs-1' }]);
     prisma.companion.findUnique.mockResolvedValue({ user: { displayName: '张三' } });
@@ -134,7 +136,7 @@ describe('补单申请：陪玩点「添加失败」自动建档', () => {
       customerId: 'cus1',
       customFields: {},
     });
-    prisma.supplementRequest.findUnique.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
+    prisma.supplementRequest.findFirst.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
 
     await service.updateContact('o1', { contactStatus: 'not_accepted' });
 
@@ -301,7 +303,7 @@ describe('管理端直接补单：订单管理里「退款」改成「补单」�
   it('店长点「补单」→ 陪玩名额 +1、落一条已同意的补单记录、并通知陪玩本人', async () => {
     const { service, prisma, quota, ws } = setup();
     prisma.order.findUnique.mockResolvedValue(ORDER);
-    prisma.supplementRequest.findUnique.mockResolvedValue(null);
+    prisma.supplementRequest.findFirst.mockResolvedValue(null);
     prisma.supplementRequest.create.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
     prisma.order.update.mockResolvedValue({ id: 'o1' });
     prisma.companion.findUnique.mockResolvedValue({ userId: 'u1' });
@@ -333,7 +335,7 @@ describe('管理端直接补单：订单管理里「退款」改成「补单」�
   it('同一张单已经补过（APPROVED）→ 拒绝，不再给名额', async () => {
     const { service, prisma, quota } = setup();
     prisma.order.findUnique.mockResolvedValue(ORDER);
-    prisma.supplementRequest.findUnique.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
+    prisma.supplementRequest.findFirst.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
 
     await expect(service.supplementOrder('o1', ADMIN, { reason: '再来一次' })).rejects.toThrow();
     expect(quota.credit).not.toHaveBeenCalled();
@@ -342,7 +344,7 @@ describe('管理端直接补单：订单管理里「退款」改成「补单」�
   it('本来就有待审申请的单：直接补单把它改成「已同意」，不再新增一条', async () => {
     const { service, prisma } = setup();
     prisma.order.findUnique.mockResolvedValue(ORDER);
-    prisma.supplementRequest.findUnique.mockResolvedValue({ id: 'sr1', status: 'PENDING' });
+    prisma.supplementRequest.findFirst.mockResolvedValue({ id: 'sr1', status: 'PENDING' });
     prisma.supplementRequest.update.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
     prisma.order.update.mockResolvedValue({ id: 'o1' });
     prisma.companion.findUnique.mockResolvedValue({ userId: 'u1' });
@@ -416,5 +418,155 @@ describe('补单记录（scope=records）：让管理端看清今天到底给谁
     expect(rows[0].companionName).toBe('张三');
     expect(rows[0].decidedByName).toBe('店长甲');
     expect(rows[0].byAdmin).toBe(true);
+  });
+});
+
+describe('陪玩「退单」：客服先核对、无异议到店长拍板（老板 2026-10-08）', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const COMPANION = { id: 'u-c1', role: 'COMPANION', studioId: 's1', companionId: 'c1' };
+  const CS = { id: 'cs-1', role: 'CS', studioId: 's1' };
+  const REFUND_ROW = {
+    id: 'sr9',
+    type: 'REFUND',
+    status: 'PENDING',
+    orderId: 'o1',
+    companionId: 'c1',
+    studioId: 's1',
+    reason: '客户没转钱，最后不打了',
+  };
+
+  it('陪玩给自己的单提交退单 → 建一条 REFUND 待审申请，并推给客服 / 店长 / 老板', async () => {
+    const { service, prisma, ws } = setup();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      orderCode: 'A100',
+      studioId: 's1',
+      companionId: 'c1',
+      status: 'GRABBED',
+      refundedAt: null,
+    });
+    prisma.supplementRequest.findFirst.mockResolvedValue(null);
+    prisma.supplementRequest.create.mockResolvedValue({ id: 'sr9' });
+    prisma.user.findMany.mockResolvedValue([{ id: 'cs-1' }, { id: 'admin-1' }]);
+    prisma.companion.findUnique.mockResolvedValue({ user: { displayName: '张三' } });
+
+    const res: any = await service.requestRefund('o1', COMPANION, {
+      reason: '客户没转钱，最后不打了',
+      evidenceUrl: 'https://img/1.png',
+    });
+
+    expect(res.id).toBe('sr9');
+    const created = prisma.supplementRequest.create.mock.calls[0][0].data;
+    expect(created.type).toBe('REFUND');
+    expect(created.status).toBe('PENDING');
+    expect(created.companionId).toBe('c1');
+    expect(created.evidenceUrl).toBe('https://img/1.png');
+    expect(ws.notifyUser).toHaveBeenCalledWith(
+      'cs-1',
+      'order:supplement_request',
+      expect.objectContaining({ type: 'REFUND', orderId: 'o1' }),
+    );
+  });
+
+  it('不是自己的单 → 拒绝（只能给自己的单发起退单）', async () => {
+    const { service, prisma } = setup();
+    prisma.order.findUnique.mockResolvedValue({ id: 'o1', companionId: 'other', studioId: 's1', status: 'GRABBED' });
+    await expect(service.requestRefund('o1', COMPANION, { reason: '不打了' })).rejects.toThrow(/只能给自己的订单/);
+  });
+
+  it('没写原因 → 拒绝（钱的事必须写清楚）', async () => {
+    const { service } = setup();
+    await expect(service.requestRefund('o1', COMPANION, { reason: '   ' })).rejects.toThrow();
+  });
+
+  it('已经提交过、还在等审 → 拒绝重复提交', async () => {
+    const { service, prisma } = setup();
+    prisma.order.findUnique.mockResolvedValue({ id: 'o1', companionId: 'c1', studioId: 's1', status: 'GRABBED' });
+    prisma.supplementRequest.findFirst.mockResolvedValue({ id: 'sr9', status: 'PENDING' });
+    await expect(service.requestRefund('o1', COMPANION, { reason: '不打了' })).rejects.toThrow(/已经提交过/);
+  });
+
+  it('客服点「无异议，转店长」→ 只记客服核对 + 推店长，不给名额、不退单', async () => {
+    const { service, prisma, quota, ws } = setup();
+    prisma.supplementRequest.findUnique.mockResolvedValue(REFUND_ROW);
+    prisma.supplementRequest.update.mockResolvedValue({ id: 'sr9' });
+    prisma.user.findMany.mockResolvedValue([{ id: 'admin-1' }]);
+    prisma.order.findUnique.mockResolvedValue({ orderCode: 'A100' });
+    prisma.companion.findUnique.mockResolvedValue({ user: { displayName: '张三' } });
+
+    await service.decideSupplement('sr9', 'CS_PASS', '看着没问题', CS);
+
+    const data = prisma.supplementRequest.update.mock.calls[0][0].data;
+    expect(data.csReviewedByUserId).toBe('cs-1');
+    expect(data.status).toBeUndefined(); // 还没定案（客服只负责核对）
+    expect(quota.credit).not.toHaveBeenCalled(); // 名额一个没动
+    expect(prisma.order.update).not.toHaveBeenCalled(); // 单也没退
+    expect(ws.notifyUser).toHaveBeenCalledWith(
+      'admin-1',
+      'order:supplement_request',
+      expect.objectContaining({ type: 'REFUND' }),
+    );
+  });
+
+  it('客服即使传了 APPROVE 也只当「无异议转店长」—— 退单不能由客服直接批', async () => {
+    const { service, prisma, quota } = setup();
+    prisma.supplementRequest.findUnique.mockResolvedValue(REFUND_ROW);
+    prisma.supplementRequest.update.mockResolvedValue({ id: 'sr9' });
+    prisma.order.findUnique.mockResolvedValue({ orderCode: 'A100' });
+    prisma.companion.findUnique.mockResolvedValue({ user: { displayName: '张三' } });
+
+    await service.decideSupplement('sr9', 'APPROVE', undefined, CS);
+
+    expect(quota.credit).not.toHaveBeenCalled();
+    expect(prisma.order.update).not.toHaveBeenCalled();
+  });
+
+  it('店长同意退单 → 这张单按退款处理（refundedAt）+ 名额 +1 + 通知陪玩本人', async () => {
+    const { service, prisma, quota, ws } = setup();
+    prisma.supplementRequest.findUnique.mockResolvedValue(REFUND_ROW);
+    prisma.supplementRequest.update.mockResolvedValue({ id: 'sr9' });
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'o1',
+      companionId: 'c1',
+      studioId: 's1',
+      status: 'GRABBED',
+      notes: null,
+    });
+    prisma.order.update.mockResolvedValue({ id: 'o1' });
+    prisma.companion.findUnique.mockResolvedValue({ userId: 'u-c1' });
+
+    await service.decideSupplement('sr9', 'APPROVE', '同意', ADMIN);
+
+    const row = prisma.supplementRequest.update.mock.calls[0][0].data;
+    expect(row.status).toBe('APPROVED');
+    expect(row.reviewStatus).toBeUndefined(); // 退单没有「客户后来通过没」那一步
+    const orderData = prisma.order.update.mock.calls[0][0].data;
+    expect(orderData.status).toBe('CANCELLED');
+    expect(orderData.refundedAt).toBeInstanceOf(Date);
+    expect(quota.credit).toHaveBeenCalledWith(
+      'c1',
+      1,
+      'SUPPLEMENT',
+      expect.objectContaining({ refId: 'o1' }),
+    );
+    expect(ws.notifyUser).toHaveBeenCalledWith(
+      'u-c1',
+      'order:supplement',
+      expect.objectContaining({ approved: true }),
+    );
+  });
+
+  it('店长驳回退单 → 单照旧、名额不动、只留痕', async () => {
+    const { service, prisma, quota } = setup();
+    prisma.supplementRequest.findUnique.mockResolvedValue(REFUND_ROW);
+    prisma.supplementRequest.update.mockResolvedValue({ id: 'sr9', status: 'REJECTED' });
+    prisma.companion.findUnique.mockResolvedValue({ userId: 'u-c1' });
+
+    await service.decideSupplement('sr9', 'REJECT', '看不出来没打成', ADMIN);
+
+    expect(prisma.supplementRequest.update.mock.calls[0][0].data.status).toBe('REJECTED');
+    expect(prisma.order.update).not.toHaveBeenCalled();
+    expect(quota.credit).not.toHaveBeenCalled();
   });
 });

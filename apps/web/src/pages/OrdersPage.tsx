@@ -233,6 +233,68 @@ const OrdersPage: React.FC = () => {
       setContactFailSaving(false);
     }
   };
+  // 陪玩「退单」（老板 2026-10-08）：客户同意了但没打成（客户没转钱 / 转钱了最后不打）→
+  // 提交退单申请（写清原因 + 粘贴截图）→ 客服先核对、无异议转店长，店长拍板；
+  // 同意后这张单按退款处理（不计利润与提成）+ 抢单次数 +1。跟「添加失败」同一个审核入口。
+  const [refundReqOrder, setRefundReqOrder] = useState<any>(null);
+  const [refundReqNote, setRefundReqNote] = useState('');
+  const [refundReqEvidence, setRefundReqEvidence] = useState<string[]>([]);
+  const [refundReqUploading, setRefundReqUploading] = useState(false);
+  const [refundReqSaving, setRefundReqSaving] = useState(false);
+  // 这一次打开页面里已经提交过退单的单（本页把按钮换成「待审」，免得他以为没提交上、反复点）
+  const [refundSubmitted, setRefundSubmitted] = useState<Record<string, boolean>>({});
+
+  const openRefundRequest = (r: any) => {
+    setRefundReqOrder(r);
+    setRefundReqNote('');
+    setRefundReqEvidence([]);
+  };
+
+  /** 退单截图：一次收多张（Ctrl+V / 拖进来 / 多选），最多留 3 张 —— 跟「添加失败」同一套。 */
+  const uploadRefundReqFiles = async (files: File[]) => {
+    const list = (files || []).filter(Boolean).slice(0, 3);
+    if (!list.length) return;
+    setRefundReqUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of list) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const { data } = await http.post('/upload/screenshot', fd);
+        const url = data?.data?.url || data?.url || '';
+        if (url) urls.push(url);
+      }
+      if (!urls.length) throw new Error('no url');
+      setRefundReqEvidence((prev) => [...prev, ...urls].slice(0, 3));
+      message.success(urls.length > 1 ? `已上传 ${urls.length} 张截图` : '截图已上传');
+    } catch {
+      message.error('截图上传失败，再传一次');
+    } finally {
+      setRefundReqUploading(false);
+    }
+  };
+
+  const submitRefundRequest = async () => {
+    if (!refundReqOrder) return;
+    const note = refundReqNote.trim();
+    if (!note) {
+      message.warning('写清楚为什么没打成（客户没转钱 / 转钱了最后不打…），客服和店长要凭这个判断');
+      return;
+    }
+    setRefundReqSaving(true);
+    try {
+      await ordersApi.requestRefund(refundReqOrder.id, note, refundReqEvidence[0]);
+      message.success('退单申请已提交：客服先核对，无异议就到店长拍板；同意后这单会退掉、你的抢单次数 +1');
+      setRefundSubmitted((prev) => ({ ...prev, [refundReqOrder.id]: true }));
+      setRefundReqOrder(null);
+      fetch();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '退单申请提交失败'));
+    } finally {
+      setRefundReqSaving(false);
+    }
+  };
+
   // 「线上→线下流转」的单提前放给本店线下陪玩（点状态格小字，走二次确认）
   const [releaseOrder, setReleaseOrder] = useState<any>(null);
   const [releaseSubmitting, setReleaseSubmitting] = useState(false);
@@ -277,6 +339,19 @@ const OrdersPage: React.FC = () => {
       return true;
     }
     return orderChannelOf(r) !== 'offline';
+  };
+
+  /**
+   * 陪玩能不能给这张单点「退单」（老板 2026-10-08）。
+   *  - 只有当前持有人（副陪 / 已经转出去的单不给点）；
+   *  - 已经退过 / 已取消 / 已完成的不给点；
+   *  - 已经点过「开始首单」的不给点 —— 那种单没打成要走「报结果」（成交核对那套流程）。
+   */
+  const canRequestRefund = (r: any) => {
+    if (!isCompanion || !user?.companionId || r.companionId !== user.companionId) return false;
+    if (r.status === 'CANCELLED' || r.status === 'DONE' || r.refundedAt) return false;
+    if ((r.sessions || []).some((s: any) => !!s.startedAt)) return false;
+    return true;
   };
 
   /**
@@ -962,6 +1037,23 @@ const OrdersPage: React.FC = () => {
             >
               退款
             </Button>
+          ) : canRequestRefund(r) ? (
+            // 陪玩这一格本来空着（第 5 格原来是「退款」，只有客服 / 店长有）。
+            // 老板 2026-10-08：「陪玩端要退款也没用……你在陪玩端＋个按钮『退单』」——
+            // 所以这里给陪玩的是「退单」：他只能**申请**，钱的事由客服核对、店长拍板。
+            refundSubmitted[r.id] ? (
+              <Tooltip title="退单申请已提交：客服先核对，无异议就到店长拍板；同意后这张单会退掉、你的抢单次数 +1">
+                <Tag color="orange" style={{ margin: 0, padding: '0 3px', fontSize: 11 }}>
+                  待审
+                </Tag>
+              </Tooltip>
+            ) : (
+              <Tooltip title="客户同意了但没打成（客户没转钱 / 转钱了最后不打…）就点这里：写清原因 + 粘贴截图，客服先核对、店长拍板。同意后这张单退掉（不计利润与提成），你的抢单次数 +1">
+                <Button size="small" danger style={{ width: 36 }} onClick={() => openRefundRequest(r)}>
+                  退单
+                </Button>
+              </Tooltip>
+            )
           ) : null}
         </span>
       </div>
@@ -1571,6 +1663,81 @@ const OrdersPage: React.FC = () => {
             value={supplementReason}
             onChange={(e) => setSupplementReason(e.target.value)}
             placeholder="例如：客户临时改时间 / 不是陪玩的责任"
+            style={{ marginTop: 8 }}
+          />
+        </div>
+      </Modal>
+      {/* 陪玩点「退单」的弹窗（老板 2026-10-08）：「客户同意了但是没打成」——
+          写清原因 + 粘贴截图，客服先核对、无异议转店长，店长拍板 */}
+      <Modal
+        title="退单申请"
+        open={!!refundReqOrder}
+        onOk={submitRefundRequest}
+        onCancel={() => setRefundReqOrder(null)}
+        okText="提交退单申请"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        confirmLoading={refundReqSaving}
+        destroyOnClose
+      >
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          订单 <Text strong>{refundReqOrder?.orderCode || refundReqOrder?.gameName}</Text> 没打成
+          （客户没转钱 / 转钱了最后不打…）就提交退单：**客服先核对，无异议到店长拍板**，
+          跟「添加失败」一样在「🧾 补单审核」里处理。同意后这张单会退掉（不计利润与提成），
+          你的抢单次数 +1。
+        </Text>
+        <div style={{ marginTop: 14 }}>
+          <Text strong>截图（可选，建议贴一张）</Text>
+          <PasteImageBox
+            onFiles={uploadRefundReqFiles}
+            disabled={refundReqUploading}
+            style={{ marginTop: 8 }}
+            hint="点一下这里，直接 Ctrl+V 粘贴截图（可一次粘多张，也能把图片拖进来）"
+          >
+            {refundReqEvidence.map((url) => (
+              <div
+                key={url}
+                style={{ display: 'inline-flex', alignItems: 'center', marginRight: 8, marginBottom: 8 }}
+              >
+                <img
+                  src={url}
+                  alt="退单凭据"
+                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.base}`, cursor: 'pointer' }}
+                  onClick={() => window.open(url, '_blank')}
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  danger
+                  onClick={() => setRefundReqEvidence((prev) => prev.filter((u) => u !== url))}
+                >
+                  删
+                </Button>
+              </div>
+            ))}
+            <Upload
+              beforeUpload={(f) => {
+                void uploadRefundReqFiles([f]);
+                return false;
+              }}
+              showUploadList={false}
+              accept="image/*"
+              multiple
+              disabled={refundReqUploading}
+            >
+              <Button size="small" loading={refundReqUploading}>
+                上传截图
+              </Button>
+            </Upload>
+          </PasteImageBox>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Text strong>原因（必填）</Text>
+          <Input.TextArea
+            rows={3}
+            value={refundReqNote}
+            onChange={(e) => setRefundReqNote(e.target.value)}
+            placeholder="自己写清楚为什么没打成（客服和店长会看，乱写会被驳回）"
             style={{ marginTop: 8 }}
           />
         </div>

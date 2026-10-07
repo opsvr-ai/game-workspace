@@ -1514,26 +1514,42 @@ model CompanionQuotaLog {
   @@index([studioId, dayKey])
 }
 
-/// 补单申请（老板 2026-10-04）：
-/// 陪玩点「添加失败」→ 自动生成一条 PENDING（要求管理端补单）→ 管理端同意则他的次数 +1；
-/// 同时记下 reviewDueAt，到期提醒管理端去核查「这个客户后来到底通过了没有」，别把客户浪费掉。
+/// 「陪玩提申请 → 管理端审核」这张表装两件事（老板 2026-10-04 / 2026-10-08）：
+///
+/// ① type = SUPPLEMENT「补单」：陪玩点「添加失败」→ 自动生成一条 PENDING（要求管理端补单）→
+///    管理端同意则他的抢单次数 +1；同时记下 reviewDueAt，到期提醒管理端去核查
+///    「这个客户后来到底通过了没有」，别把客户浪费掉。
+/// ② type = REFUND「退单」（老板 2026-10-08）：陪玩点「退单」——「客户同意了但是没打成」
+///    （客户没转钱 / 转钱了最后不打了）→ 生成一条 PENDING，跟「添加失败」走**同一个审核入口**；
+///    审核是两段式，跟「成交核对」一个路子：**客服先核对、无异议 → 店长拍板**
+///    （`csReviewedAt` / `csReviewedByUserId` / `csReviewNote` 记客服这一段的结论）。
+///    店长同意 = 这张单按「退款」处理（`refundedAt` → 不计利润与提成）+ 陪玩抢单次数 +1，
+///    跟「添加失败」的补偿一致。
 model SupplementRequest {
-  id               String    @id @default(uuid())
-  orderId          String    @unique
-  companionId      String
-  studioId         String?
-  reason           String? // 陪玩选的失败原因
-  evidenceUrl      String? // 陪玩上传的失败截图
-  status           String    @default("PENDING") // PENDING | APPROVED | REJECTED
-  decidedByUserId  String?
-  decidedAt        DateTime?
-  decisionNote     String?
-  reviewDueAt      DateTime? // 同意后到点要核查
-  reviewStatus     String? // PENDING | ACCEPTED | STILL_NOT
-  reviewedAt       DateTime?
-  reviewedByUserId String?
-  createdAt        DateTime  @default(now())
+  id                 String    @id @default(uuid())
+  orderId            String
+  /// 'SUPPLEMENT'（添加失败要名额）/ 'REFUND'（退单：这单没打成，退掉 + 还名额）
+  type               String    @default("SUPPLEMENT")
+  companionId        String
+  studioId           String?
+  reason             String? // 陪玩填的原因（补单 = 添加失败的原因；退单 = 为什么没打成）
+  evidenceUrl        String? // 陪玩上传的截图
+  status             String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  // 退单专用的第一段：客服核对「无异议」才轮到店长；客服有异议直接驳回。
+  csReviewedAt       DateTime?
+  csReviewedByUserId String?
+  csReviewNote       String?
+  decidedByUserId    String?
+  decidedAt          DateTime?
+  decisionNote       String?
+  reviewDueAt        DateTime? // 同意后到点要核查（只有补单有这一步）
+  reviewStatus       String? // PENDING | ACCEPTED | STILL_NOT
+  reviewedAt         DateTime?
+  reviewedByUserId   String?
+  createdAt          DateTime  @default(now())
 
+  // 一张单可以各留一条：一条「补单」+ 一条「退单」（以前 orderId 单列唯一，退单会被挡住）。
+  @@unique([orderId, type])
   @@index([studioId, status])
   @@index([companionId, createdAt])
   @@index([status, reviewDueAt])
