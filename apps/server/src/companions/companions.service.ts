@@ -947,8 +947,14 @@ export class CompanionsService {
     const todayRevenue = todayOrders.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0);
 
     // 订单分型（口径 A：主陪算「主陪金额」、搭档算「搭档金额」；他当搭档打的那份也算他自己打过的单）
+    // 范围 = 本营业月（当月 1 日 12:00 至次月 1 日 12:00），跟顶上「本月流水」是同一批单。
+    const { start: monthTypeStart, end: monthTypeEnd } = currentSettlementMonthRange();
     const typeOrders = await this.prisma.order.findMany({
-      where: { status: 'DONE', OR: [{ companionId }, { coCompanionId: companionId }] },
+      where: {
+        status: 'DONE',
+        createdAt: { gte: monthTypeStart, lt: monthTypeEnd },
+        OR: [{ companionId }, { coCompanionId: companionId }],
+      },
       select: {
         type: true,
         createdAt: true,
@@ -1089,6 +1095,9 @@ export class CompanionsService {
       topTierBlocked?: boolean;
     } = { mode: splitMode };
 
+    // 本营业月业绩（口径 A，个人视角）——分成阶梯与「订单占比 → 全月」共用这一份，只查一次
+    const monthRevenue = await this.computeMonthRevenue(companionId);
+
     if (splitMode === 'FIXED') {
       tierInfo = {
         mode: 'FIXED',
@@ -1096,7 +1105,6 @@ export class CompanionsService {
       };
     } else {
       // TIERED：严格按营业月流水计算当前所在阶梯
-      const monthRevenue = await this.computeMonthRevenue(companionId);
       // 分成阶梯也按店解析（线上上活的就是这一处）
       const tiersCfg = await resolveConfigsRaw(this.prisma, companion?.studioId, [
         'revenue.share_tiers',
@@ -1177,6 +1185,8 @@ export class CompanionsService {
 
     return {
       todayRevenue: roundToJiao(todayRevenue),
+      // 本营业月流水（口径 A）：跟 orderStats 各分型金额之和一致，「订单占比 → 全月」标题用这个
+      monthRevenue: roundToJiao(monthRevenue),
       orderStats: statsMap,
       todayStats,
       totalCount,

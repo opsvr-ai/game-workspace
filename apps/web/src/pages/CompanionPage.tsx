@@ -488,7 +488,7 @@ const CompanionPage: React.FC = () => {
             <Row gutter={8}>
               {[
                 { title: '📅 今日', stats: data?.todayStats, revenue: data?.todayRevenue },
-                { title: '📆 全月', stats: data?.orderStats, revenue: data?.totalRevenue },
+                { title: '📆 全月', stats: data?.orderStats, revenue: data?.monthRevenue },
               ].map(({ title, stats, revenue }) => {
                 const pieData = [
                   { key: 'NEW', name: '首单', color: '#2563EB' },

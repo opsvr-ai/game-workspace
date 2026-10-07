@@ -444,14 +444,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **陪玩业绩口径统一成「谁的钱算谁的」：双陪单里搭档那份不再从主陪身上扣（老板 2026-10-07，服务端；网页不用重发）。**
+- **陪玩业绩口径统一成「谁的钱算谁的」：双陪单里搭档那份不再从主陪身上扣（老板 2026-10-07，服务端 + 网页 `v985`）。**
   老板定了**口径 A**，原话：「谁的钱算谁的 —— 主陪算主陪金额、搭档算搭档金额，谁打的那份算谁头上；今日/本月/评分/工资全统一。」
   病根在 `apps/server/src/common/order-revenue.ts`：派单时「主陪金额 / 搭档金额」填的**本来就是各自那一份**
   （线上 703 单：主陪 105、搭档 150，搭档那份比主陪还大），老算法却按「amount 是客户付的整单、得减掉搭档那份」算，
   等于把搭档的钱从主陪身上**又扣了一遍** —— 双陪主陪被算成**负流水**（703 = 105 − 150 = −45），
   连带首页本月流水、评分「最近 30 天流水」、结算工资、可支取余额、运营看板本月流水全跟着错。
   现在统一：**主陪 = amount − 分给别人的 splits；搭档 = coAmount**（`splits` 全库 0 条，保留它做防御性扣减）。
-  改到的取数处：`order-revenue.ts`（口径本体）、`companions.service.ts`（工作台「今日流水」+ 订单分型：含搭档单）、
+  改到的取数处：`order-revenue.ts`（口径本体）、`companions.service.ts`（工作台「今日流水」+ 订单分型：含搭档单、且改成**本营业月**）、
   `excellence.service.ts`（最近 30 天流水 = 主陪 amount + 搭档 coAmount）、`withdrawable.ts`（可支取 / 累计业绩）、
   `dashboard.service.ts`（本月流水汇总 / 明细 / 娱乐费门槛 / 低流水预警）、`settlement.service.ts`（**指定单个陪玩**时的结算汇总）、
   `companion-revenue.service.ts`（排行榜流水 + 进娱乐模式前的分润档位）、`heartbeat.service.ts` + `orders.service.ts`
@@ -464,6 +464,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   回滚方式（只留说明，没进代码）：把 `companionOrderRevenue` 里主陪那行的 `- splitOut` 换成 `- coOut - splitOut` 即回到旧口径。
   验证：`tsc --noEmit` 过；新增 `apps/server/src/__tests__/order-revenue.test.ts`（5 条：双陪主陪不被扣 / 搭档拿 coAmount /
   splits 扣人 / 双陪再分给第三方 / 空值不 NaN）；`withdrawable.test.ts` 加「搭档那份也算业绩」；服务端全量 **727 / 727**（原 721 + 6）。
+  顺带修掉陪玩首页一个对不上的地方：**「订单占比」里 📆 全月 那个饼图，标题以前拿的是钱包台账流水（`workbench.totalRevenue`）、
+  跟饼图各分型金额根本不是一回事**；现在标题改用新增的 `workbench.monthRevenue`（本营业月、口径 A），
+  跟各分型金额之和、跟「本月流水」三处对齐（`CompanionPage.tsx` 一行改动，网页 `v985`）。
   部署后按老规矩线上回读同两个人的「今日 / 本月 / 累计 / 可支取」，数字见同批提交的核对记录。
 
 - **续单率 / 复购率：双陪单里「被邀请当搭档」打的，也算他服务过这个客户（老板 2026-10-07，服务端）。**
