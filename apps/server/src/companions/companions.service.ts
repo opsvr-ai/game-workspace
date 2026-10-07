@@ -9,7 +9,7 @@ import {
   currentBusinessDayRange,
   currentSettlementMonthRange,
 } from '../common/business-day';
-import { companionOrderRevenue } from '../common/order-revenue';
+import { companionMonthRevenueParts, companionOrderRevenue } from '../common/order-revenue';
 import { computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { roundToJiao } from '../common/money';
 import { resolveConfigsRaw } from '../common/studio-config';
@@ -917,7 +917,15 @@ export class CompanionsService {
     });
   }
 
-  private async computeMonthRevenue(companionId: string): Promise<number> {
+  /**
+   * 本营业月「只算自己那份」的流水（老板 2026-10-07 口径 A；2026-10-08 老板再确认「只算自己」）。
+   *
+   * 拆成 primary / co / split 三块给陪玩端首页摊开显示 —— 他当**搭档**挣的那份是他自己的（实打实到手的钱），
+   * 而**搭档（别人）那份永远不进他的数**：主陪只拿自己那格填的「主陪金额」、搭档只拿「搭档金额」。
+   */
+  private async computeMonthRevenue(
+    companionId: string,
+  ): Promise<{ total: number; primary: number; co: number; split: number }> {
     const { start, end } = currentSettlementMonthRange();
     const orders = await this.prisma.order.findMany({
       where: {
@@ -927,7 +935,13 @@ export class CompanionsService {
       },
       select: { amount: true, coAmount: true, companionId: true, coCompanionId: true, customFields: true },
     });
-    return orders.reduce((sum, o) => sum + companionOrderRevenue(o, companionId), 0);
+    const parts = companionMonthRevenueParts(orders, companionId);
+    return {
+      total: roundToJiao(parts.total),
+      primary: roundToJiao(parts.primary),
+      co: roundToJiao(parts.co),
+      split: roundToJiao(parts.split),
+    };
   }
 
   async getWorkbench(companionId: string) {
@@ -1095,13 +1109,18 @@ export class CompanionsService {
       topTierBlocked?: boolean;
     } = { mode: splitMode };
 
-    // 本营业月业绩（口径 A，个人视角）——分成阶梯与「订单占比 → 全月」共用这一份，只查一次
-    const monthRevenue = await this.computeMonthRevenue(companionId);
+    // 本营业月业绩（口径 A，个人视角，只算自己那份）——分成阶梯与「订单占比 → 全月」共用这一份，只查一次
+    const monthRev = await this.computeMonthRevenue(companionId);
+    const monthRevenue = monthRev.total;
 
     if (splitMode === 'FIXED') {
       tierInfo = {
         mode: 'FIXED',
         companionPct: Math.round((companion?.revenueShare ?? 0.6) * 100),
+        // 固定分成也要给「本月流水」：以前这里没给，陪玩端就退回「最近 30 天流水」那个兜底 ——
+        // 同一个「本月流水」在固定分成的工作室显示的是 30 天的数（还把上个月的钱也算进来了，
+        // 老板 2026-10-08 问「本月流水你把别人的加进去干啥」）。
+        monthlyRevenue: monthRevenue,
       };
     } else {
       // TIERED：严格按营业月流水计算当前所在阶梯
@@ -1185,8 +1204,10 @@ export class CompanionsService {
 
     return {
       todayRevenue: roundToJiao(todayRevenue),
-      // 本营业月流水（口径 A）：跟 orderStats 各分型金额之和一致，「订单占比 → 全月」标题用这个
+      // 本营业月流水（口径 A，只算自己那份）：跟 orderStats 各分型金额之和一致，「订单占比 → 全月」标题用这个
       monthRevenue: roundToJiao(monthRevenue),
+      // 同一笔钱拆开（当主陪 / 当搭档 / 跨店分成）—— 首页摊开显示给陪玩看，明说「搭档的钱不算在里面」
+      monthRevenueParts: { primary: monthRev.primary, co: monthRev.co, split: monthRev.split },
       orderStats: statsMap,
       todayStats,
       totalCount,

@@ -39,3 +39,32 @@ export function companionOrderRevenue(order: OrderRevenueInput, companionId: str
     .filter((s) => s.companionId === companionId)
     .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 }
+
+/**
+ * 把一批已完成订单按「我自己那份」拆开（老板 2026-10-08 再确认：本月流水只算自己）。
+ *
+ * 陪玩端首页那个大号「本月流水」必须只有他自己的钱：
+ *   - primary：他当主陪的单 → 主陪金额（减掉分给别人的分成）
+ *   - co     ：他当搭档的单 → 搭档金额（那是发给他本人的那一份）
+ *   - split  ：他只是被分了钱的跨工作室陪玩 → 分给他的那份
+ * **搭档（别人）那份钱永远不进另一个人的数**（线上 703 单：主陪 105 / 搭档 150，各拿各的）。
+ *
+ * total 恒等于逐单 companionOrderRevenue 求和（跟 monthlyRevenue 缓存同源），
+ * 拆开只是为了摊给陪玩看，免得再有人怀疑「是不是把搭档的钱也算进来了」。
+ */
+export function companionMonthRevenueParts(
+  orders: OrderRevenueInput[],
+  companionId: string,
+): { total: number; primary: number; co: number; split: number } {
+  let primary = 0;
+  let co = 0;
+  let split = 0;
+  for (const order of orders) {
+    const value = companionOrderRevenue(order, companionId);
+    if (!value) continue;
+    if (order.companionId === companionId) primary += value;
+    else if (order.coCompanionId === companionId) co += value;
+    else split += value;
+  }
+  return { total: primary + co + split, primary, co, split };
+}
