@@ -780,11 +780,14 @@ export class CompanionsService {
   async getNotifyPrefs(companionId: string) {
     const c = await this.prisma.companion.findUnique({
       where: { id: companionId },
-      select: { notifyWhileBusy: true, notifyWhileEntertainment: true },
+      select: { notifyWhileBusy: true, notifyWhileEntertainment: true, status: true },
     });
     return {
       notifyWhileBusy: c?.notifyWhileBusy ?? false,
       notifyWhileEntertainment: c?.notifyWhileEntertainment ?? true,
+      // 2026-10-08 老板报「王甲振设置里没有关弹窗的地方，并且没弹窗」：他自己是「接单中」而且
+      // 「打单中也接收新单弹窗」关着 —— 于是陪玩端设置面板直接把当前状态画出来，写清现在弹不弹。
+      status: c?.status ?? null,
     };
   }
 

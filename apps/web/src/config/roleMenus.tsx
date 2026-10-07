@@ -403,7 +403,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     },
     {
       key: 'companion-settings', icon: IconAuth, label: '设置',
-      children: [{ key: '/profile', label: '个人设置' }],
+      children: [
+        { key: '/profile', label: '个人设置' },
+        { key: '/companion/notifications', label: '通知设置' },
+      ],
     },
   ],
 };

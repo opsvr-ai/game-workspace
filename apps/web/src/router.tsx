@@ -123,6 +123,7 @@ const CompanionWalletCalendarPage = lazy(() => import('./pages/finance/Companion
 const RiskWorkbenchPage = lazy(() => import('./pages/finance/RiskWorkbenchPage'));
 const ExpenseReviewPage = lazy(() => import('./pages/finance/ExpenseReviewPage'));
 const BattleScreenshotsPage = lazy(() => import('./pages/BattleScreenshotsPage'));
+const CompanionNotifySettingsPage = lazy(() => import('./pages/companion/NotifySettingsPage'));
 const BattleScreenshotReviewPage = lazy(() => import('./pages/BattleScreenshotReviewPage'));
 const ContentCheckPage = lazy(() => import('./pages/ContentCheckPage'));
 const OrderReviewPage = lazy(() => import('./pages/admin/OrderReviewPage'));
@@ -236,6 +237,11 @@ export const router = createBrowserRouter([
       {
         path: 'battle-screenshots',
         element: page(<BattleScreenshotsPage />),
+      },
+      {
+        // 订单通知设置（老板 2026-10-08）：以前只在首页那颗 🔔 里，从「设置」菜单找不到。
+        path: 'notifications',
+        element: page(<CompanionNotifySettingsPage />),
       },
     ],
   },

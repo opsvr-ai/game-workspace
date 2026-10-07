@@ -69,6 +69,7 @@ exports[`左侧导航菜单（roleMenus） > 整棵菜单树快照（重构 AppL
     "· /companion/stats | 每日统计",
     "▸ companion-settings | 设置",
     "· /profile | 个人设置",
+    "· /companion/notifications | 通知设置",
   ],
   "CS": [
     "· /todos | 待处理",

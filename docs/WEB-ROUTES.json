@@ -1,7 +1,7 @@
 {
   "_comment": "网页端路由表（四端共用的导航契约）。只能加、不能悄悄删改：改路由会动到这里，请确认陪玩端 / 客服端没有依赖老路径。",
-  "_exportedAt": "2026-10-07",
-  "count": 89,
+  "_exportedAt": "2026-10-08",
+  "count": 90,
   "routes": [
     {
       "path": "/",
@@ -371,6 +371,13 @@
       "path": "/companion/live-board",
       "kind": "page",
       "component": "LiveBoardPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/notifications",
+      "kind": "page",
+      "component": "CompanionNotifySettingsPage",
       "redirectTo": null,
       "hasErrorElement": false
     },
