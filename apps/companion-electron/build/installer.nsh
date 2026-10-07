@@ -1,5 +1,24 @@
+;
+; ── 2026-10-07：开工前先判「这台电脑到底能不能装」──────────────────────────
+; 老板 2026-10-07 截图：宋树祥那台双击装机包后弹「此应用无法在你的电脑上运行 /
+; 若要找到适用于你的电脑的版本，请咨询软件发布者」。
+; 那句话是 Windows 的加载错误 216（ERROR_EXE_MACHINE_TYPE_MISMATCH）：32 位系统
+; 跑不了 64 位程序。我们的 陪玩管理.exe 和 SystemHelper.exe 都是 x64，而装机包外壳是
+; 32 位，所以在 32 位机器上照样装得完、装完还自动启动主程序（runAfterFinish: true），
+; 于是「装完那一刻」才弹这个错 —— 用户和客服都看不出原因。
+; x64.nsh 是 electron-builder 自带 NSIS 里的标准宏（含 include guard，重复 include 无害）。
+!include "x64.nsh"
 ; Force install directory to use product name (陪玩管理), not package name (@chunlvcompanion-electron)
 !macro preInit
+  ; ── Step -2: 32 位系统在动任何文件之前就拦住（2026-10-07）──────────────
+  ; 32 位机器装了也跑不起来，还会白建运维账号 chunlvops、白装一份 x64 看门狗。
+  ; 判定用 ${RunningX64}：只拦「操作系统本身是 32 位」的机器；ARM64 的 Windows
+  ; 会走 x64 模拟，RunningX64 为真，不受影响。
+  ${IfNot} ${RunningX64}
+    MessageBox MB_ICONSTOP|MB_OK "这台电脑是 32 位 Windows，装不了「陪玩管理」。$\r$\n陪玩端只能在 64 位 Windows 10 / 11 上运行。$\r$\n请把这句话转告管理员（他会安排换 64 位系统，或者先用网页版）。$\r$\n急用可以先开网页版 —— 用浏览器打开下面这个地址，不用装任何东西：$\r$\n    http://1.117.229.36:3001$\r$\n想自己确认一下：右键「此电脑」→「属性」→ 看「系统类型」写的是不是「32 位操作系统」。$\r$\n（或者按住键盘最下面那一排的 Windows 键不放，再按一下 Pause Break 键。）"
+    Abort
+  ${EndIf}
+
   ; 关键：先删掉旧注册表的 InstallLocation，否则 initMultiUser 会复用旧的
   ; @chunlvcompanion-electron 目录，把下面的 $INSTDIR 覆盖掉。
   DeleteRegKey HKLM "${INSTALL_REGISTRY_KEY}"

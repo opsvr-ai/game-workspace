@@ -60,6 +60,10 @@ function Collect-Diag {
   [void]$sb.AppendLine('time=' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
   [void]$sb.AppendLine('user=' + $env:USERNAME)
   [void]$sb.AppendLine('os=' + (Get-CimInstance Win32_OperatingSystem).Caption)
+  $clvCs = $null; try { $clvCs = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop } catch { }
+  $clvBits = $(if ([Environment]::Is64BitOperatingSystem) { '64 位 Windows' } else { '32 位 Windows' })
+  $clvProc = $(if ([Environment]::Is64BitProcess) { '64 位进程' } else { '32 位进程' })
+  [void]$sb.AppendLine('sys=' + $clvBits + ' · ' + $clvProc + ' · ' + $(if ($clvCs) { [string]$clvCs.SystemType } else { 'unknown' }))
 
   [void]$sb.AppendLine('[disk]')
   Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | ForEach-Object {
@@ -247,6 +251,36 @@ if ($DiagOnly) {
   Write-Host '只做诊断（-DiagOnly）：现场已回传云端，本机未做任何改动。' -ForegroundColor Green
   Write-Host ('本机日志：' + $log)
   exit 0
+}
+
+# ── 2026-10-07：32 位系统在开工前就收工 ────────────────────────────────────────
+# 老板 2026-10-07 截图：宋树祥那台双击装机包弹「此应用无法在你的电脑上运行 / 若要找到
+# 适用于你的电脑的版本，请咨询软件发布者」。那句话是 Windows 的加载错误 216
+# （ERROR_EXE_MACHINE_TYPE_MISMATCH）——32 位系统跑不了 64 位程序。我们的 陪玩管理.exe 和
+# SystemHelper.exe 都是 x64，装机包外壳是 32 位，所以在 32 位机器上照样装得完、装完自动
+# 启动主程序那一刻才弹这个错：用户和客服都看不出原因，还白下一遍 128MB。
+# 这里提前判掉，并把「系统类型」回传台账（「机器管理」里能直接看见）。
+# 注意放在建 chunlvops 账号之前：32 位机器连客户端都装不了，不该留下运维账号。
+$clvIs64 = $true
+try { $clvIs64 = [Environment]::Is64BitOperatingSystem } catch { }
+if (-not $clvIs64) {
+  $clvSysType = 'unknown'; $clvOsName = 'unknown'
+  try { $clvSysType = [string](Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).SystemType } catch { }
+  try { $clvOsName = (Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).Caption } catch { }
+  W '本机是 32 位 Windows：陪玩端只能装在 64 位系统上，这次什么都没动。'
+  Send-Diag 'repair-blocked-32bit' ('is64BitOS=False; is64BitProcess=' + [Environment]::Is64BitProcess + '; systemType=' + $clvSysType + '; os=' + $clvOsName + '; ps=' + $PSVersionTable.PSVersion.ToString()) | Out-Null
+  Write-Host ''
+  Write-Host '=====================================================' -ForegroundColor Yellow
+  Write-Host '这台电脑是 32 位 Windows，装不了「陪玩管理」。' -ForegroundColor Yellow
+  Write-Host '陪玩端只能在 64 位 Windows 10 / 11 上运行，请联系管理员。' -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host '急用可以先开网页版 —— 用浏览器打开下面这个地址，不用装任何东西：' -ForegroundColor Yellow
+  Write-Host '    http://1.117.229.36:3001' -ForegroundColor Cyan
+  Write-Host '=====================================================' -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host '没有下载任何东西，本机已有的文件一个都没改。' -ForegroundColor Red
+  Read-Host '按回车结束'
+  exit 1
 }
 
 Write-Host ''

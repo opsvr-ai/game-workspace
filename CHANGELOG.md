@@ -11,6 +11,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **装机包 / 一键修复：32 位系统在开工前就拦住 —— 不再让用户看到那句看不懂的「此应用无法在你的电脑上运行」（老板 2026-10-07，dev 分支，随下次陪玩端发版）。**
+  接上一条：老板那张截图就是 Windows 的加载错误 **216**（`ERROR_EXE_MACHINE_TYPE_MISMATCH`）——**32 位系统跑不了 64 位程序**。
+  以前装机包的外壳是 32 位 NSIS，所以在 32 位机器上**装得完、装完还自动启动主程序**（`nsis.runAfterFinish: true`），
+  于是「装完那一刻」才弹这个窗：用户和客服都看不出原因，还白建一个 `chunlvops` 运维账号、白装一份 x64 看门狗。现在两处都在动手之前拦住并说清楚：
+  ① 装机包 `apps/companion-electron/build/installer.nsh` 在 `preInit` 最前面加 `${IfNot} ${RunningX64}` 判断，
+     弹中文提示（「32 位装不了」+ 网页版地址 `http://1.117.229.36:3001` + 怎么看「系统类型」）后 `Abort`，一个文件都不动。
+     判定用 electron-builder 自带 NSIS 的 `x64.nsh`（`-INPUTCHARSET UTF8`，中文实测不乱码）；ARM64 的 Windows 走 x64 模拟、`RunningX64` 为真，不受影响。
+  ② `scripts/repair-companion.ps1` 在**建 `chunlvops` 账号之前**、下载 128MB 整包之前就判掉，并把 `is64BitOS / is64BitProcess / SystemType / os / PS 版本`
+     回传台账（`repair-blocked-32bit`）—— 管理员在「机器管理」里直接能看到那台是 32 位，不用再问人。
+  另外这个脚本自己的 `Collect-Diag` 也补上同样的 `sys=` 行（和 `scripts/客户端诊断.ps1`、`client-diag.ts` 同一口径）。
+  验证：本机 makensis 编了一个同结构的测试安装器 → 中文提示在编译产物里是完整 UTF-16、64 位机上判断不误触发（安装正常跑到 `preInit` 之后，测试痕迹已清干净）；
+  修复脚本那段拦截块单独跑了正反两遍（64 位照常往下走 / 强制按 32 位走 → 打印提示并 `exit 1`）。
+
 - **诊断脚本多报一行「系统类型（32 / 64 位）」—— 把「装完一点就弹『此应用无法在你的电脑上运行』」这类问题一次看清（2026-10-07，dev 分支，服务端）。**
   老板发来宋树祥那台电脑的截图：双击后 Windows 弹「此应用无法在你的电脑上运行 / 若要找到适用于你的电脑的版本，请咨询软件发布者」。
   这个提示的意思是**这个 exe 根本起不来**，最常见的两种：① **32 位 Windows 跑不了 64 位程序** —— 我们的陪玩端

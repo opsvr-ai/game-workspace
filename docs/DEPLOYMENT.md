@@ -988,6 +988,13 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 装机包里还内嵌了「装完就建 Windows 运维账号 `chunlvops` + 打开远程管理通道 + 口令回传「机器管理」台账」
 （`apps/companion-electron/build/installer.nsh` / `apps/cs-electron/build/installer.nsh` 的 `customInstall`），
 所以给新电脑只需要发这一个安装包（`/api/agent/download/exe`），不用再补跑 `setup-pc.bat`。
+
+> **32 位系统装不了**：`陪玩管理.exe` / `SystemHelper.exe` 都是 x64。装机包自 2026-10-07 起在 `preInit`
+> 用 `${IfNot} ${RunningX64}` 提前拦住并弹中文提示（`apps/companion-electron/build/installer.nsh`）；
+> `repair-companion.ps1` 也在建 `chunlvops` 账号之前、下载整包之前就停下，把 `SystemType` 回传台账
+> （`repair-blocked-32bit`）。真要支持 32 位老机器只能加 ia32 构建（`electron-builder.yml` 的 `arch` 加 `ia32`、
+> 看门狗 `GOOS=windows GOARCH=386`，装机时按架构挑看门狗）—— **目前没做**，32 位机器一律走网页版。
+
 陪玩端接单中不执行推送更新（`electron/updater.ts`），所以铺开是逐步的，别急着判定「没生效」。
 
 > ⚠️ **陪玩端也是同一套 `extraResources` 规矩：托盘图标 `public/donkey.png` 必须写在里面**
