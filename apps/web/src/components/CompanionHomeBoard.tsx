@@ -54,14 +54,15 @@ interface Props {
 
 const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, customers, attendance }) => {
   const w = workbench || {};
-  // 本月流水（只算自己那份，老板 2026-10-08 再确认）：当主陪拿主陪金额、当搭档拿搭档金额，
-  // 「搭档（别人）那份」永远不进这个数。服务端 workbench 直接给了拆分，不再自己拼。
+  // 本月流水：只算他自己那份 —— 当主陪拿主陪金额、当搭档拿搭档金额，「搭档（别人）那份」永远不进这个数。
+  // 服务端 workbench 直接给总额，这里只显示它。
   // 以前这里兜底过 excellence.revenueYuan —— 那是「最近 30 天」的数（还把上个月算进来），
   // 跟「本月」不是一回事，也正是老板看着像「把别人的钱加进来了」的原因之一，已删掉。
+  //
+  // 老板 2026-10-08：「本月流水 ¥X（只算自己那份）……小字摊开『当主陪 ¥A + 当搭档 ¥B』……
+  // 这个小字都不用写，谁还不知道只算自己的那一部分呢？」—— 所以卡片上只留「本月流水 ¥X」，
+  // 小字拆分和那句悬停说明整条删掉（口径一个字没变，只是不再写在脸上）。
   const monthRevenue = Number(w?.monthRevenue ?? w?.tierInfo?.monthlyRevenue ?? 0);
-  const monthPrimary = Number(w?.monthRevenueParts?.primary ?? 0);
-  const monthCo = Number(w?.monthRevenueParts?.co ?? 0);
-  const monthSplit = Number(w?.monthRevenueParts?.split ?? 0);
   // 段位分 = 四项 KPI（不含战绩图加分）；段位 / 距下一级都看它。
   const rankScore = Number(excellence?.tierScore ?? excellence?.rankScore ?? 0);
   const tier = String(excellence?.tier || 'MIDDLE');
@@ -107,17 +108,8 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
           <StatCard
             label="今日流水"
             value={yuan(w.todayRevenue)}
-            sub={
-              <>
-                <div>{`本月流水 ${yuan(monthRevenue)}（只算自己那份）`}</div>
-                <div>
-                  {`当主陪 ${yuan(monthPrimary)} + 当搭档 ${yuan(monthCo)}`}
-                  {monthSplit > 0 ? ` + 跨店分成 ${yuan(monthSplit)}` : ""}
-                </div>
-              </>
-            }
+            sub={`本月流水 ${yuan(monthRevenue)}`}
             tint={BRAND.primary}
-            title="本月流水只算你自己那份：你当主陪拿主陪金额、当搭档拿搭档金额（那是发给你本人的）；搭档（别人）那份不算在你头上。"
           />
         </Col>
         <Col xs={12} md={4}><StatCard label="今日接单" value={`${w.todayOrderCount ?? 0} 单`} sub={`本月 ${w.monthlyOrderCount ?? 0} 单`} tint={`${SEMANTIC.success}`} /></Col>

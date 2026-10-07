@@ -416,7 +416,7 @@ const CompanionPage: React.FC = () => {
           <Space size={12} wrap style={{ marginBottom: 8 }}>
             <Text strong>阶梯分成</Text>
             <Tag color="blue">
-              本月流水 ¥{Number(data.tierInfo.monthlyRevenue || 0).toFixed(2)}（只算自己那份）
+              本月流水 ¥{Number(data.tierInfo.monthlyRevenue || 0).toFixed(2)}
             </Tag>
             <Tag color="gold" style={{ fontSize: 14, fontWeight: 600 }}>
               当前分成 {data.tierInfo.companionPct}%
