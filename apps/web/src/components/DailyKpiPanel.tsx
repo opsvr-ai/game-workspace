@@ -265,7 +265,7 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
         dataIndex: 'repurchase',
         width: 56,
         align: 'right' as const,
-        render: (v: number) => (v ? <Text style={{ color: '#722ED1', fontWeight: 600 }}>{v}</Text> : <Text type="secondary">0</Text>),
+        render: (v: number) => (v ? <Text style={{ color: SEMANTIC.repurchase, fontWeight: 600 }}>{v}</Text> : <Text type="secondary">0</Text>),
       },
       {
         title: '续单率',
@@ -279,7 +279,7 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
         dataIndex: 'repurchaseRate',
         width: 68,
         align: 'right' as const,
-        render: (v: number) => <Text style={{ color: v >= 30 ? '#722ED1' : TEXT.secondary }}>{pct(v)}</Text>,
+        render: (v: number) => <Text style={{ color: v >= 30 ? SEMANTIC.repurchase : TEXT.secondary }}>{pct(v)}</Text>,
       },
       { title: '服务客户', dataIndex: 'customers', width: 74, align: 'right' as const },
       { title: '新客', dataIndex: 'newCustomers', width: 56, align: 'right' as const },
@@ -455,7 +455,7 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
                 label="复购"
                 value={`${total?.repurchase ?? 0} 单`}
                 sub={`复购率 ${pct(total?.repurchaseRate)}（按单）`}
-                tint="#722ED1"
+                tint={SEMANTIC.repurchase}
               />
             </Col>
             <Col xs={12} md={5}>
@@ -464,7 +464,7 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
                 label="服务客户"
                 value={`${total?.customers ?? 0} 个`}
                 sub={`新客 ${total?.newCustomers ?? 0} 个 · 首单 ${total?.first ?? 0} 单`}
-                tint="#EB2F96"
+                tint={SEMANTIC.customer}
               />
             </Col>
             <Col xs={12} md={4}>
@@ -499,7 +499,7 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
                     <Text strong style={{ color: SEMANTIC.success }}>{total?.renew ?? 0}</Text>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={4} align="right">
-                    <Text strong style={{ color: '#722ED1' }}>{total?.repurchase ?? 0}</Text>
+                    <Text strong style={{ color: SEMANTIC.repurchase }}>{total?.repurchase ?? 0}</Text>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={5} align="right">
                     {pct(total?.renewRate)}
