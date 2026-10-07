@@ -245,6 +245,7 @@ const STORE_KEYS = new Set([
   'notificationPrefs',
   'notifSound',
   'notifVolume',
+  'bannerMuteWhileFullscreen',
   'screenLocked',
   'lastStatus',
   'username',
@@ -991,6 +992,184 @@ function estimatePopupHeight(payload: {
   return Math.max(80, Math.min(220, h));
 }
 
+type BannerPayload = {
+  title?: string;
+  body?: string;
+  seconds?: number;
+  icon?: string;
+  orderId?: string;
+  hint?: string;
+  action?: string;
+  actionPayload?: any;
+  big?: string;
+  note?: string;
+};
+
+// ── 全屏打游戏时：不弹置顶窗（改为响提示音 + 闪任务栏），退出全屏后立刻补弹 ──
+//
+// 老板 2026-10-07：「别人发布订单右下角弹窗，别人机器上鼠标不点没事，童祥瑞的电脑弹窗就会
+// 自动跳到桌面」。这事儿跟客户端版本无关 —— 台账里已经有十台跑在同一个构建上（他也在其中），
+// 差的是**游戏画面模式**：这张横幅是**置顶窗**，谁的**游戏设成「独占全屏」**（真全屏、没吃到
+// Windows 的「全屏优化」），置顶窗一出现 Windows 就会把游戏顶回桌面；游戏设成「无边框窗口 /
+// 窗口化全屏」的机器上，横幅只是浮在游戏上面，什么都不影响。
+//
+// 给受影响的机器留一条路：设置里打开「全屏打游戏时不要弹窗」后，出横幅之前先问一句
+// 「最前面那个窗口是不是铺满整块屏」，是就先不画置顶窗 —— 提示音、铃铛里的提醒记录、抢单池
+// 全都照旧（一单不会漏），等游戏退到窗口 / 退出 / 切到桌面了，立刻把攒下的横幅补出来。
+// 默认关：没这个毛病的机器（大多数）保持原样，照旧在游戏上面弹。
+const BANNER_MUTE_WHILE_FULLSCREEN = 'bannerMuteWhileFullscreen';
+
+/** 设置里那个开关开着没。 */
+function bannerMuteWhileFullscreenOn(): boolean {
+  try {
+    return store.get(BANNER_MUTE_WHILE_FULLSCREEN) === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 探测脚本：拿「最前面的窗口」和它所在显示器的矩形，宽高都不小于整块屏就算在打全屏游戏。
+ * 用 -EncodedCommand 传（UTF-16 base64），免得中文 / 引号在命令行长串里被吃掉。
+ */
+const FG_PROBE_SCRIPT = [
+  "$ErrorActionPreference='Stop'",
+  "$ProgressPreference='SilentlyContinue'",
+  'Add-Type -TypeDefinition @"',
+  'using System;',
+  'using System.Runtime.InteropServices;',
+  'public class ClvFgProbe {',
+  '  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }',
+  '  [StructLayout(LayoutKind.Sequential)] public struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; }',
+  '  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();',
+  '  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT r);',
+  '  [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);',
+  '  [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO mi);',
+  '  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);',
+  '}',
+  '"@',
+  '$h = [ClvFgProbe]::GetForegroundWindow()',
+  '$r = New-Object ClvFgProbe+RECT',
+  '$null = [ClvFgProbe]::GetWindowRect($h, [ref]$r)',
+  '$mi = New-Object ClvFgProbe+MONITORINFO',
+  '$mi.cbSize = [System.Runtime.InteropServices.Marshal]::SizeOf($mi)',
+  '$mon = [ClvFgProbe]::MonitorFromWindow($h, 2)',
+  '$null = [ClvFgProbe]::GetMonitorInfo($mon, [ref]$mi)',
+  '$w = $r.Right - $r.Left; $ht = $r.Bottom - $r.Top',
+  '$mw = $mi.rcMonitor.Right - $mi.rcMonitor.Left; $mh = $mi.rcMonitor.Bottom - $mi.rcMonitor.Top',
+  '$full = (($w -ge $mw) -and ($ht -ge $mh) -and $w -gt 0 -and $ht -gt 0)',
+  '$wpid = 0; $null = [ClvFgProbe]::GetWindowThreadProcessId($h, [ref]$wpid)',
+  "$exe = ''",
+  'try { $exe = (Get-Process -Id $wpid -ErrorAction Stop).ProcessName } catch {}',
+  '[pscustomobject]@{ full = $full; exe = $exe; w = $w; h = $ht; mw = $mw; mh = $mh } | ConvertTo-Json -Compress',
+].join('\n');
+
+// 探测结果缓存 3 秒：一单同时来几条横幅（本店广播 + 客服指定）不会连着开好几个 PowerShell。
+let fgProbeCache: { at: number; full: boolean; exe: string } | null = null;
+let fgProbeRunning: Promise<{ full: boolean; exe: string } | null> | null = null;
+
+/**
+ * 最前面那个窗口是不是铺满整块屏（＝多半在全屏打游戏）。
+ * 探不出来（PowerShell 起不来 / 超时 / 输出解析不了）一律返回 null，调用方按「没在全屏」处理 ——
+ * 宁可照旧弹一下，也不能因为探测失败把新单提醒吞掉。
+ */
+async function probeForegroundFullscreen(): Promise<{ full: boolean; exe: string } | null> {
+  if (fgProbeCache && Date.now() - fgProbeCache.at < 3000) return fgProbeCache;
+  if (fgProbeRunning) return fgProbeRunning;
+  fgProbeRunning = new Promise((resolve) => {
+    execFile(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-EncodedCommand',
+        Buffer.from(FG_PROBE_SCRIPT, 'utf16le').toString('base64'),
+      ],
+      { windowsHide: true, timeout: 8000 },
+      (err, stdout) => {
+        if (err) {
+          resolve(null);
+          return;
+        }
+        try {
+          const j = JSON.parse(String(stdout).trim().split('\n').pop() || '{}');
+          resolve({ full: !!j.full, exe: String(j.exe || '') });
+        } catch {
+          resolve(null);
+        }
+      },
+    );
+  });
+  const out = await fgProbeRunning;
+  fgProbeRunning = null;
+  if (out) fgProbeCache = { at: Date.now(), ...out };
+  return out;
+}
+
+// 被「全屏游戏」压住、等着补弹的横幅（最多留 3 条，跟同屏最多 3 张一个口径）。
+const deferredBanners: Array<{ payload: BannerPayload; exe: string }> = [];
+let deferredBannerTimer: ReturnType<typeof setInterval> | null = null;
+
+/** 全屏游戏里先压住不弹；每 3 秒看一眼，游戏一退到窗口 / 退出就把攒下的横幅立刻补出来。 */
+function deferBannerWhileFullscreen(payload: BannerPayload, exe: string): void {
+  while (deferredBanners.length >= 3) deferredBanners.shift();
+  deferredBanners.push({ payload, exe });
+  if (deferredBannerTimer) return;
+  deferredBannerTimer = setInterval(() => {
+    void (async () => {
+      if (!deferredBanners.length) {
+        if (deferredBannerTimer) clearInterval(deferredBannerTimer);
+        deferredBannerTimer = null;
+        return;
+      }
+      const fg = await probeForegroundFullscreen();
+      if (fg?.full) return; // 还在全屏游戏里，继续等
+      const queued = deferredBanners.splice(0);
+      if (deferredBannerTimer) clearInterval(deferredBannerTimer);
+      deferredBannerTimer = null;
+      for (const item of queued) {
+        logger.info('Deferred banner shown (fullscreen game ended)', {
+          exe: item.exe,
+          title: item.payload?.title,
+          orderId: item.payload?.orderId,
+        });
+        showBannerNow(item.payload);
+      }
+    })();
+  }, 3000);
+  if (deferredBannerTimer.unref) deferredBannerTimer.unref();
+}
+
+/**
+ * 横幅入口：设置里打开「全屏打游戏时不要弹窗」时，先看一眼是不是正在全屏打游戏 ——
+ * 是就不画置顶窗（那会把游戏顶到桌面），改成响提示音 + 闪任务栏，等退到窗口再补弹；
+ * 没开这个开关（默认）就走原来的路：直接画。
+ */
+function showBroadcastPopup(payload: BannerPayload): void {
+  if (!bannerMuteWhileFullscreenOn()) {
+    showBannerNow(payload);
+    return;
+  }
+  void (async () => {
+    const fg = await probeForegroundFullscreen();
+    if (!fg?.full) {
+      showBannerNow(payload);
+      return;
+    }
+    logger.info('Banner held back: fullscreen game in foreground', {
+      exe: fg.exe,
+      title: payload?.title,
+      orderId: payload?.orderId,
+    });
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.flashFrame(true);
+    } catch {
+      /* 闪任务栏失败不影响什么 */
+    }
+    deferBannerWhileFullscreen(payload, fg.exe);
+  })();
+}
+
 /**
  * 弹出广播提示：置顶、不抢焦点，默认 5 秒后自己关闭。
  * 陪玩在打游戏或最小化了客户端时，也能在屏幕右下角看到。
@@ -1002,18 +1181,7 @@ function estimatePopupHeight(payload: {
  * 都不理会鼠标移动，只有**真的在横幅上点一下左键**才会关掉它 / 执行跳转
  * （见下面 order-banner:click、banner:action）。
  */
-function showBroadcastPopup(payload: {
-  title?: string;
-  body?: string;
-  seconds?: number;
-  icon?: string;
-  orderId?: string;
-  hint?: string;
-  action?: string;
-  actionPayload?: any;
-  big?: string;
-  note?: string;
-}): void {
+function showBannerNow(payload: BannerPayload): void {
   // 老板 2026-10-06：「其实也没必要改小」—— 宽度恢复原来的 480，只把关键字放大、备注标红。
   const W = 480;
   const GAP = 10;
