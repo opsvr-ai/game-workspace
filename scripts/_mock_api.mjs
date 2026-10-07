@@ -161,6 +161,28 @@ const FIXTURES = [
       },
     },
   },
+  // 运营看板顶部那排 KPI（老板 2026-10-07 问的「今日单量」：「发单」48 是主值，
+  // 「已完成」7 是副值 —— 两个数都写进假数据，改前端时不至于看不出效果）。
+  {
+    m: 'GET',
+    p: /^\/api\/dashboard$/,
+    body: {
+      data: {
+        today: {
+          totalRevenue: 335,
+          orderCount: 7,
+          publishedCount: 48,
+          onlineCount: 5,
+          totalCount: 9,
+          acceptRate: 12,
+          entertainmentFee: 0,
+        },
+        tierChanges: [],
+        ranking: [],
+        alerts: [],
+      },
+    },
+  },
 ];
 
 function log(line) {

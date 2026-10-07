@@ -17,7 +17,12 @@ function setup(opts: { inService?: boolean; graceSeconds?: number } = {}) {
         value: opts.graceSeconds ?? 60,
       }),
     },
-    companion: { update: vi.fn().mockResolvedValue({}) },
+    companion: {
+      // 掉线置状态现在走 common/companion-status-switch：先读一眼当前状态
+      // （状态没变就不重开计时日志），再落库。
+      findUnique: vi.fn().mockResolvedValue({ status: "AVAILABLE" }),
+      update: vi.fn().mockResolvedValue({}),
+    },
   };
   const companions = {
     hasActiveServiceSession: vi.fn().mockResolvedValue(!!opts.inService),

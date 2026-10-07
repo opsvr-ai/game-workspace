@@ -11,6 +11,7 @@ import { companionOrderRevenue } from '../common/order-revenue';
 import { PoolScope } from '@chunlv/shared';
 import { visibleToOwnOffline } from '../common/order-outcome';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { switchCompanionStatus } from '../common/companion-status-switch';
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CLAIMED, OrderStatus.CANCELLED],
@@ -36,9 +37,8 @@ export class OrderWorkflowService {
   }
 
   private async refreshCompanionAvailable(companionId: string) {
-    await this.prisma.companion
-      .update({ where: { id: companionId }, data: { status: 'AVAILABLE' } })
-      .catch(() => {});
+    // 统一入口：放回空闲的同时把计时日志接上（否则「接单时长」会缺段）。
+    await switchCompanionStatus(this.prisma, companionId, 'AVAILABLE');
     await this.wsGateway.refreshCompanionBlacklist(companionId);
   }
 

@@ -23,6 +23,7 @@ import { RestingMonitorService } from './resting-monitor.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
+import { switchCompanionStatus } from '../common/companion-status-switch';
 import { ChatService } from '../chat/chat.service';
 import { ExcellenceService } from './excellence.service';
 import { UserRole } from '@chunlv/shared';
@@ -761,10 +762,8 @@ export class CompanionsController {
     this.wsGateway.sendCommand(id, 'kick', { reason: '管理员强制下线' });
 
     // 2. 更新数据库状态为离线
-    await this.prisma.companion.update({
-      where: { id },
-      data: { status: 'OFFLINE' },
-    });
+    // 统一入口：踢人时把计时日志一并封口，别让在线时长继续涨。
+    await switchCompanionStatus(this.prisma, id, 'OFFLINE');
 
     // 3. 通知 Studio
     if (req.user.studioId) {

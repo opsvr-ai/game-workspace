@@ -23,6 +23,7 @@ import { HeartbeatService } from './heartbeat.service';
 import { BlacklistIngestService } from './blacklist-ingest.service';
 import { isLanOrigin } from '../common/http-auth';
 import { stripCustomerSourceDeep } from '../common/order-privacy';
+import { switchCompanionStatus } from '../common/companion-status-switch';
 import {
   resolveCompanionOverrides,
   resolveStudioBlacklistEnabled,
@@ -563,14 +564,14 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (this.companionSockets.get(companionId)?.size) return;
     const inService = await this.companionsService.hasActiveServiceSession(companionId).catch(() => false);
     const disconnectStatus = inService ? 'BUSY' : 'OFFLINE';
-    await this.prisma.companion
-      .update({ where: { id: companionId }, data: { status: disconnectStatus } })
-      .catch((err) => {
-        logger.error('Failed to update companion status on disconnect', {
-          companionId,
-          error: (err as Error).message,
-        });
+    // 走统一入口：掉线时把还开着的那段计时日志封口
+    // （不封的话，人走了日志还开着，在线时长会一直涨到营业日结束）。
+    await switchCompanionStatus(this.prisma, companionId, disconnectStatus).catch((err) => {
+      logger.error('Failed to update companion status on disconnect', {
+        companionId,
+        error: (err as Error).message,
       });
+    });
 
     // Finalize attendance on disconnect
     await this.companionsService.finalizeAttendance(companionId);

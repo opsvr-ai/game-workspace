@@ -1,4 +1,5 @@
 import { PrismaService } from '../prisma/prisma.service';
+import { switchCompanionStatus } from './companion-status-switch';
 
 /**
  * 服务结束后把陪玩放回「空闲」。
@@ -39,8 +40,8 @@ export async function releaseCompanionIfIdle(
   // 只处理「接单中」：娱乐中/休息中的人不该被这里改掉。
   if (companion?.status !== 'BUSY') return false;
 
-  await prisma.companion
-    .update({ where: { id: companionId }, data: { status: 'AVAILABLE' } })
-    .catch(() => {});
+  // 走统一入口：改状态的同时把「接单中」那段计时日志封口、接上「空闲」这一段。
+  // 裸露的 update 会让接单时长缺段 —— 看板的接单率就是从这里取数的（老板 2026-10-07）。
+  await switchCompanionStatus(prisma, companionId, 'AVAILABLE');
   return true;
 }

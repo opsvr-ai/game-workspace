@@ -47,13 +47,12 @@ describe('DashboardService', () => {
   // =========================================================================
   describe('getDashboard', () => {
     it('should return studio daily stats with revenue metrics', async () => {
-      // Orders done today
+      // 今日订单（营业日 12:00 界）：两单已完成 + 一单还没打完
       mockPrisma.order.findMany.mockResolvedValueOnce([
         makeOrder({ amount: 100 }),
         makeOrder({ id: 'order-002', amount: 200 }),
+        makeOrder({ id: 'order-003', amount: 90, status: 'PENDING' }),
       ]);
-      // 今日已完成订单（低流水预警那份）
-      mockPrisma.order.findMany.mockResolvedValueOnce([]);
       // Companions
       mockPrisma.companion.findMany.mockResolvedValueOnce([
         makeCompanion({ status: 'AVAILABLE' }),
@@ -71,15 +70,16 @@ describe('DashboardService', () => {
 
       const result = await service.getDashboard('studio-001');
 
-      // Total revenue = 100 + 200 = 300
+      // 流水 / 已完成只算 DONE：100 + 200 = 300、2 单
       expect(result.today.totalRevenue).toBe(300);
       expect(result.today.orderCount).toBe(2);
+      // 今日单量（发单量）含还没打完的：3 单 —— 老板 2026-10-07 定的口径
+      expect(result.today.publishedCount).toBe(3);
       expect(result.today.onlineCount).toBe(2);
       expect(result.today.totalCount).toBe(3);
     });
 
     it('should calculate accept rate correctly', async () => {
-      mockPrisma.order.findMany.mockResolvedValueOnce([]);
       mockPrisma.order.findMany.mockResolvedValueOnce([]);
       // 2 online (AVAILABLE + BUSY), 1 RESTING
       mockPrisma.companion.findMany.mockResolvedValueOnce([
@@ -108,7 +108,6 @@ describe('DashboardService', () => {
 
     it('should handle empty date range (no data)', async () => {
       mockPrisma.order.findMany.mockResolvedValueOnce([]);
-      mockPrisma.order.findMany.mockResolvedValueOnce([]);
       mockPrisma.companion.findMany.mockResolvedValueOnce([]);
       mockPrisma.companionTimeLog.findMany.mockResolvedValueOnce([]);
       mockPrisma.companion.findMany.mockResolvedValueOnce([]);
@@ -119,6 +118,7 @@ describe('DashboardService', () => {
 
       expect(result.today.totalRevenue).toBe(0);
       expect(result.today.orderCount).toBe(0);
+      expect(result.today.publishedCount).toBe(0);
       expect(result.today.onlineCount).toBe(0);
       expect(result.today.totalCount).toBe(0);
       expect(result.today.acceptRate).toBe(0);
@@ -127,7 +127,6 @@ describe('DashboardService', () => {
     });
 
     it('should return online companion count (AVAILABLE, BUSY, ENTERTAINMENT)', async () => {
-      mockPrisma.order.findMany.mockResolvedValueOnce([]);
       mockPrisma.order.findMany.mockResolvedValueOnce([]);
       mockPrisma.companion.findMany.mockResolvedValueOnce([
         makeCompanion({ status: 'AVAILABLE' }),

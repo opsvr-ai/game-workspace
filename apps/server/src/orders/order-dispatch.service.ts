@@ -10,6 +10,7 @@ import { assertCustomerNotTakenByCurrentWechat } from './customer-wechat-rule';
 import { PoolScope } from '@chunlv/shared';
 import { visibleToOwnOffline } from '../common/order-outcome';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { switchCompanionStatus } from '../common/companion-status-switch';
 
 @Injectable()
 export class OrderDispatchService {
@@ -21,9 +22,8 @@ export class OrderDispatchService {
   ) {}
 
   private async refreshCompanionAvailable(companionId: string) {
-    await this.prisma.companion
-      .update({ where: { id: companionId }, data: { status: 'AVAILABLE' } })
-      .catch(() => {});
+    // 统一入口：放回空闲的同时把计时日志接上（否则「接单时长」会缺段）。
+    await switchCompanionStatus(this.prisma, companionId, 'AVAILABLE');
     await this.wsGateway.refreshCompanionBlacklist(companionId);
   }
 

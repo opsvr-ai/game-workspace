@@ -1417,7 +1417,7 @@ Every endpoint returns a standard JSON envelope:
 
 | Method | Path | Auth | Roles | Description |
 |--------|------|------|-------|-------------|
-| `GET` | `/api/dashboard` | JWT | ADMIN, OWNER | Dashboard overview (today stats, ranking, alerts). |
+| `GET` | `/api/dashboard` | JWT | ADMIN, OWNER | Dashboard overview. `today.publishedCount` = 今日发单（不限状态，与客服看板「全店发单」同口径）, `today.orderCount` = 今日已完成（与「今日流水」配对）；另有 ranking / alerts / tierChanges。 |
 | `GET` | `/api/dashboard/trend` | JWT | ADMIN, OWNER | N-day revenue trend. Query: `?days=7`. |
 | `GET` | `/api/dashboard/companions` | JWT | ADMIN, OWNER | Companion status list. |
 | `GET` | `/api/dashboard/revenue-overview` | JWT | ADMIN, OWNER | Yesterday/monthly revenue + type breakdown + companion ranking. |

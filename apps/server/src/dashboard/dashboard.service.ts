@@ -22,17 +22,24 @@ export class DashboardService {
 
     const { start: today, end: tomorrow } = currentBusinessDayRange();
 
-    // Today's completed orders
+    // 今日订单（营业日 12:00 界）。老板 2026-10-07：「今日单量」要的是**发单量**
+    // —— 跟客服看板「全店发单」同一个口径（今天建了多少单，不限状态）。
+    // 以前这里只数 DONE 的单，于是同一页上「今日单量 7 单」和下面「今日客服发单 48 单」
+    // 自相矛盾（7 是打完的、48 是发出去的）。两个数都留着：主值发单、副值已完成。
     const todayOrders = await this.prisma.order.findMany({
       where: {
         ...studioWhere,
-        status: 'DONE',
         createdAt: { gte: today, lt: tomorrow },
       },
+      select: { status: true, amount: true, companionId: true },
     });
+    const doneOrders = todayOrders.filter((o) => o.status === 'DONE');
 
-    const totalRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
-    const orderCount = todayOrders.length;
+    const totalRevenue = doneOrders.reduce((s, o) => s + o.amount, 0);
+    /** 今日已完成（DONE）单量 —— 跟「今日流水」配对的还是这个数 */
+    const orderCount = doneOrders.length;
+    /** 今日发单量 —— 今天新开的单，含还没派出去 / 正在打 / 已取消的 */
+    const publishedCount = todayOrders.length;
 
     // Online/Total companions
     const allCompanions = await this.prisma.companion.findMany({
@@ -100,16 +107,9 @@ export class DashboardService {
     const lowThreshold = (scopedCfg['revenue.low_warning'] as number) ?? 300;
 
     // H3 fix: use Order table for alerts (same source as KPI)
-    const todayDoneOrders = await this.prisma.order.findMany({
-      where: {
-        ...(studioWhere ? { studioId: studioWhere.studioId } : {}),
-        createdAt: { gte: today, lt: tomorrow },
-        status: 'DONE',
-      },
-      select: { companionId: true, amount: true },
-    });
+    // 直接用上面那份「今日已完成单」，不再重复查一遍。
     const revMap = new Map<string, number>();
-    for (const o of todayDoneOrders) {
+    for (const o of doneOrders) {
       if (o.companionId) revMap.set(o.companionId, (revMap.get(o.companionId) || 0) + o.amount);
     }
     // 娱乐费：走全系统唯一口径（门槛 = 订单流水 + 今天打掉的存单，达标免单，否则按配置时薪折算）
@@ -167,6 +167,7 @@ export class DashboardService {
       today: {
         totalRevenue,
         orderCount,
+        publishedCount,
         onlineCount: onlineCompanions,
         totalCount: allCompanions.length,
         acceptRate,

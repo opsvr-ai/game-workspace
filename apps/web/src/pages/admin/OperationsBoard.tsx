@@ -197,7 +197,22 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
         <Col xs={12} md={4}><StatCard label="今日流水" value={dash ? yuan(dash.today?.totalRevenue) : '—'} tint={BRAND.primary} /></Col>
         <Col xs={12} md={4}><StatCard label="本月流水" value={overview ? yuan(overview.monthlyRevenue) : '—'} tint="#52c41a" /></Col>
-        <Col xs={12} md={4}><StatCard label="今日单量" value={dash ? `${dash.today?.orderCount ?? 0} 单` : '—'} sub={dash ? `接单率 ${pct(dash.today?.acceptRate)}` : undefined} tint="#faad14" /></Col>
+        {/* 今日单量 = 发单量（跟客服看板「全店发单」同一口径，老板 2026-10-07 定的）；
+            已完成单独放副标题，免得跟旁边的「今日流水」对不上号。 */}
+        <Col xs={12} md={4}>
+          <StatCard
+            label="今日单量"
+            value={dash ? `${dash.today?.publishedCount ?? 0} 单` : '—'}
+            // 两行分开写：窄屏（1024）下挤在一行会断在「接单率」和数字中间。
+            sub={dash ? (
+              <>
+                <div>已完成 {dash.today?.orderCount ?? 0} 单</div>
+                <div>接单率 {pct(dash.today?.acceptRate)}</div>
+              </>
+            ) : undefined}
+            tint="#faad14"
+          />
+        </Col>
         <Col xs={12} md={4}><StatCard label="在线陪玩" value={dash ? `${dash.today?.onlineCount ?? 0} / ${dash.today?.totalCount ?? 0}` : '—'} sub={`打单中 ${servingCount} 人`} tint="#722ed1" /></Col>
         <Col xs={12} md={4}><StatCard label="今日娱乐费" value={dash ? yuan(dash.today?.entertainmentFee) : '—'} tint="#13c2c2" /></Col>
         <Col xs={12} md={4}>

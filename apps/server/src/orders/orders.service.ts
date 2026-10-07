@@ -10,6 +10,7 @@ import { ExcellenceService } from '../companions/excellence.service';
 import { logger } from '../common/logger';
 import { maskCustomerWechat, maskPartnerContactView, stripPoolCustomerContact } from '../common/order-privacy';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
+import { switchCompanionStatus } from '../common/companion-status-switch';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
@@ -3829,8 +3830,8 @@ export class OrdersService implements OnModuleInit {
           amount: r.amount ?? 0,
           message: `${name}，你这一段服务已结束，本段计入流水 ¥${Number(r.amount || 0).toFixed(1)}`,
         });
-        // 被换掉的旧陪玩：无条件放回空闲
-        await this.prisma.companion.update({ where: { id: r.id as string }, data: { status: 'AVAILABLE' } }).catch(() => {});
+        // 被换掉的旧陪玩：无条件放回空闲（走统一入口，顺带把「接单中」那段计时日志封口）
+        await switchCompanionStatus(this.prisma, r.id as string, 'AVAILABLE');
         await this.wsGateway.refreshCompanionBlacklist(r.id as string).catch(() => {});
         this.wsGateway.broadcastToBridgedStudios(order?.studioId || '', 'status:broadcast', {
           companionId: r.id,
@@ -3856,7 +3857,9 @@ export class OrdersService implements OnModuleInit {
    */
   private async markCompanionsBusy(ids: Array<string | null | undefined>) {
     for (const id of Array.from(new Set(ids.filter(Boolean) as string[]))) {
-      await this.prisma.companion.update({ where: { id }, data: { status: 'BUSY' } }).catch(() => {});
+      // 走统一入口：状态和计时日志一起写。这里以前是裸 update —— 日志里永远没有 mode=BUSY 的段，
+      // 「接单时长」恒为 0，看板的接单率就恒显示 0%（老板 2026-10-07 看到的那张卡）。
+      await switchCompanionStatus(this.prisma, id, 'BUSY');
       await this.wsGateway.refreshCompanionBlacklist(id).catch(() => {});
     }
   }
