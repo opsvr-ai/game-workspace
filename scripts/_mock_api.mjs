@@ -107,6 +107,9 @@ const USERS = {
 const ME = USERS[ROLE] || USERS.OWNER;
 
 /** 按 方法 + 路径 精确/正则匹配的假响应；没命中的一律 { data: null }。 */
+/** 相对现在的时间（截图用的假数据里，心跳 / 上报时间都按「几分钟前」算，别写死日期）。 */
+const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
+
 const FIXTURES = [
   { m: 'GET', p: /^\/api\/auth\/me$/, body: { data: ME } },
   {
@@ -260,6 +263,91 @@ const FIXTURES = [
           },
         ],
       },
+    },
+  },
+  // ── 客户端管理 → 电脑（老板 2026-10-07 把「机器管理 / 远程控制 / 客户端版本」合成一张表）──
+  // 这张表在前端把四个接口按「使用人」对齐，所以要一起给：台账 / 陪玩实时状态 / 版本 / 手工登记的电脑。
+  {
+    m: 'GET',
+    p: /^\/api\/agent\/machines$/,
+    body: {
+      code: 200,
+      message: 'ok',
+      data: {
+        diagScriptVersion: '20261007',
+        watchdogLatestBuild: '20261007',
+        total: 5,
+        onlineCount: 4,
+        remoteReadyCount: 3,
+        clientlessCount: 1,
+        items: [
+          { machineId: 'm-1', source: 'machine', clientType: 'COMPANION', hostname: 'DESKTOP-WH01', label: '王昊电脑', windowsUser: 'Administrator', loginUser: 'wanghao', loginRole: 'COMPANION', ips: ['192.168.1.11', '10.8.0.3'], primaryIp: '192.168.1.11', mac: '50:EB:F6:EE:0D:7F', os: 'Windows 11 专业版 23H2', appVersion: '1.0.20261021', watchdogBuild: '20261007', remoteReady: true, remoteAccount: 'chunlvops', remotePassword: 'Xk92Lm7q', firstSeenAt: ago(43200), lastSeenAt: ago(1), online: true, diagnosable: true, pendingTasks: 0, lastTaskAt: ago(180), lastTaskStatus: 'done' },
+          { machineId: 'm-2', source: 'machine', clientType: 'COMPANION', hostname: 'DESKTOP-LJ02', label: '李静电脑', windowsUser: 'Administrator', loginUser: 'lijing', loginRole: 'COMPANION', ips: ['192.168.1.12'], primaryIp: '192.168.1.12', mac: '50:EB:F6:EE:0D:80', os: 'Windows 10 专业版 22H2', appVersion: '1.0.20261020', watchdogBuild: '20261006', remoteReady: false, remoteAccount: '', remotePassword: '', firstSeenAt: ago(30000), lastSeenAt: ago(2), online: true, diagnosable: true, pendingTasks: 1, lastTaskAt: ago(2), lastTaskStatus: 'running' },
+          { machineId: 'm-3', source: 'machine', clientType: 'COMPANION', hostname: 'DESKTOP-ZM03', label: '赵敏电脑', windowsUser: 'Administrator', loginUser: 'zhaomin', loginRole: 'COMPANION', ips: ['192.168.1.13'], primaryIp: '192.168.1.13', mac: '50:EB:F6:EE:0D:81', os: 'Windows 11 家庭版 23H2', appVersion: '1.0.20261020', watchdogBuild: '20260930', remoteReady: true, remoteAccount: 'chunlvops', remotePassword: 'Rk41Zp8s', firstSeenAt: ago(20000), lastSeenAt: ago(95), online: false, diagnosable: true, pendingTasks: 0, lastTaskAt: null, lastTaskStatus: null },
+          { machineId: 'm-4', source: 'machine', clientType: 'COMPANION', hostname: 'DESKTOP-CP04', label: '陈鹏电脑', windowsUser: 'Administrator', loginUser: 'chenpeng', loginRole: 'COMPANION', ips: ['192.168.1.14', '172.20.10.4'], primaryIp: '192.168.1.14', mac: '50:EB:F6:EE:0D:82', os: 'Windows 11 专业版 23H2', appVersion: '1.0.20261021', watchdogBuild: '20261007', remoteReady: true, remoteAccount: 'chunlvops', remotePassword: 'Zt77Qm3d', firstSeenAt: ago(15000), lastSeenAt: ago(1), online: true, diagnosable: true, pendingTasks: 0, lastTaskAt: null, lastTaskStatus: null },
+          { machineId: 'm-5', source: 'machine', clientType: 'CS', hostname: 'DESKTOP-KF01', label: '客服 01 电脑', windowsUser: 'Administrator', loginUser: 'kefu01', loginRole: 'CS', ips: ['192.168.1.21'], primaryIp: '192.168.1.21', mac: '50:EB:F6:EE:0D:90', os: 'Windows 11 专业版 23H2', appVersion: '1.0.20260938', watchdogBuild: '20261007', remoteReady: true, remoteAccount: 'chunlvops', remotePassword: 'Qp52Vt9n', firstSeenAt: ago(40000), lastSeenAt: ago(1), online: true, diagnosable: true, pendingTasks: 0, lastTaskAt: null, lastTaskStatus: null },
+          { machineId: 'm-6', source: 'cs-user', clientType: 'ADMIN', hostname: '', label: 'dianzhang01（旧记录）', windowsUser: '', loginUser: 'dianzhang01', loginRole: 'ADMIN', ips: [], primaryIp: '', mac: '', os: '', appVersion: '1.0.20260900', watchdogBuild: '', remoteReady: false, remoteAccount: '', remotePassword: '', firstSeenAt: null, lastSeenAt: ago(600), online: false, diagnosable: false, pendingTasks: 0, lastTaskAt: null, lastTaskStatus: null },
+        ],
+      },
+    },
+  },
+  {
+    m: 'GET',
+    p: /^\/api\/agent\/version-status$/,
+    body: {
+      code: 200,
+      message: 'ok',
+      data: {
+        latestVersion: '1.0.20261021',
+        onlineCount: 3,
+        upToDateCount: 2,
+        pendingCount: 1,
+        list: [
+          { companionId: 'c-1', name: '王昊', status: 'AVAILABLE', agentVersion: '1.0.20261021', lastHeartbeat: ago(1), isLatest: true },
+          { companionId: 'c-2', name: '李静', status: 'BUSY', agentVersion: '1.0.20261020', lastHeartbeat: ago(2), isLatest: false },
+          { companionId: 'c-4', name: '陈鹏', status: 'ENTERTAINMENT', agentVersion: '1.0.20261021', lastHeartbeat: ago(1), isLatest: true },
+        ],
+      },
+    },
+  },
+  {
+    m: 'GET',
+    p: /^\/api\/agent\/cs-version-status$/,
+    body: {
+      code: 200,
+      message: 'ok',
+      data: [
+        { userId: 'u-cs-1', username: 'kefu01', role: 'CS', clientKind: 'cs', version: '1.0.20260938', isLatest: true, ip: '192.168.1.21', lastSeen: ago(1) },
+        { userId: 'u-owner-1', username: 'hanlei', role: 'OWNER', clientKind: 'companion', version: '1.0.20261021', isLatest: true, ip: '192.168.1.9', lastSeen: ago(4) },
+        { userId: 'u-admin-1', username: 'dianzhang01', role: 'ADMIN', clientKind: 'companion', version: '1.0.20260900', isLatest: false, ip: '192.168.1.31', lastSeen: ago(600) },
+      ],
+    },
+  },
+  {
+    m: 'GET',
+    p: /^\/api\/companions$/,
+    body: {
+      code: 200,
+      message: 'ok',
+      data: [
+        { id: 'c-1', status: 'AVAILABLE', user: { id: 'u-1', username: 'wanghao', displayName: '王昊' }, pc: { currentMode: 'WORK', isThrottled: false, lastHeartbeat: ago(1) } },
+        { id: 'c-2', status: 'BUSY', user: { id: 'u-2', username: 'lijing', displayName: '李静' }, pc: { currentMode: 'ENTERTAINMENT', isThrottled: true, throttleLimitKB: 500, lastHeartbeat: ago(2) } },
+        { id: 'c-3', status: 'OFFLINE', user: { id: 'u-3', username: 'zhaomin', displayName: '赵敏' }, pc: null },
+        { id: 'c-4', status: 'ENTERTAINMENT', user: { id: 'u-4', username: 'chenpeng', displayName: '陈鹏' }, pc: { currentMode: 'ENTERTAINMENT', isThrottled: false, lastHeartbeat: ago(1) } },
+        { id: 'c-5', status: 'RESTING', user: { id: 'u-5', username: 'sunqi', displayName: '孙琦' }, pc: null },
+      ],
+    },
+  },
+  {
+    m: 'GET',
+    p: /^\/api\/managed-pcs$/,
+    body: {
+      code: 200,
+      message: 'ok',
+      data: [
+        { id: 'mp-1', ip: '192.168.1.11', loginAccount: 'wanghao', macAddress: '50:EB:F6:EE:0D:7F', label: '王昊电脑', enabled: true, online: true, lastAction: 'wake', lastActionAt: ago(300), createdAt: ago(40000), updatedAt: ago(300) },
+        { id: 'mp-2', ip: '192.168.1.13', loginAccount: 'zhaomin', macAddress: '50:EB:F6:EE:0D:81', label: '赵敏电脑', enabled: true, online: false, lastAction: null, lastActionAt: null, createdAt: ago(20000), updatedAt: ago(500) },
+      ],
     },
   },
 ];

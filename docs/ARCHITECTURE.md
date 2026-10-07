@@ -534,7 +534,7 @@ graph TB
         A2["/admin/companions<br/>陪玩管理"]
         A3["/admin/customers<br/>客户管理"]
         A4["/admin/billing<br/>报账审核"]
-        A5["/admin/pc-control<br/>远程控制"]
+        A5["/admin/client-management<br/>客户端管理<br/>（电脑 / 进程名单）"]
     end
 
     subgraph CS["💬 CS 客服"]

@@ -1,8 +1,8 @@
 {
   "_comment": "UI 硬编码色值基线。只能减不能增；降下来后跑 node scripts/_check_ui_tokens.mjs --update 调低。",
   "_updatedAt": "2026-10-07",
-  "total": 348,
-  "distinct": 100,
+  "total": 333,
+  "distinct": 98,
   "byFile": {
     "pages/admin/OperationsBoard.tsx": 22,
     "pages/StatsPage.tsx": 17,
@@ -13,7 +13,6 @@
     "pages/CompanionPage.tsx": 12,
     "pages/TodosPage.tsx": 12,
     "components/CustomerTrackingCenter.tsx": 11,
-    "pages/admin/AgentVersionPage.tsx": 11,
     "pages/admin/LiveBoardPage.tsx": 9,
     "pages/BillingOverview.tsx": 9,
     "components/chat/ChatHeader.tsx": 8,
@@ -34,7 +33,6 @@
     "components/PasteImageBox.tsx": 4,
     "components/ServiceStartOverlay.tsx": 4,
     "pages/admin/BlacklistPage.tsx": 4,
-    "pages/admin/MachinesPage.tsx": 4,
     "components/chat/ChatPanel.tsx": 3,
     "components/chat/MessageList.tsx": 3,
     "components/chat/TypingIndicator.tsx": 3,

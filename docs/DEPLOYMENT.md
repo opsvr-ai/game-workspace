@@ -953,7 +953,7 @@ curl -sI http://127.0.0.1:3001/api/agent/download/cs        # 200 且 Content-Le
 curl -sI http://127.0.0.1:3001/api/agent/download/cs-zip    # 200 且 Content-Length = 更新整包大小
 ```
 
-管理端「客户端版本上报」页（`GET /api/agent/cs-version-status`）按客服心跳里的版本号显示谁还没升上来，
+管理端「客户端管理 → 电脑 → 客户端版本上报」（`GET /api/agent/cs-version-status`）按客服心跳里的版本号显示谁还没升上来，
 并标注**这条心跳是哪个客户端报的**（`clientKind`：`cs` / `companion`）。
 
 > ⚠️ **别把「陪玩端」那一行当成客服端没升级**（2026-09-30 踩过）：老板 / 店长用的是**陪玩端**窗口，
@@ -964,7 +964,7 @@ curl -sI http://127.0.0.1:3001/api/agent/download/cs-zip    # 200 且 Content-Le
 
 客服端版本号查询间隔是 30 分钟，**不要**为了催更新去重启客服电脑 —— 后台「推送更新」可以直接下发。
 **1.0.20260935 起**客服端自己带看门狗 + 静默更新（`repair-cs.bat` 一次性引导），不会再停在老版本；
-更早的老客户端（没有 `machine-agent`、自更新还要点 UAC）在管理端「机器管理」里根本看不见，
+更早的老客户端（没有 `machine-agent`、自更新还要点 UAC）在管理端「客户端管理 → 电脑」里根本看不见，
 只能人工在那台电脑上双击一次 `修复客服端.bat`，之后也是全自动。
 
 > ⚠️ **装机脚本 `installer.nsh` 的注释里别写 `${...}`**：要表达安装目录就写 `$INSTDIR`，或者干脆写中文
@@ -985,7 +985,7 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 陪玩端有两条更新路径：**自动更新包**（`uploads/chunlv-latest.zip`，走限速接口
 `/api/agent/download/latest`，由看门狗整目录换新 + 校验 + 回滚，见 5.6.1）和**装机包**（`uploads/agent-setup.exe`，
 新电脑走 `/api/agent/download/exe`）。`_publish_client.py` 两个都发，漏发装机包会让新装的机器一上来就是旧版本。
-装机包里还内嵌了「装完就建 Windows 运维账号 `chunlvops` + 打开远程管理通道 + 口令回传「机器管理」台账」
+装机包里还内嵌了「装完就建 Windows 运维账号 `chunlvops` + 打开远程管理通道 + 口令回传「客户端管理 → 电脑」台账」
 （`apps/companion-electron/build/installer.nsh` / `apps/cs-electron/build/installer.nsh` 的 `customInstall`），
 所以给新电脑只需要发这一个安装包（`/api/agent/download/exe`），不用再补跑 `setup-pc.bat`。
 
@@ -1022,7 +1022,7 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 
 1. **上报即自愈（最稳）**：机器一上报，服务端发现它的看门狗构建号对不上就自动补一条「开通远程管理」，
    脚本里含「顺手把看门狗换成云端最新」。只要登录账号是管理员就成（客服机 + 绝大多数陪玩机都是）。
-   也可以人工点一下管理端「机器管理 → 开通远程管理」立刻触发。
+   也可以人工点一下管理端「客户端管理 → 电脑 → 开通远程」立刻触发。
 2. **看门狗自己的云端自更新（现在是最靠谱的一条）**：每 30 分钟问一次云端头信息，变了才下载，构建号更新就原子换自己 +
    计划任务重启服务（`cloudSelfUpdateCheck`）。
    ⚠️ 2026-10-01 真因：它**本来就没坏**，坏在 `parseBuildNumber` 只取第一处匹配 ——
@@ -1062,7 +1062,7 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 变了才下载，构建号更新就原子换掉自己 + 让服务重启（`cloudSelfUpdateCheck`，构建号写在二进制里的
 `CHUNLV_WATCHDOG_BUILD=…`）。所以**换看门狗不再需要人上门**；发新版只做两件事：
 `python scripts\_upload_sh_cloud.py` 传新二进制，再把配置键 `watchdog.latest_build` 改成新构建号
-（服务端据此判断「这台的看门狗是不是落后」，管理端「机器管理」也显示这个）。比「会自更新」更老的版本
+（服务端据此判断「这台的看门狗是不是落后」，管理端「客户端管理 → 电脑」也显示这个）。比「会自更新」更老的版本
 （认不出构建号）得靠派一条「开通远程管理」任务把它带上来 —— 那条脚本里含这一步。
 
 **台账的一行 = 一台机器。** 客户端和运维脚本算 machineId 的算法不一样（客户端按网卡枚举顺序取
