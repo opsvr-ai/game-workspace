@@ -26,9 +26,9 @@
     },
     {
       "path": "/admin/agent-version",
-      "kind": "page",
-      "component": "AgentVersionPage",
-      "redirectTo": null,
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin/machines?tab=version",
       "hasErrorElement": false
     },
     {
@@ -174,7 +174,7 @@
     {
       "path": "/admin/machines",
       "kind": "page",
-      "component": "MachinesPage",
+      "component": "ClientDevicePage",
       "redirectTo": null,
       "hasErrorElement": false
     },
@@ -208,9 +208,9 @@
     },
     {
       "path": "/admin/pc-control",
-      "kind": "page",
-      "component": "PcControlPage",
-      "redirectTo": null,
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin/machines?tab=remote",
       "hasErrorElement": false
     },
     {

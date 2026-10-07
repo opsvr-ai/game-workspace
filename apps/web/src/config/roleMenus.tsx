@@ -182,11 +182,11 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           ],
         },
         {
-          key: '客户端与设备', label: '客户端与设备',
+          // 老板 2026-10-07：「远程控制 / 机器管理 / 客户端版本」这 3 个功能合并成一页，
+          // 菜单里只剩一条（分组改叫「客户端管理」，免得和条目同名）。
+          key: '客户端管理', label: '客户端管理',
           children: [
-            { key: '/admin/pc-control', label: '远程控制' },
-            { key: '/admin/machines', label: '机器管理' },
-            { key: '/admin/agent-version', label: '客户端版本' },
+            { key: '/admin/machines', label: '客户端与设备' },
             { key: '/admin/blacklist', label: '进程黑名单' },
             { key: '/admin/whitelist', label: '进程白名单' },
             { key: '/admin/process-kill-log', label: '杀进程日志' },
@@ -298,11 +298,11 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           ],
         },
         {
-          key: '客户端与设备', label: '客户端与设备',
+          // 老板 2026-10-07：「远程控制 / 机器管理 / 客户端版本」这 3 个功能合并成一页，
+          // 菜单里只剩一条（分组改叫「客户端管理」，免得和条目同名）。
+          key: '客户端管理', label: '客户端管理',
           children: [
-            { key: '/admin/pc-control', label: '远程控制' },
-            { key: '/admin/machines', label: '机器管理' },
-            { key: '/admin/agent-version', label: '客户端版本' },
+            { key: '/admin/machines', label: '客户端与设备' },
             { key: '/admin/blacklist', label: '进程黑名单' },
             { key: '/admin/whitelist', label: '进程白名单' },
             { key: '/admin/process-kill-log', label: '杀进程日志' },

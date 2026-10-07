@@ -92,8 +92,9 @@ const OrdersPage = lazy(() => import('./pages/OrdersPage'));
 const BillingOverview = lazy(() => import('./pages/BillingOverview'));
 const CompanionsPage = lazy(() => import('./pages/CompanionsPage'));
 const CompanionPoolPage = lazy(() => import('./pages/OrderPoolPage'));
-const MachinesPage = lazy(() => import('./pages/admin/MachinesPage'));
-const PcControlPage = lazy(() => import('./pages/admin/PcControlPage'));
+// 「客户端与设备」= 机器管理 + 远程控制 + 客户端版本 三页合一（老板 2026-10-07）；
+// 那三个页面组件由这一页内部引用，不在这里各占一条懒加载。
+const ClientDevicePage = lazy(() => import('./pages/admin/ClientDevicePage'));
 const PayrollPage = lazy(() => import('./pages/admin/PayrollPage'));
 const TrafficAccountPage = lazy(() => import('./pages/admin/TrafficAccountPage'));
 const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));
@@ -102,7 +103,6 @@ const BridgePage = lazy(() => import('./pages/BridgePage'));
 const AuthorizationsPage = lazy(() => import('./pages/owner/AuthorizationsPage'));
 const ReviewPage = lazy(() => import('./pages/admin/ReviewPage'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
-const AgentVersionPage = lazy(() => import('./pages/admin/AgentVersionPage'));
 const StatsPage = lazy(() => import('./pages/StatsPage'));
 const BlacklistPage = lazy(() => import('./pages/admin/BlacklistPage'));
 const ProcessKillLogPage = lazy(() => import('./pages/admin/ProcessKillLogPage'));
@@ -382,12 +382,15 @@ export const router = createBrowserRouter([
         element: page(<PriceRulesPage />),
       },
       {
+        // 「远程控制」2026-10-07 并进「客户端与设备」（三页合一），老书签照旧能用，
+        // 直接落到对应的那个页签上。
         path: 'admin/pc-control',
-        element: page(<PcControlPage />),
+        element: <Navigate to="/admin/machines?tab=remote" replace />,
       },
       {
-                path: 'admin/machines',
-        element: page(<MachinesPage />),
+        // 「客户端与设备」= 机器管理（页签一）+ 远程控制 + 客户端版本（老板 2026-10-07：这 3 个功能合并）。
+        path: 'admin/machines',
+        element: page(<ClientDevicePage />),
       },
       {
         // 「电脑管理」2026-10-04 并进「机器管理」（手工登记 + 远程开关机那一块就在机器管理页里），
@@ -446,8 +449,9 @@ export const router = createBrowserRouter([
         element: page(<SettingsPage />),
       },
       {
+        // 「客户端版本」2026-10-07 并进「客户端与设备」（三页合一），老书签照旧能用。
         path: 'admin/agent-version',
-        element: page(<AgentVersionPage />),
+        element: <Navigate to="/admin/machines?tab=version" replace />,
       },
       {
         path: 'admin/work-wechats',

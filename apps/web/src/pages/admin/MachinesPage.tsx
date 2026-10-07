@@ -40,7 +40,7 @@ function agoText(v?: string | null): string {
   return Math.floor(h / 24) + ' 天前';
 }
 
-const MachinesPage: React.FC = () => {
+const MachinesPage: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [items, setItems] = useState<MachineItem[]>([]);
   const [stats, setStats] = useState({
     total: 0, onlineCount: 0, remoteReadyCount: 0, clientlessCount: 0, diagScriptVersion: '', watchdogLatestBuild: '',
@@ -440,6 +440,7 @@ const MachinesPage: React.FC = () => {
   return (
     <div>
       <PageHeader
+        embedded={embedded}
         title="机器管理"
         subtitle="本店电脑台账：谁在用、在不在线、看门狗版本，以及远程管理开通没有"
       />

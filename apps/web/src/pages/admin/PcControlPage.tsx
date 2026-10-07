@@ -76,7 +76,7 @@ function isOnline(record: Companion): boolean {
   return Date.now() - new Date(record.pc.lastHeartbeat).getTime() < 120_000;
 }
 
-const PcControlPage: React.FC = () => {
+const PcControlPage: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [companions, setCompanions] = useState<Companion[]>([]);
   const [loading, setLoading] = useState(false);
   const [sendingCommands, setSendingCommands] = useState<Record<string, boolean>>({});
@@ -387,6 +387,7 @@ const PcControlPage: React.FC = () => {
   return (
     <div>
       <PageHeader
+        embedded={embedded}
         title="PC 远程控制"
         subtitle="远程看陪玩电脑的屏幕、下发指令（机器要先开通远程管理）"
         extra={

@@ -13,10 +13,41 @@ interface PageHeaderProps {
   breadcrumb?: { title: string; path?: string }[];
   /** 标题**前面**放个东西 —— 详情页的「‹ 返回」这类，别在页面里再手搓一个标题行。 */
   leading?: React.ReactNode;
+  /**
+   * 嵌在「客户端与设备」那三个页签里（老板 2026-10-07 三页合一）：标题就是外层页签，
+   * 这里不再重复画一遍大标题，只留右侧操作区（搜索 / 刷新 / 推送这些按钮）。
+   */
+  embedded?: boolean;
 }
 
-const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra, breadcrumb, leading }) => {
+const PageHeader: React.FC<PageHeaderProps> = ({
+  title,
+  subtitle,
+  extra,
+  breadcrumb,
+  leading,
+  embedded,
+}) => {
   const navigate = useNavigate();
+
+  // 嵌在页签里：只留右侧操作区，标题交给外层页签（别把标题画两遍）。
+  if (embedded) {
+    if (!extra) return null;
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'flex-start',
+          marginBottom: 12,
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
+        <div>{extra}</div>
+      </div>
+    );
+  }
 
   return (
     <div

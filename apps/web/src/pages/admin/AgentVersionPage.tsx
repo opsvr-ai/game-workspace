@@ -90,7 +90,7 @@ const statusLabels: Record<string, string> = {
   ONLINE: '在线',
 };
 
-const AgentVersionPage: React.FC = () => {
+const AgentVersionPage: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
   const [csVersionStatus, setCsVersionStatus] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -446,6 +446,7 @@ const AgentVersionPage: React.FC = () => {
   return (
     <div>
       <PageHeader
+        embedded={embedded}
         title="版本管理"
         subtitle="管理陪玩客户端版本，一键构建并推送更新"
         extra={
