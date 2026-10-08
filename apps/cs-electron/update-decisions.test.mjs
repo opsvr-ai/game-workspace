@@ -54,7 +54,6 @@ function makeDecisions(opts = {}) {
     decisions: createUpdateDecisions({
       fs,
       env: {},
-      uptime: opts.uptime || (() => 60),
       // 默认用「真清单」：这样「本机装了陪玩端」的判定走的就是线上那套路径表。
       companionExePaths: opts.companionExePaths || defaultCompanionExePaths({}),
       updateDir: 'C:\\ProgramData\\chunlv',
@@ -191,24 +190,10 @@ describe('写更新信号：必须带 kind=cs（看门狗靠它拦「把别家�
   });
 });
 
-describe('宽限期：只有「刚启动那一段」才真换版，客服正忙着的时候只查不换', () => {
-  it('刚起来 5 分钟 = 在宽限期内', () => {
-    const { decisions } = makeDecisions({ uptime: () => 300 });
-    expect(decisions.withinLaunchGrace()).toBe(true);
-  });
-
-  it('刚好 10 分钟 = 不在（边界是「小于」）', () => {
-    const { decisions } = makeDecisions({ uptime: () => 600 });
-    expect(decisions.withinLaunchGrace()).toBe(false);
-  });
-
-  it('uptime 取不到 = 不在（宁可不换版，也别在人家干活时退出换装）', () => {
-    const { decisions } = makeDecisions({
-      uptime: () => {
-        throw new Error('boom');
-      },
-    });
-    expect(decisions.withinLaunchGrace()).toBe(false);
+describe('不再有「启动宽限期」这道闸（老板 2026-10-08：开机下载完就直接装，不攒着等下次开机）', () => {
+  it('决策层里已经没有 withinLaunchGrace 这个东西了', () => {
+    const { decisions } = makeDecisions();
+    expect(decisions.withinLaunchGrace).toBeUndefined();
   });
 });
 
@@ -219,7 +204,6 @@ describe('decideUpdate：动不动手、走哪条路（顺序就是语义）', (
     exeUrl: '/uploads/setup.exe',
     zipUrl: '/uploads/update-cs.zip',
     blockedVersions: {},
-    withinGrace: true,
     isWatchdogReady: () => true,
   };
 
@@ -240,8 +224,8 @@ describe('decideUpdate：动不动手、走哪条路（顺序就是语义）', (
     });
   });
 
-  it('不在宽限期 = 只查不换版（客服正在干活）', () => {
-    expect(decideUpdate({ ...base, withinGrace: false })).toEqual({ action: 'skip', reason: 'outside-grace' });
+  it('老代码传进来的 withinGrace 不再拦人（宽限期这道闸已经拿掉了）', () => {
+    expect(decideUpdate({ ...base, withinGrace: false }).action).toBe('silent');
   });
 
   it('都在、看门狗也守客服端 = 走静默整包（url 取 zip）', () => {
@@ -266,10 +250,13 @@ describe('decideUpdate：动不动手、走哪条路（顺序就是语义）', (
 
   it('前面几步就跳过时，绝不去读那个 1MB 的看门狗 exe', () => {
     const isWatchdogReady = vi.fn(() => true);
+    decideUpdate({ ...base, latest: undefined, isWatchdogReady });
+    decideUpdate({ ...base, exeUrl: undefined, isWatchdogReady });
     decideUpdate({ ...base, latest: '1.0.1000', isWatchdogReady });
-    decideUpdate({ ...base, withinGrace: false, isWatchdogReady });
     decideUpdate({ ...base, blockedVersions: { '1.0.2000': true }, isWatchdogReady });
-    decideUpdate({ ...base, blockedVersions: null, withinGrace: true, isWatchdogReady });
+    expect(isWatchdogReady).toHaveBeenCalledTimes(0);
+    // 只有真走到「该动手了」这一步才会去读 exe
+    decideUpdate({ ...base, isWatchdogReady });
     expect(isWatchdogReady).toHaveBeenCalledTimes(1);
   });
 

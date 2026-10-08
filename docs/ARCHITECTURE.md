@@ -62,14 +62,26 @@
   判断系统刚启动（< 10 分钟）：此时残留的 BUSY 不算「接单中」，直接把已备好的包装上；开机已久又确实在接单的
   仍老实等空闲，绝不打断。开机时机器上还没人开打，所以这一步无痛。
 
-  **收紧成「只在刚开机 / 刚登录落地」（2026-10-06，老板「等他们下次关机开机登录的时候再更新吧」，
+  **一度收紧成「只在刚开机 / 刚登录落地」（2026-10-06，老板「等他们下次关机开机登录的时候再更新吧」，
   陪玩端 `1.0.20261018` / 客服端 `1.0.20260937`）**：`waitUntilIdle` 换成
-  `mayApplyUpdateNow(why, bootWindow, allowIdleFallback)` —— 宽限期内照装；**宽限期外一律 `return false`
-  （离线包留着下次开机装），不再等空闲**，于是运行中途永不换版。`bootWindow` 在 `performUpdate`
-  **下载开始前**取一次（下载要排队限速、可能十几分钟，下载完再判断会把这次开机白错过）；
-  下载失败那条「交给看门狗去下」的兜底同样受这道门管（它也会退出重启）。后台「推送更新」走
-  `handleUpdateCommand → performUpdate(url, version, true)`，`allowIdleFallback=true` 仍按老规矩等空闲（最多 30 分钟）。
-  客服端 `apps/cs-electron/main.js` 同口径：`withinLaunchGrace()`（`process.uptime() < 10 分钟`）之外只查版本不换装。
+  `mayApplyUpdateNow(why, bootWindow, allowIdleFallback)` —— 宽限期内照装，宽限期外一律 `return false`；
+  客服端同款闸是 `withinLaunchGrace()` —— 这道闸 **2026-10-08 被老板推翻**，见下一条。
+
+- **自动更新改成「包下好就直接静默装」，不再攒着等下次开机（2026-10-08，老板「以后开机下载完就直接安装呗，
+  静默安装反正是，不弹窗就行」；陪玩端 `electron/updater.ts` + 客服端 `apps/cs-electron/update-decisions.js`）**：
+  上面那道「只在开机 10 分钟内落地」的闸**整条删掉** —— 线上实况是「开机那 10 分钟没赶上」的机器
+  （下载排到别人后面、那会儿还没登录、或者几天不关机）就一直停在老版本，一天能攒出好几台。
+  新判据只有一条：**现在有没有人在接单**（`companionBusy()` = `store.lastStatus === 'BUSY'`）——
+  不忙就直接 `signalUpdate` 让看门狗换装；忙就 15 秒问一次状态，**这一单打完立刻装**，
+  连以前那条「最多等 30 分钟、等不到就整轮放弃」的上限也取消（兜底留 6 小时 `BUSY_WAIT_MAX_MS`，
+  只是别让 `checkForUpdates` 的循环永远挂着；到点让出去，下一轮 30 分钟后接着等，`staged-update.json` 备货包还在，不用重下）。
+  下载失败那条「交给看门狗去下、自己退出重启」的兜底也改成**只在没接单时走**（它一样会打断接单），
+  且 `sameVersionTriedRecently` 的 30 分钟冷却仍在，不会变成「下载失败 → 退出重启 → 又失败」的循环。
+  客服端没有「接单」这种状态：`withinLaunchGrace()` / `CS_LAUNCH_GRACE_MS` / `decideUpdate` 的 `outside-grace`
+  一并删掉，版本确认是新的就写信号静默换装（正在写的聊天内容由网页侧 `apps/web/src/utils/draft.ts` 存草稿兜着）。
+  全程仍是「写信号 + 看门狗解压」，**不弹 UAC、不弹任何窗口**；`blockedVersions` 拉黑与「看门狗守哪一端」的跨端保护一个字没动。
+  守门：陪玩端 `electron/updater.test.ts` 25 条（新增 4 条钉住「闲着就装 / 接单就等 / 卡住有兜底」）、
+  客服端 `update-decisions.test.mjs` 35 条；两处都做过变异验证（改坏 → 点名失败）。
 
 - **订单列表给陪玩加了 `scope='served'`（2026-10-03，`OrdersService.findAll` + `order-privacy.ts`）**：
   「我服务的」＝ 我是该单主陪 **或** 我是它某条会话的副陪（`sessions.some.coCompanionId`）。

@@ -90,7 +90,7 @@ function downloadFile(url, dest) {
 // 系统权限）写一个信号文件 → 自己退出 → 看门狗解压换装并把客户端拉起来。
 // 全程不弹 UAC，客服什么都不用做。
 // —— 更新决策集中在 ./update-decisions.js ——
-// 「跨端保护 / 拉黑版本 / 只在刚启动那一段宽限期里换版」这几个判断以前写在这个文件里，
+// 「跨端保护 / 拉黑版本 / 版本新就直接静默换装」这几个判断以前写在这个文件里，
 // 2026-10-07 挪到单独一层：它们决定的是「要不要动用户这台机器」，挪出来只为了能写测试
 // （见 update-decisions.test.mjs）。这里只留主进程要用的路径和几个入口。
 const UPDATE_DIR = DEFAULT_UPDATE_DIR;
@@ -100,9 +100,8 @@ const HEALTH_FILE = path.join(UPDATE_DIR, 'client-healthy.json');
 const updateDecisions = createUpdateDecisions({
   fs,
   env: process.env,
-  uptime: () => process.uptime(),
 });
-const { watchdogReady, readBlockedVersions, withinLaunchGrace, signalUpdate } = updateDecisions;
+const { watchdogReady, readBlockedVersions, signalUpdate } = updateDecisions;
 
 // 看门狗更新完会等客户端自报「我起来了」（client-healthy.json）：
 // 等不到就整目录回滚到更新前那一版。所以只要主进程起来了就写，之后每分钟刷新一次。
@@ -147,7 +146,6 @@ function checkForUpdates() {
           exeUrl: data.downloadUrl,
           zipUrl: data.zipUrl,
           blockedVersions: readBlockedVersions(),
-          withinGrace: withinLaunchGrace(),
           isWatchdogReady: watchdogReady,
         });
         if (decision.action === 'skip') return;
@@ -656,10 +654,10 @@ app.whenReady().then(() => {
   // 每次启动顺手校正桌面图标：更新/改名后老机器的图标会变白、点不开。
   ensureDesktopShortcut();
   // 随机错峰，避免多台客服机同时下载 74MB 安装包。
-  // 这次启动的检查才是真正会换版的那一次（宽限期内）；见上面的 withinLaunchGrace。
   setTimeout(checkForUpdates, 20000 + Math.floor(Math.random() * 120000));
   // 版本号查询从 5 分钟放宽到 30 分钟（一天 288 次没有意义）。
-  // 老板 2026-10-06 起这一轮只查版本、不换装：换装留给「下次启动那一下」（见 withinLaunchGrace）。
+  // 老板 2026-10-08 起这一轮也是**真会升级**的一轮：拿到新版本就直接静默换装，
+  // 不再像以前那样「只查版本、换装留给下次启动那一下」。
   setInterval(checkForUpdates, 30 * 60 * 1000);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -995,7 +995,8 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 > （`repair-blocked-32bit`）。真要支持 32 位老机器只能加 ia32 构建（`electron-builder.yml` 的 `arch` 加 `ia32`、
 > 看门狗 `GOOS=windows GOARCH=386`，装机时按架构挑看门狗）—— **目前没做**，32 位机器一律走网页版。
 
-陪玩端接单中不执行推送更新（`electron/updater.ts`），所以铺开是逐步的，别急着判定「没生效」。
+陪玩端接单中不执行推送更新（`electron/updater.ts`）—— **一单打完就装**（2026-10-08 起不再要求「刚开机那 10 分钟」、
+也不再攒着等下次开机），所以铺开是逐步的，别急着判定「没生效」。
 
 > ⚠️ **陪玩端也是同一套 `extraResources` 规矩：托盘图标 `public/donkey.png` 必须写在里面**
 > （客服端那份教训见上面 5.8 客服端那段的 ⚠）。另外陪玩端 `electron/main.ts` 里

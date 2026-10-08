@@ -11,6 +11,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **自动更新改成「包下好就直接静默装」，不再攒着等下次开机（老板 2026-10-08，陪玩端 + 客服端，客户端代码）。**
+  老板原话：「**以后开机下载完就直接安装呗，静默安装反正是，不弹窗就行**」。2026-10-06 定的那道
+  「只在刚开机 / 刚登录那 10 分钟里换版」的闸**整条删掉** —— 线上实况是「开机那 10 分钟没赶上」的机器
+  （下载排到别人后面、那会儿还没登录、或者几天不关机）就一直停在老版本。
+  ① **陪玩端 `electron/updater.ts`**：`BOOT_GRACE_SECONDS` / `justBooted()`（`os.uptime()`）整块删掉，
+  `mayApplyUpdateNow(why, bootWindow, allowIdleFallback)` 收成 `mayApplyUpdateNow(why, opts)`，判据只有一条 ——
+  **现在有没有人在接单**：不忙直接装；忙就 15 秒问一次，这一单打完立刻装。以前那条「最多等 30 分钟、等不到就整轮放弃」
+  的上限也取消（兜底 `BUSY_WAIT_MAX_MS` = 6 小时，只是别让更新检查循环永远挂着；到点让出去，下一轮 30 分钟后接着等，
+  `staged-update.json` 备货包还在，不用重下 123MB）。下载失败那条「交给看门狗去下、自己退出重启」的兜底改成
+  **只在没接单时走**（它一样会打断接单），`sameVersionTriedRecently` 的 30 分钟冷却照旧，不会变成
+  「下载失败 → 重启 → 又失败」的循环。`performUpdate` 去掉第三个参数 `allowIdleFallback`（远程推送与后台自检现在同一套规矩）。
+  ② **客服端 `update-decisions.js` / `main.js`**：`CS_LAUNCH_GRACE_MS` / `withinLaunchGrace()` / `decideUpdate` 的第 ④ 步
+  `outside-grace`（以及 `uptime` / `graceMs` 两个注入项）一并删掉 —— 客服端没有「接单」状态，版本确认是新的就
+  写信号让看门狗静默换装（正在写的聊天内容由网页侧 `utils/draft.ts` 存草稿兜着）。`blockedVersions` 拉黑与
+  「看门狗守哪一端」的跨端保护一个字没动。`main.js` 的 30 分钟轮询注释同步改写：这一轮也是**真会升级**的一轮。
+  ③ **全程仍不弹窗**：还是写 `C:\\ProgramData\\chunlv\\update.json` + 看门狗（系统权限）解压换装重启，不弹 UAC、
+  不弹任何提示框（进度只在托盘图标上转圈）。
+  验证：陪玩端 `pnpm --filter @chunlv/companion-electron test` **50 / 50**（`updater.test.ts` 25 条，新增 4 条钉住
+  「闲着就装 / 接单就等 / 卡在 BUSY 有兜底 / 默认判据就是 lastStatus」）；客服端 `pnpm --filter @chunlv/cs-electron test`
+  **35 / 35**（宽限期 3 条换成「不再有这道闸」+ `withinGrace` 老参数不再拦人）。两处都做了**变异验证**：
+  给 `mayApplyUpdateNow` 塞一句 `return true` → 4 条点名失败；去掉 `decideUpdate` 第一步 → 2 条点名失败，还原后全绿。
+  **发版（`_publish_client.py` / `_publish_cs_client.py`）按 AGENTS.md 先问老板**，没问过不推。
+
 - **管理端「退款」整条删掉、那一格改成「补单」；陪玩申请过补单的订单那颗按钮挂提示、补完显示「已补」（老板 2026-10-08，服务端 + 网页 `v1002`）。**
   老板原话：「**删除，改成补单，以后陪玩申请补单在对应订单后边的补单按钮做提示，点了补单要跟其他功能联动起来，补完的显示已补**」。
   ① **删除接口 `POST /api/orders/:id/refund`**（`orders.controller.ts`）—— 管理端（客服 / 店长 / 老板）再也没有「直接退款」这条口子（线上调用返回 404）。

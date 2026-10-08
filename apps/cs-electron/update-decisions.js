@@ -2,6 +2,7 @@
 
 /**
  * 客服端「要不要动这台机器」的判断层（2026-10-07 从 main.js 抽出来）。
+ * 判断顺序（2026-10-08 起）：服务器没给信息 → 版本不新 → 这台机器上拉黑过 → 静默换装 / 装安装包。
  *
  * 为什么单独抽一层：客服端只有一条路会碰到用户机器 —— 自动升级。它要么「写信号让看门狗
  * 解压整包」（不弹授权），要么「下安装包让对方点一次 UAC」。这两条选错的后果不是「页面难看」，
@@ -28,10 +29,12 @@ const DEFAULT_WATCHDOG_EXE =
 // 以后看门狗再升级也不会把这条路堵死。
 const DEFAULT_WATCHDOG_MARK = '客服管理.exe';
 
-// 老板 2026-10-06：「等他们下次关机开机登录的时候再更新吧」——
-// 客服端只在**这次启动/登录后的一小段宽限期**里换版，运行中途不再退出换装，
-// 客服正忙着的时候不会被更新打断。宽限期之外的检查只看看版本，不动手。
-const CS_LAUNCH_GRACE_MS = 10 * 60 * 1000;
+// 老板 2026-10-08：「以后开机下载完就直接安装呗，静默安装反正是，不弹窗就行」——
+// 客服端**不再攒着等下次开机**：包下好、版本确认是新的，就直接走静默换装（看门狗解压，不弹 UAC）。
+// 以前是「只在这次启动/登录后那 10 分钟里换版」，结果「开机那 10 分钟没赶上」的客服机
+// （下载排到别人后面、或者那会儿还没登录）就一直停在老版本。
+// 客服端没有「接单」这种状态，不用像陪玩端那样等空闲；正在写的聊天内容由网页侧存草稿兜着
+// （见 apps/web/src/utils/draft.ts），换版重启也丢不了。
 
 // 陪玩端的落脚点（跟看门狗里的清单一致）：用来判断本机有没有陪玩端。
 function defaultCompanionExePaths(env) {
@@ -67,9 +70,8 @@ function compareVersions(a, b) {
  *   ① 服务器没给版本 / 没给安装包地址 → 什么都别做；
  *   ② 版本不比本机新 → 不做（用字符串不等判断会反复下载安装 + 退出，闪退死循环就是这么来的）；
  *   ③ 这个版本在这台机器上装坏过（看门狗回滚 + 拉黑）→ 不再下，否则死循环；
- *   ④ 不在「刚启动那一段宽限期」里 → 只查不换版（客服正忙着，不能打断）；
- *   ⑤ 走到这里才决定路径：有「认得客服端」的看门狗就走整包静默换装，否则退回装安装包（要点一次 UAC）。
- * isWatchdogReady 传的是函数：只有真走到第 ⑤ 步才去读那个 1MB 的看门狗 exe，
+ *   ④ 走到这里才决定路径：有「认得客服端」的看门狗就走整包静默换装，否则退回装安装包（要点一次 UAC）。
+ * isWatchdogReady 传的是函数：只有真走到第 ④ 步才去读那个 1MB 的看门狗 exe，
  * 前面几步跳过时不该有任何多余的文件读写。
  */
 function decideUpdate({
@@ -78,7 +80,6 @@ function decideUpdate({
   exeUrl,
   zipUrl,
   blockedVersions,
-  withinGrace,
   isWatchdogReady,
 }) {
   if (!latest || !exeUrl) return { action: 'skip', reason: 'no-server-info' };
@@ -86,7 +87,6 @@ function decideUpdate({
   if (Object.prototype.hasOwnProperty.call(blockedVersions || {}, latest)) {
     return { action: 'skip', reason: 'blocked' };
   }
-  if (!withinGrace) return { action: 'skip', reason: 'outside-grace' };
   const silent = !!(zipUrl && isWatchdogReady());
   return {
     action: silent ? 'silent' : 'installer',
@@ -103,13 +103,11 @@ function createUpdateDecisions(deps) {
   const {
     fs,
     env = {},
-    uptime = () => 0,
     updateDir = DEFAULT_UPDATE_DIR,
     watchdogExe = DEFAULT_WATCHDOG_EXE,
     watchdogMark = DEFAULT_WATCHDOG_MARK,
     companionExePaths = defaultCompanionExePaths(env),
     signalKind = 'cs',
-    graceMs = CS_LAUNCH_GRACE_MS,
   } = deps || {};
 
   const signalFile = path.join(updateDir, 'update.json');
@@ -174,14 +172,6 @@ function createUpdateDecisions(deps) {
     }
   }
 
-  function withinLaunchGrace() {
-    try {
-      return uptime() * 1000 < graceMs;
-    } catch {
-      return false;
-    }
-  }
-
   function signalUpdate(url, localPath, version) {
     try {
       fs.mkdirSync(updateDir, { recursive: true });
@@ -199,7 +189,6 @@ function createUpdateDecisions(deps) {
     watchdogWatchesCs,
     readBlockedVersions,
     watchdogReady,
-    withinLaunchGrace,
     signalUpdate,
     decide: (input) => decideUpdate(input),
     paths: { updateDir, signalFile, blockedFile, kindFile, watchdogExe },
@@ -214,5 +203,4 @@ module.exports = {
   DEFAULT_UPDATE_DIR,
   DEFAULT_WATCHDOG_EXE,
   DEFAULT_WATCHDOG_MARK,
-  CS_LAUNCH_GRACE_MS,
 };

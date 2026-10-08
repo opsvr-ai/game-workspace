@@ -218,3 +218,28 @@ describe('版本号比较', () => {
     expect(__test__.compareVersions('1.0.2000', '1.0.2000.0')).toBe(0);
   });
 });
+describe('什么时候才真的换版（老板 2026-10-08：包下好就直接装，不再攒着等下次开机）', () => {
+  it('没在接单 → 立刻装，不等待', async () => {
+    const busy = vi.fn(() => false);
+    await expect(__test__.mayApplyUpdateNow('t', { busy })).resolves.toBe(true);
+    expect(busy).toHaveBeenCalledTimes(1);
+  });
+
+  it('正在接单 → 一等再等，这一单打完立刻装', async () => {
+    let calls = 0;
+    const busy = () => calls++ < 3;
+    await expect(__test__.mayApplyUpdateNow('t', { busy, pollMs: 1, maxWaitMs: 5_000 })).resolves.toBe(true);
+    expect(calls).toBe(4);
+  });
+
+  it('状态一直卡在 BUSY → 到兜底上限先让出去（下一轮再来，包还在，不用重下）', async () => {
+    await expect(__test__.mayApplyUpdateNow('t', { busy: () => true, pollMs: 1, maxWaitMs: 5 })).resolves.toBe(false);
+  });
+
+  it('默认判据就是本机状态（lastStatus=BUSY 才算在接单）', async () => {
+    storeMock.get.mockImplementation((k: string) => (k === 'lastStatus' ? 'BUSY' : undefined));
+    await expect(__test__.mayApplyUpdateNow('t', { pollMs: 1, maxWaitMs: 5 })).resolves.toBe(false);
+    storeMock.get.mockImplementation((k: string) => (k === 'lastStatus' ? 'AVAILABLE' : undefined));
+    await expect(__test__.mayApplyUpdateNow('t', { pollMs: 1, maxWaitMs: 5 })).resolves.toBe(true);
+  });
+});

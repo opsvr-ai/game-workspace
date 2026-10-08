@@ -5,7 +5,6 @@ import { store } from './store';
 import { logger } from './logger';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import { execFile } from 'child_process';
 import { startUpdateSpin, stopUpdateSpin, updateTrayTooltip } from './tray';
 
@@ -159,7 +158,7 @@ function signalUpdate(downloadUrl: string, localPath?: string, version?: string)
  * 为什么不直接 export 这些函数：它们都是「决定要不要动用户这台机器」的判断，
  * 不想让别的地方顺手当成 API 用 —— 主进程里它们只在本文件内部被调用。
  * 单测盯的就是这几个：跨端信号（别把陪玩端换成客服端）、拉黑版本、同一个包别反复下、
- * 备货包还能不能用、版本号怎么比。
+ * 备货包还能不能用、版本号怎么比、**什么时候才真的换版**（老板 2026-10-08：包下好就装）。
  */
 export const __test__ = {
   watchdogWatchesCompanion,
@@ -168,6 +167,7 @@ export const __test__ = {
   sameVersionTriedRecently,
   stagedPackageReady,
   compareVersions,
+  mayApplyUpdateNow,
 };
 
 // 更新进度不再弹窗，改为更新托盘提示文字（配合托盘图标转圈）
@@ -280,61 +280,49 @@ function companionBusy(): boolean {
   return store.get('lastStatus') === 'BUSY';
 }
 
-// 开机宽限期：系统刚启动的这段时间，机器上还没人开打，把备好的更新直接装上最省事。
-// 老板 2026-10-04：「什么都不用加，你直接每次开机的时候给他们更新就行。」
-// 老板 2026-10-06：「等他们下次关机开机登录的时候再更新吧」——
-// 于是自动更新收紧成**只在刚开机/刚登录那一次落地**：机器一直开着、中途就算空闲也不装，
-// 包先备着，等下次开机自然换新版。正在打单的人从此零影响，不会被更新踢下线。
-// 用**系统运行时长**判断「刚开机」：客户端可能被看门狗单独拉起，那种情况下进程刚启动
-// 但机器早已开机，绝不能误判成「刚开机」去打断正在打单的人。
-const BOOT_GRACE_SECONDS = 10 * 60;
-
-function justBooted(): boolean {
-  try {
-    return os.uptime() < BOOT_GRACE_SECONDS;
-  } catch {
-    return false;
-  }
-}
+// 更新什么时候落地。老板 2026-10-08：「以后开机下载完就直接安装呗，静默安装反正是，不弹窗就行」——
+// 于是**取消「只在刚开机/刚登录那一次落地」这条限制**（2026-10-06 定的那条已被这次指令推翻）：
+// 包下好就装，不再攒着等下次开机 —— 不然「开机那 10 分钟没赶上」的机器（下载排到别人后面、
+// 那会儿还没登录、或者好几天不关机）就永远停在老版本。
+// 唯一保留的延迟只有一条：**正在接单的人不能被更新打断** —— 那种情况 15 秒问一次状态，
+// 这一单打完立刻装（以前最多等 30 分钟，等不到就整轮放弃、又要等下次开机；现在不设这个上限，
+// 打十几个小时的机器一下单也就装上了）。
+const BUSY_WAIT_POLL_MS = 15_000;
+// 兜底上限：万一状态一直卡在 BUSY 没人改，不能把这个更新检查循环挂死在那儿 ——
+// 到点先让出去（下一轮 30 分钟后再进来接着等），备货的包还在，不用重下。
+const BUSY_WAIT_MAX_MS = 6 * 60 * 60 * 1000;
 
 /**
- * 这一次到底装不装（返回 false = 先不装，包留着等下次开机）。
+ * 这一次到底装不装（返回 false = 这一轮先不装，包留着，下一轮 / 下次开机接着用）。
  *
- * bootWindow：这次检查是不是「刚开机」的那一次 —— 由 performUpdate 在**下载开始前**定好。
- *   下载要限速排队、可能耗时十几分钟，下载完再判断会把这次开机白白错过。
- * allowIdleFallback：后台「推送更新」是管理端明确点的，仍按老规矩等这一单打完就装（最多等 30 分钟），
- *   免得刚推了却要拖到下次开机才生效。
+ * 判据就一条：**现在有没有人在接单**。不忙就直接装；忙就等着，打完了立刻装。
+ * busy / pollMs / maxWaitMs 只给单测注入用（见 electron/updater.test.ts）。
  */
 async function mayApplyUpdateNow(
   why: string,
-  bootWindow: boolean,
-  allowIdleFallback: boolean,
+  opts: { busy?: () => boolean; pollMs?: number; maxWaitMs?: number } = {},
 ): Promise<boolean> {
-  if (bootWindow) {
-    let uptimeSeconds = -1;
-    try {
-      uptimeSeconds = Math.round(os.uptime());
-    } catch {
-      /* ignore */
-    }
-    logger.info('System just booted, applying update now', { why, uptimeSeconds });
+  const busy = opts.busy || companionBusy;
+  const pollMs = opts.pollMs ?? BUSY_WAIT_POLL_MS;
+  const maxWaitMs = opts.maxWaitMs ?? BUSY_WAIT_MAX_MS;
+  if (!busy()) {
+    logger.info('Companion is idle, applying update now', { why });
     return true;
   }
-  if (!allowIdleFallback) {
-    logger.info('Not a fresh boot, keep the package and apply it at next boot', { why });
-    return false;
-  }
-  if (!companionBusy()) return true;
-  logger.info('Companion is busy, deferring pushed update', { why });
-  const deadline = Date.now() + 30 * 60 * 1000;
+  logger.info('Companion is busy, deferring update until the order is finished', { why });
+  const deadline = Date.now() + maxWaitMs;
   while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 15_000));
-    if (!companionBusy()) return true;
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+    if (!busy()) {
+      logger.info('Companion became idle, applying deferred update', { why });
+      return true;
+    }
   }
+  logger.info('Still busy after waiting, keep the downloaded package for the next round', { why });
   return false;
 }
 
-async function performUpdate(downloadUrl: string, version = '', allowIdleFallback = false): Promise<void> {
+async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
   // 同一个版本刚下过、本机版本却还是旧的（说明上一轮没真的装上去）→ 这一轮先别再下 123MB。
   // 等版本变了或过了 SAME_VERSION_RETRY_MS 再来，把「反复重下」这条死循环掐死。
   if (sameVersionTriedRecently(version)) {
@@ -344,9 +332,6 @@ async function performUpdate(downloadUrl: string, version = '', allowIdleFallbac
     });
     return;
   }
-  // 这次检查算不算「刚开机」的那一次 —— 下载要排队限速、可能耗时很久，
-  // 所以宽限期在下载前就定下来；等下载完再判断，容易因为超过 10 分钟白白错过这次开机。
-  const bootWindow = justBooted();
   const localDir = 'C:\\ProgramData\\chunlv';
   const localZip = path.join(localDir, 'update.zip');
   // 上一轮在接单时已经把这一版的包下好了 → 不用再下 123MB，等空闲直接装。
@@ -375,10 +360,11 @@ async function performUpdate(downloadUrl: string, version = '', allowIdleFallbac
       await releaseUpdateSlot(serverUrl, token);
       stopUpdateSpin();
       updateTrayTooltip('陪玩管理');
-      // 兜底把包交给看门狗去下也要退出重启（一样会打断接单），所以同样只在刚开机
-      // 或管理端明确推送时才走；别的时段这一轮先算了，等下轮、或干脆等下次开机再试。
-      if (!bootWindow && !allowIdleFallback) {
-        logger.info('Download failed and not a fresh boot, retry later instead of restarting');
+      // 兜底把包交给看门狗去下也要退出重启（一样会打断接单），所以只在**没在接单**时走；
+      // 正在接单这一轮就先算了 —— sameVersionTriedRecently 也会挡住 30 分钟内重下同一版，
+      // 不会变成「下载失败 → 退出重启 → 又失败」的循环。
+      if (companionBusy()) {
+        logger.info('Download failed while the companion is busy, retry later instead of restarting');
         return;
       }
       // 这台机器的看门狗守的不是陪玩端 → 信号写不得（写了会换错目录），也别退出（退出就没人拉起来）。
@@ -396,9 +382,9 @@ async function performUpdate(downloadUrl: string, version = '', allowIdleFallbac
     updateTrayTooltip('陪玩管理');
   }
   // 包已经在本地了（备货标记还在）。到这一步才需要「别打断接单」：
-  // 自动更新只在刚开机那一次落地，其余时段把包留着，等下次开机再装，不用重下。
-  if (!(await mayApplyUpdateNow('before applying downloaded package', bootWindow, allowIdleFallback))) {
-    logger.info('Deferred, keep the downloaded package for the next boot');
+  // 陪玩空闲就直接换版；正在接单就等这一单打完（见 mayApplyUpdateNow）。
+  if (!(await mayApplyUpdateNow('before applying downloaded package'))) {
+    logger.info('Deferred, keep the downloaded package and try again next round');
     return;
   }
   // 同机装了客服端、而身份被写成 cs 的机器：这份陪玩端的包绝不能被那份看门狗解压出去。
@@ -664,7 +650,7 @@ export async function handleUpdateCommand(downloadUrl?: string, pushedVersion?: 
     const staggerMs = Math.floor(Math.random() * 5_000);
     await new Promise((resolve) => setTimeout(resolve, staggerMs));
     logger.info('Update command received, downloading...', { url, version });
-    await performUpdate(url, version, true);
+    await performUpdate(url, version);
   } catch (err: any) {
     logger.error('Update command failed', { error: err.message });
   }
