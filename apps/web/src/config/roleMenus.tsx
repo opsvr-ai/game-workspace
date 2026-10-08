@@ -294,7 +294,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         group('cs-group-companion', '陪玩', [
           { key: '/cs/employees', label: '人员管理' },
           { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
-          { key: '/admin/battle-screenshots', label: '战绩图查看' },
+          { key: '/admin/battle-screenshots', label: '战绩图审核' },
         ]),
         group('cs-group-cs', '客服', [
           { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },

@@ -307,7 +307,7 @@ export class TodosService {
 
     // ── 下面是店长 / 老板专属的审批 ──────────────────────────────────────
     if (isAdmin || isOwner) {
-      const [expenseReports, withdraws, txPending, shots, wechats, companions, deletes] = await Promise.all([
+      const [expenseReports, withdraws, txPending, wechats, companions, deletes] = await Promise.all([
         this.prisma.expenseReport
           .findMany({
             where: { ...studioWhere, status: 'PENDING' },
@@ -330,14 +330,6 @@ export class TodosService {
             orderBy: { createdAt: 'asc' },
             take: 300,
             select: { id: true, amount: true, paymentMethod: true, createdAt: true, companion: { select: { user: { select: { displayName: true, username: true } } } } },
-          })
-          .catch(() => [] as any[]),
-        this.prisma.battleScreenshot
-          .findMany({
-            where: { ...studioWhere, status: 'PENDING' },
-            orderBy: { createdAt: 'asc' },
-            take: 300,
-            select: { id: true, createdAt: true, companion: { select: { user: { select: { displayName: true, username: true } } } } },
           })
           .catch(() => [] as any[]),
         this.prisma.workWechatRequest
@@ -414,20 +406,6 @@ export class TodosService {
         })),
       });
       push({
-        key: 'battle_screenshot',
-        label: '战绩图待审',
-        hint: '陪玩上传的战绩图，采纳会加分 / 驳回',
-        count: (shots as any[]).length,
-        href: '/admin/battle-screenshots',
-        items: (shots as any[]).slice(0, TAKE).map((r: any) => ({
-          id: r.id,
-          title: this.nameOf(r.companion?.user) || '陪玩',
-          sub: '上传了一组战绩图',
-          at: r.createdAt,
-          href: '/admin/battle-screenshots',
-        })),
-      });
-      push({
         key: 'work_wechat',
         label: '工作微信申请待审',
         hint: '陪玩提交的工作微信号，通过后才会生效',
@@ -467,6 +445,36 @@ export class TodosService {
           sub: (r.reason || '（没写原因）').slice(0, 40),
           at: r.createdAt,
           href: customersHref,
+        })),
+      });
+    }
+
+    // ── 战绩图待审（客服也能采纳，所以客服的待办里也要有） ─────────────────
+    // 老板 2026-10-09：「客服端怎么不能采纳陪玩上传的战绩图？」—— 采纳 / 驳回给了客服之后，
+    // 这条待办不能再只挂在店长 / 老板那一组里（客服看不到就没人处理）。
+    // 范围跟「战绩图审核」那一页的口径对齐：只看**本店**（老板看全部）——
+    // 别家桥接店的图在这一页本来也打不开、下不了，挂在待办里只会让人点进去干瞪眼。
+    if (isCs || isAdmin || isOwner) {
+      const shots = await this.prisma.battleScreenshot
+        .findMany({
+          where: { ...(studioId ? { studioId } : {}), status: 'PENDING' },
+          orderBy: { createdAt: 'asc' },
+          take: 300,
+          select: { id: true, createdAt: true, companion: { select: { user: { select: { displayName: true, username: true } } } } },
+        })
+        .catch(() => [] as any[]);
+      push({
+        key: 'battle_screenshot',
+        label: '战绩图待审',
+        hint: '陪玩上传的战绩图，采纳会加分 / 驳回',
+        count: (shots as any[]).length,
+        href: '/admin/battle-screenshots',
+        items: (shots as any[]).slice(0, TAKE).map((r: any) => ({
+          id: r.id,
+          title: this.nameOf(r.companion?.user) || '陪玩',
+          sub: '上传了一组战绩图',
+          at: r.createdAt,
+          href: '/admin/battle-screenshots',
         })),
       });
     }

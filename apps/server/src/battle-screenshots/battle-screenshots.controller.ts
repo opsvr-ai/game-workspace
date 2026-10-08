@@ -145,7 +145,10 @@ export class BattleScreenshotsController {
   }
 
   @Post(':id/review')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  // 老板 2026-10-09：「客服端怎么不能采纳陪玩上传的战绩图？」——
+  // 客服现在也能采纳 / 驳回（上传时的那条实时提醒本来就发给全店客服 + 店长 + 老板，
+  // 只有店长能点等于提醒了也白提醒）。服务层再按工作室兜一道，别家的图动不了。
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async review(
     @Param('id') id: string,
     @Body() body: { action: 'approve' | 'reject'; note?: string },
@@ -154,7 +157,7 @@ export class BattleScreenshotsController {
     if (!body?.action || !['approve', 'reject'].includes(body.action)) {
       throw new BadRequestException('请选择采纳或驳回');
     }
-    const data = await this.service.review(id, req.user.id, body.action, body.note);
+    const data = await this.service.review(id, req.user.id, body.action, body.note, req.user);
     // 审核结果实时告诉上传的陪玩本人（老板 2026-10-04：双方都要有提示）
     const approved = body.action === 'approve';
     if ((data as any)?.companionId) {
@@ -173,7 +176,8 @@ export class BattleScreenshotsController {
   }
 
   // 老板 2026-10-01：「客服端怎么没有查看战绩图呢？只有店长有？」——战绩图这页本身不显示图片，
-  // 真正「看到」战绩图就是点这个「下载图片包」。所以客服（CS）也要能下；采纳 / 驳回（改分）仍然只有店长 / 老板能动。
+  // 真正「看到」战绩图就是点这个「下载图片包」，所以客服（CS）也要能下。
+  // 采纳 / 驳回（改分）2026-10-09 起客服也能点，见上面 review 的说明。
   @Get(':id/download')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async download(@Param('id') id: string, @Req() req: any, @Res() res: Response): Promise<void> {

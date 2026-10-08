@@ -267,6 +267,9 @@
   新模块 `apps/server/src/todos`（`TodosService` / `TodosController`），`GET /api/todos` 按角色
   （CS / ADMIN / OWNER）汇总散在各页面的待办 —— 成交核对待拍板 / 等我核对 / 抢了没结果、客服该跟进的客户、
   补单申请、陪玩报账 / 支取 / 流水待审、战绩图、工作微信、实名审核、删除客户、桥接申请（老板专属）——
+  **「战绩图」这一条 2026-10-09 起客服也有**（老板「客服端怎么不能采纳陪玩上传的战绩图？」）：
+  `POST /api/battle-screenshots/:id/review` 的 `@Roles` 加了 `CS`，待办里这条也不再只挂店长 / 老板那一组。
+  范围跟「战绩图审核」页一致 —— 只看本店（老板全量）；非老板动别家的记录一律 `Forbidden`。
   每组 `{ key, label, hint, count, href, items[≤5] }`（空组不返回），**只读 + 跳转**（真正的同意 / 驳回 / 拍板
   仍在各页面做，权限 / 留痕 / 实时通知不重写）；scope 用 `bridge.getVisibleStudioIds(studioId)`，OWNER 全量。
   网页 `pages/TodosPage.tsx`（路由 `/todos`，三个角色共用）+ 侧边栏「待处理」入口挂**真实待办条数**角标。

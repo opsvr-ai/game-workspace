@@ -21,9 +21,11 @@ const STATUS: Record<string, { color: string; label: string }> = {
 
 const BattleScreenshotReviewPage: React.FC = () => {
   const role = useAuthStore((s) => s.user?.role);
-  // 老板 2026-10-01：「客服端怎么没有查看战绩图呢？只有店长有？」——客服看得到这一页（只读），
-  // 「采纳并加分 / 驳回」会改陪玩的综合评分，仍然只有店长 / 老板能点。
-  const canReview = role === UserRole.ADMIN || role === UserRole.OWNER;
+  // 老板 2026-10-01：「客服端怎么没有查看战绩图呢？只有店长有？」——客服看得到这一页。
+  // 老板 2026-10-09：「客服端怎么不能采纳陪玩上传的战绩图？」——采纳 / 驳回（会加综合分）
+  // 现在客服和店长 / 老板一样能点；上传时那条实时提醒本来就发给全店客服 + 店长 + 老板，
+  // 只让店长点等于提醒了也白提醒。
+  const canReview = role === UserRole.ADMIN || role === UserRole.OWNER || role === UserRole.CS;
   const [items, setItems] = useState<BattleScreenshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('PENDING');
@@ -112,7 +114,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
         subtitle={
           canReview
             ? '采纳后自动给该陪玩综合评分加分（作为小红书素材）'
-            : '查看陪玩上传的战绩图（点「下载图片包」存到文件夹里看）；采纳 / 驳回由店长操作'
+            : '查看陪玩上传的战绩图（点「下载图片包」存到文件夹里看）'
         }
       />
       <Card size="small">

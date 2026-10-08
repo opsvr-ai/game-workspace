@@ -58,9 +58,20 @@ export class BattleScreenshotsService {
     });
   }
 
-  async review(id: string, reviewerUserId: string, action: 'approve' | 'reject', note?: string) {
+  async review(
+    id: string,
+    reviewerUserId: string,
+    action: 'approve' | 'reject',
+    note?: string,
+    reviewer?: { role?: string; studioId?: string | null },
+  ) {
     const item = await this.prisma.battleScreenshot.findUnique({ where: { id } });
     if (!item) throw new NotFoundException('记录不存在');
+    // 客服也能采纳 / 驳回（老板 2026-10-09）—— 但他们只动得了本店的图：
+    // 没有这道锁，任何客服账号拿到别家的记录 id 就能给人加分 / 驳回。
+    if (reviewer && reviewer.role !== 'OWNER' && reviewer.studioId && item.studioId !== reviewer.studioId) {
+      throw new ForbiddenException('无权处理其他工作室的战绩图');
+    }
     if (item.status !== 'PENDING') throw new BadRequestException('该记录已处理');
 
     const status = action === 'approve' ? 'APPROVED' : 'REJECTED';

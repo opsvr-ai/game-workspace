@@ -86,7 +86,7 @@ exports[`左侧导航菜单（roleMenus） > 整棵菜单树快照（重构 AppL
     "▸ cs-group-companion | 陪玩",
     "· /cs/employees | 人员管理",
     "· /cs/work-wechats?type=COMPANION | 陪玩工作微信",
-    "· /admin/battle-screenshots | 战绩图查看",
+    "· /admin/battle-screenshots | 战绩图审核",
     "▸ cs-group-cs | 客服",
     "· /cs/work-wechats?type=STUDIO | 客服工作微信",
     "· /cs/traffic-accounts | 工作室账号管理",
