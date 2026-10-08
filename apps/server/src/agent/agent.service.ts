@@ -205,6 +205,8 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
   /**
    * 申请名额的机器属于哪家店（P0-6：名额按店隔离）。
    * 未登录的新机器（`anon:IP`）拿不到归属 → 落到空 scope（全网共用一个名额，保持老行为）。
+   * 客服账号跑陪玩端时令牌里是**用户 id**、没有 Companion 档案（2026-10-08）：
+   * 按 Companion 查不到，就再按用户查一次店，别让它掉进那个全网共享的名额。
    * 查库结果缓存 10 分钟：客户端每 5 分钟来问一次，不能每次都打库。
    */
   async resolveUpdateScope(companionId: string): Promise<string> {
@@ -218,6 +220,18 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
         select: { studioId: true },
       });
       scope = rec?.studioId || DEFAULT_UPDATE_SCOPE;
+      // 2026-10-08：客服账号（或任何没有 Companion 档案的账号）在这台机器上跑陪玩端时，
+      // 令牌里的身份是**用户 id**、Companion 查不到 → 会被丢进「全网共用那一个名额」，
+      // 和所有匿名/新装机器互相抢，永远轮不到（孙可馨那台实测：一天 600+ 次申请全被挤掉，
+      // 包始终下不下来）。落到这里再按「用户」查一次店：查得到就按店隔离，
+      // 跟这家店自己的机器共用名额；查不到才退回全网共享（保持老行为）。
+      if (!scope) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: companionId },
+          select: { studioId: true },
+        });
+        scope = user?.studioId || DEFAULT_UPDATE_SCOPE;
+      }
     } catch (err: any) {
       // 查不到就把名额退回全网共享：不能让一次查询失败把整个更新链路卡死
       logger.warn(`resolveUpdateScope failed for ${companionId}: ${err?.message || err}`);

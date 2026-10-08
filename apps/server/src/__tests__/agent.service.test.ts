@@ -104,6 +104,58 @@ describe('AgentService', () => {
     });
   });
 
+  // =========================================================================
+  // resolveUpdateScope() —— 更新名额按店隔离（P0-6）
+  // =========================================================================
+  describe('resolveUpdateScope', () => {
+    it('陪玩账号：按 Companion 档案取所属店', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValueOnce({ studioId: 'studio-a' });
+
+      await expect(service.resolveUpdateScope('comp-001')).resolves.toBe('studio-a');
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('客服账号跑陪玩端：Companion 查不到，退回按用户取所属店（别掉进全网共享名额）', async () => {
+      // 老板 2026-10-08：孙可馨那台就是这种 —— CS 账号登录陪玩端，
+      // 令牌 sub 是用户 id，Companion 查不到 → 以前落到全网共用那一个名额，
+      // 一天 600+ 次申请全被别的机器挤掉，包始终下不下来。
+      mockPrisma.companion.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.user.findUnique.mockResolvedValueOnce({ studioId: 'studio-b' });
+
+      await expect(service.resolveUpdateScope('user-d4e592ed')).resolves.toBe('studio-b');
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'user-d4e592ed' },
+        select: { studioId: true },
+      });
+    });
+
+    it('两边都查不到：退回全网共享名额（保持老行为）', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+
+      await expect(service.resolveUpdateScope('ghost-id')).resolves.toBe('');
+    });
+
+    it('未登录的新机器（anon:IP）：不打库，直接给全网共享名额', async () => {
+      await expect(service.resolveUpdateScope('anon:1.2.3.4')).resolves.toBe('');
+      expect(mockPrisma.companion.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('空身份：同样是全网共享名额', async () => {
+      await expect(service.resolveUpdateScope('')).resolves.toBe('');
+      expect(mockPrisma.companion.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('结果带缓存：10 分钟内再来问不打第二次库', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValueOnce({ studioId: 'studio-c' });
+
+      await expect(service.resolveUpdateScope('comp-cache')).resolves.toBe('studio-c');
+      await expect(service.resolveUpdateScope('comp-cache')).resolves.toBe('studio-c');
+      expect(mockPrisma.companion.findUnique).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('deploy script generation', () => {
     it('should escape single quotes in remote deploy credentials', () => {
       const script = service.generateRemoteDeployScript({

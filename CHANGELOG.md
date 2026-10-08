@@ -11,6 +11,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **「卡住不动」的两台机器用手工更新信号当场抬到最新（老板 2026-10-08：「他俩都装」，运维留痕）。**
+  孙可馨那台（`192.168.1.143`，主机名 `BF-202406300325`）和马凝初那台（`192.168.0.100`，`User-20240831VS`）都在跑**旧客户端**，
+  「只在开机 10 分钟内换版」那条规矩写在它们正在跑的代码里（`1.0.20261020` / `1.0.20261018`），
+  所以包早就下好、备货标记都写了，却永远等在下一次开机 —— 日志里就是
+  `Not a fresh boot, keep the package and apply it at next boot` 反复刷。`1.0.20261023` 已经把这道闸删了。
+  手法：直接写看门狗（系统权限）认的那份信号 `C:\ProgramData\chunlv\update.json`
+  （`{url, localPath, version, kind:"companion"}`），它解压换装、不需要重传 123MB、不弹 UAC。
+  ① 孙可馨那台：本机 `update.zip` 与服务器 `chunlv-latest.zip` **逐字节相同**（`125799890` 字节 /
+  md5 `89265d80de8b741cf3515d3e65c76bad`），所以带 `localPath` 直接本地解压 —— 换装前这台堆着 **10 个**
+  陪玩端进程，换完回读**只剩 4 个**（正常 Electron 主进程 + 子进程），`client-healthy.json` 自报 `1.0.20261023`。
+  ② 马凝初那台：本机备的是 `1.0.20261022` 的包（不是最新），所以先清掉旧备货、信号里不带 `localPath`，
+  让看门狗自己从 `/api/agent/download/latest` 拉 23；这台 `C:\Program Files\蠢驴电竞` 目录**改不了名**
+  （旧客户端还在跑，`Access is denied`），看门狗按老规矩**并排装到 `C:\Program Files\蠢驴电竞-v1.0.20261023`**、
+  写 `preferred-client.json` 指过去，新版本起来后自报 `client-healthy.json` = `1.0.20261023`、没有回滚、没有拉黑。
+  回读：服务器台账 `client.machine.*` 两台都变成 `appVersion = 1.0.20261023`
+  （`2026-10-08T15:09:48Z` / `15:10:17Z` 各上报一次）。
+  > 说明：这次**没有**重发客户端版本，也没动任何业务开关；两台机器是**手工写更新信号**装的，
+  > 目的就是别再让「那 533 次被挤掉」白等一天。老目录 / 旧包留在原处（看门狗按 `preferred-client.json` 认新版）。
+
 - **自动更新改成「包下好就直接静默装」，不再攒着等下次开机（老板 2026-10-08，陪玩端 + 客服端，客户端代码）。**
   老板原话：「**以后开机下载完就直接安装呗，静默安装反正是，不弹窗就行**」。2026-10-06 定的那道
   「只在刚开机 / 刚登录那 10 分钟里换版」的闸**整条删掉** —— 线上实况是「开机那 10 分钟没赶上」的机器
@@ -103,6 +122,27 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 
 ### Fixed
+
+- **更新名额：客服账号（或任何没有陪玩档案的账号）在这台机器上跑陪玩端时，不再掉进「全网共用那一个名额」（老板 2026-10-08，服务端）。**
+  老板原话：「孙可馨那台：今天申请下载名额 **533 次全被挤掉**，包始终没下下来 —— 不修的话它明天开机也不会自动升级」。
+  实测根因既不在网络、也不在客户端：孙可馨用的是**客服账号**（`User d4e592ed-f48e-4806-89fd-e7e2230d4cee`，
+  `role=CS`，`studioId=af357c69-…`），但这台机器上装的是**陪玩端**；客户端申请更新名额带的是她的**用户 id**，
+  `AgentController.resolveCompanionId()` 取 `payload.companionId || payload.sub` 拿到的正是这个用户 id（不是 `Companion.id`），
+  `AgentService.resolveUpdateScope()` 按 Companion 查**查不到** → scope 落成空串 = **全网共用那一个下载名额**，
+  于是它跟所有匿名 / 新装机器互相抢，永远轮不到（服务器日志实况：`Update slot preempted for waiter d4e592ed-… (waited 17238s)`、
+  `Update slot timed out, releasing anon:::ffff:122.6.113.28`，当天实际是 616 次申请全被挤掉）。
+  改法：`resolveUpdateScope()` 里 Companion 查不到、且身份不是 `anon:` 时，**再按「用户」查一次 `studioId`** ——
+  查得到就按这家店隔离（跟这家店自己的机器共用一个名额），查不到才退回全网共享（老行为一字不变）。
+  `anon:*` 依旧直接返回共享名额、不打库；10 分钟结果缓存与缓存清理照旧。
+  验证：服务端 `vitest run src/__tests__/agent.service.test.ts` **12 / 12**（新增 6 条 —— 陪玩按 Companion 取店 /
+  客服账号回落按 User 取店 / 两边都查不到退回共享 / `anon:` 不打库 / 空身份 / 缓存命中不重复打库），
+  并做了**变异验证**：把 `if (!scope)` 改成恒不成立 → 「客服账号」那条点名失败，还原后全绿；
+  `tsc --noEmit` 通过。线上部署后**实跑探测**（服务端本机 curl，探测完立刻 release）：
+  用孙可馨的 CS 令牌申请名额 → `granted:true`；紧接着**不带令牌**（匿名机器）申请 → 也是 `granted:true`
+  —— 两台确实分在不同名额里（改之前第二次必然 `granted:false`）。部署自检：`/api/health` db ok、
+  `/api/agent/version` → `1.0.20261023`、pm2 `online`、日志无 error/5xx。
+  > 备注：服务端没改的已知红：`src/__tests__/stats.daily-kpi.test.ts:184` 把「最近 14 个营业日」的起点写死成
+  > `2026-09-24`（那天跑才过），今天跑必红 —— 与本次改动无关，没动它。
 
 - **「退单」后台也上锁：已经开打 / 已经打完的单，绕过陪玩端界面直接调接口也退不掉（老板 2026-10-08，服务端）。**
   老板原话：「『退单必须还没开打』这条**只在界面上拦着，后台接口没拦**……绕过界面直接调是能把已经开打的单退掉的。→ 要不要
