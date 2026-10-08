@@ -32,7 +32,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   「闲着就装 / 接单就等 / 卡在 BUSY 有兜底 / 默认判据就是 lastStatus」）；客服端 `pnpm --filter @chunlv/cs-electron test`
   **35 / 35**（宽限期 3 条换成「不再有这道闸」+ `withinGrace` 老参数不再拦人）。两处都做了**变异验证**：
   给 `mayApplyUpdateNow` 塞一句 `return true` → 4 条点名失败；去掉 `decideUpdate` 第一步 → 2 条点名失败，还原后全绿。
-  **发版（`_publish_client.py` / `_publish_cs_client.py`）按 AGENTS.md 先问老板**，没问过不推。
+  ④ **已发版（问过老板，老板 2026-10-08 回「装」）**：陪玩端 **`1.0.20261023`**、客服端 **`1.0.20260939`** —— 装机包 + 自动更新整包都传上服务器，
+   `agent.latest_version` / `cs.latest_version` 回读一致。**没有强制推送**（按规矩不打断接单）：机器自己每 30 分钟查一次，
+   下载完、没在接单就直接装上；已经在跑 `1.0.20261022` 的那 11 台，下一轮自检就会自动换上 23。
+   > 注意：**还停在 20/21/18 的机器自己不会当场换版** —— 「只在开机 10 分钟内装」这条规矩写在它们**正在跑的那份旧代码**里，
+   > 所以它们要么等下次开机，要么由管理端对这几台点一次「推送更新」（推送走的是旧代码里那条「等空闲就装」的路，不打断接单）。
+  发布后自检：`/api/agent/version` → `1.0.20261023`、`/api/agent/cs-version` → `1.0.20260939`、`/api/health` db ok、pm2 online（没重启）；
+  **逐字节核对**：服务器上 `chunlv-latest.zip` 里 `win-unpacked/resources/app.asar` = 本机新包 `b5cc859c9ea1590631c2ee62817e5b06`，
+  客服端 `chunlv-cs-latest.zip` 里那份 = `61627c749eca116e4909890879fd0fc8`，两边完全一致；
+  包内能搜到新逻辑（`deferring update until the order is finished`），搜不到老的 `BOOT_GRACE_SECONDS` / `CS_LAUNCH_GRACE_MS` / `outside-grace`。
 
 - **管理端「退款」整条删掉、那一格改成「补单」；陪玩申请过补单的订单那颗按钮挂提示、补完显示「已补」（老板 2026-10-08，服务端 + 网页 `v1002`）。**
   老板原话：「**删除，改成补单，以后陪玩申请补单在对应订单后边的补单按钮做提示，点了补单要跟其他功能联动起来，补完的显示已补**」。
