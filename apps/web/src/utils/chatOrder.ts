@@ -93,9 +93,21 @@ export function ordersPathForRole(role?: string | null): string {
   return '/owner/orders';
 }
 
-/** 带「打开这一单」参数的订单管理地址（OrdersPage 认 orderId 这个参数）。 */
-export function ordersPathWithOrder(role: string | null | undefined, orderId: string): string {
-  return `${ordersPathForRole(role)}?orderId=${encodeURIComponent(orderId)}`;
+/**
+ * 带「打开这一单」参数的订单管理地址（OrdersPage 认 orderId 这个参数）。
+ *
+ * 默认**只跳到那一单并把它标成高亮那一行**，不再自动弹「订单详情」弹窗（老板 2026-10-09：
+ * 「不是让你直接跳转到订单管理并且标阴影么」）。
+ * 需要「跳过去顺手把详情也打开」的入口（补单审核里点订单）显式传 `{ detail: true }` ——
+ * 它会多带一个 `detail=1`，仅此而已。
+ */
+export function ordersPathWithOrder(
+  role: string | null | undefined,
+  orderId: string,
+  opts: { detail?: boolean } = {},
+): string {
+  const base = `${ordersPathForRole(role)}?orderId=${encodeURIComponent(orderId)}`;
+  return opts.detail ? `${base}&detail=1` : base;
 }
 
 // 2026-10-08 起**不再需要「另开一个订单管理窗口」**了：独立聊天窗口里点「查看订单」改成

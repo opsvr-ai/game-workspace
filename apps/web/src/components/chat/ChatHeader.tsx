@@ -77,7 +77,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
   }, [orderInfo, orderAt]);
   const showOrder = !!orderRef && !orderExpired;
 
-  // 点「查看订单」：跳到订单管理并把这一单标出来（整行高亮 + 自动弹出它的详情）。
+  // 点「查看订单」：跳到订单管理并把这一单标出来 —— **整行高亮，不再自动弹详情弹窗**
+  // （老板 2026-10-09：「不是让你直接跳转到订单管理并且标阴影么」），要看详情自己点那一行。
   //
   // **独立聊天窗口里不能用 navigate**：聊天窗口本身就是个独立窗口，navigate 会把
   // 「跟这个人的聊天」整个换成订单管理页（老板 2026-10-07 报的那个）。

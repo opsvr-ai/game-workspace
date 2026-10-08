@@ -15,7 +15,8 @@ import { useAuthStore } from '../stores/authStore';
  *
  * 老板报的两件事：
  *   ① 「第一张图这个界面，给我直接跳转到订单管理的该订单，方便客服查看」——
- *      点订单（或整行）要跳到订单管理里那一单（整行高亮 + 自动打开详情）；
+ *      点订单（或整行）要跳到订单管理里那一单（整行高亮 + 自动打开详情；这一条是明确要详情的入口，
+ *      地址里多带一个 `detail=1` —— 聊天框顶上那个「查看订单」不带，2026-10-09 起只标阴影）；
  *   ② 管理端订单管理里的「退款」改成「补单」之后，得能看清今天到底给谁补过名额 ——
  *      所以弹窗多了「补单记录」页签，并显示今日补单数。
  */
@@ -77,7 +78,7 @@ describe('补单审核 / 到期核查弹窗', () => {
 
     fireEvent.click(await screen.findByText('A100'));
     await waitFor(() =>
-      expect(screen.getByTestId('loc').textContent).toBe('/admin/orders?orderId=o1'),
+      expect(screen.getByTestId('loc').textContent).toBe('/admin/orders?orderId=o1&detail=1'),
     );
   });
 

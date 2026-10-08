@@ -108,6 +108,12 @@ const OrdersPage: React.FC = () => {
   // 从聊天框「查看订单」跳过来（或刚点开）的那一单：整行加选中阴影 + 滚到表格中间，
   // 不用自己再找是哪一单（老板 2026-10-05）。
   const [focusOrderId, setFocusOrderId] = useState<string>('');
+  // 列表**第一次真的拉回来了**没有（老板 2026-10-09）。
+  // 为什么必须有它：下面那个「跳过来」的 effect 是一次性的（读完就把地址里的 orderId 抹掉）。
+  // 首屏渲染那一刻 loading 还是 false、orders 还是空数组，effect 会**在列表到达之前**先跑一次，
+  // 于是永远判定「这一单不在列表里」→ 退回「把详情弹窗打开」那条路 —— 老板看到的「还是弹窗」
+  // 就是这么来的（哪怕这一单明明就在列表里）。等列表真回来了再判，才判得准。
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [preFill, setPreFill] = useState<any>(null);
   const [dateFilter, setDateFilter] = useState<any>(null);
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -424,6 +430,7 @@ const OrdersPage: React.FC = () => {
       message.error('加载失败');
     } finally {
       setLoading(false);
+      setOrdersLoaded(true);
     }
   }, [statusFilter, isCs, csScope, isCompanion, companionScope]);
 
@@ -463,21 +470,33 @@ const OrdersPage: React.FC = () => {
     };
   }, [isCompanion]);
 
-  // 从聊天框点「查看订单」跳过来：<角色>/orders?orderId=<id> —— 直接把那一单的详情弹窗打开
-  // （老板 2026-09-30：「客服点击这个位置会跳转到该订单方便查看客户信息」）。
-  // 先把参数从地址里抹掉，免得关掉弹窗 / 刷新页面时又自己弹回来；不在当前筛选范围里
-  // （客服默认只看自己的单）就单独把这一单取回来。
+  // 从聊天框点「查看订单」跳过来：<角色>/orders?orderId=<id> —— **只跳到订单管理 + 把那一行标阴影**。
+  //
+  // 老板 2026-10-09：「邵泽慧点看聊天框顶部的查看订单详情 还是弹窗？不是让你直接跳转到订单管理
+  // 并且标阴影么」—— 上一轮（网页 v992）已经去掉了「另开一个订单管理窗口」，但跳过来之后还会
+  // **自动把「订单详情」弹窗打开**，老板看到的就是那个「弹窗」。
+  // 现在：命中列表里那一单 → 只高亮（高亮 + 滚到表格中间见下面那个 effect），要看详情自己点那一行。
+  //
+  // 两处例外，照旧自动打开详情：
+  //   ① 带 `detail=1` 的入口 —— 补单审核里点订单（老板 2026-10-08「给我直接跳转到订单管理的该订单，
+  //      方便客服查看」），那边点进去就是要看详情；
+  //   ② 这一单**不在当前筛选范围里**（列表里根本没它，标不出阴影）—— 总比跳过来一片空白强。
+  //
+  // 先把参数从地址里抹掉，免得关掉弹窗 / 刷新页面时又自己弹回来；不在列表里的那一单单独取回来。
   useEffect(() => {
     const focusId = searchParams.get('orderId');
     if (!focusId) return;
-    if (loading && orders.length === 0) return;
+    // 列表还没拉回来 → 这一轮什么都不做（**地址里的参数也先留着**），等它回来了再判。
+    if (!ordersLoaded) return;
+    const wantDetail = searchParams.get('detail') === '1';
     const next = new URLSearchParams(searchParams);
     next.delete('orderId');
+    next.delete('detail');
     setSearchParams(next, { replace: true });
     setFocusOrderId(focusId);
     const hit = orders.find((o: any) => o.id === focusId);
     if (hit) {
-      setDetailOrder(hit);
+      if (wantDetail) setDetailOrder(hit);
       return;
     }
     ordersApi
@@ -488,7 +507,7 @@ const OrdersPage: React.FC = () => {
         else message.error('没找到这个订单');
       })
       .catch((e: any) => message.error(extractErrorMessage(e, '没找到这个订单')));
-  }, [searchParams, setSearchParams, orders, loading]);
+  }, [searchParams, setSearchParams, orders, ordersLoaded]);
 
   // 被高亮的那一单滚到表格中间（跳过来一眼就能看到）。
   const focusScrolledRef = useRef<string>('');

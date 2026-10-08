@@ -47,14 +47,16 @@ const SupplementReviewButton: React.FC = () => {
 
   /**
    * 老板 2026-10-08：「第一张图这个界面，给我直接跳转到订单管理的该订单，方便客服查看」。
-   * 点订单（或整行）就跳到订单管理里那一单：整行高亮 + 自动打开详情。
+   * 点订单（或整行）就跳到订单管理里那一单：整行高亮 + 自动打开详情
+   * （这一条是**明确要详情**的入口，所以多带 `detail=1`；聊天框顶上那个「查看订单」不带，
+   * 2026-10-09 起那边只标阴影、不弹窗）。
    * 先把审核弹窗关掉，免得它盖在订单详情上面。
    */
   const gotoOrder = (r: any) => {
     const id = r?.order?.id || r?.orderId;
     if (!id) return;
     setOpen(false);
-    navigate(ordersPathWithOrder(role, id));
+    navigate(ordersPathWithOrder(role, id, { detail: true }));
   };
 
   const loadSummary = useCallback(async () => {
