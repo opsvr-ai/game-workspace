@@ -7,6 +7,8 @@ export interface ActiveVoiceCall {
   peerId?: string;
   peerName?: string;
   duration?: number;
+  /** 通话音量（0~100）—— 独立聊天窗口里的通话条要能显示 / 拖动它。 */
+  volume?: number;
 }
 
 interface VoiceCallStore {

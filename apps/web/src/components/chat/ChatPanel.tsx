@@ -10,6 +10,7 @@ import ChatHeader from './ChatHeader';
 import MessageList from './MessageList';
 import ChatComposer from './ChatComposer';
 import MessageContextMenu from './MessageContextMenu';
+import ChatVoiceCallStrip from './ChatVoiceCallStrip';
 import { startVoiceCallFromCurrentWindow } from '../../utils/voiceCallWindow';
 
 import { BG } from '../../styles/tokens';
@@ -293,6 +294,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         peerReadSeq={conv?.peerReadSeq}
         isGroup={conv?.isGroup || participant?.role === 'GROUP'}
       />
+      {/* 独立聊天窗口：通话条 / 来电卡片铺在输入框上面 —— 在这个窗口就能挂断、拖音量，
+          不用切回主程序（老板 2026-10-10）。主程序窗口里 standalone 是 undefined，
+          那边照旧用右下角的浮条，不会重复（见 utils/voiceCallWindow.ts）。 */}
+      {standalone && <ChatVoiceCallStrip peerId={participant?.userId} />}
       <ChatComposer
         // 换会话就重挂：草稿按会话分开存、分开读（老板 2026-10-08 的「输入别丢」）
         key={roomId || 'composer'}

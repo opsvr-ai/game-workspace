@@ -35,6 +35,8 @@ import GrabSuccessModal from '../components/GrabSuccessModal';
 import { BG, BORDER, BRAND, SEMANTIC, TEXT, badgeGlow } from '../styles/tokens';
 import { installWindowNavListener } from '../utils/windowNav';
 import {
+  clearVoiceCallState,
+  installVoiceCallCommandListener,
   installVoiceCallRequestListener,
   publishVoiceCallState,
   setVoiceOwner,
@@ -1640,7 +1642,11 @@ const AppLayout: React.FC = () => {
   //  开 3 个聊天窗口就会同时响 3 个。见 utils/voiceCallWindow.ts）。
   useEffect(() => {
     setVoiceOwner(true);
-    return () => setVoiceOwner(false);
+    return () => {
+      setVoiceOwner(false);
+      // 主程序关了，镜像键也要删 —— 免得下次开聊天窗口读到「上一通还在通话中」。
+      clearVoiceCallState();
+    };
   }, []);
   useEffect(
     () =>
@@ -1652,15 +1658,33 @@ const AppLayout: React.FC = () => {
       }),
     [vc.startCall, vc.callState.status],
   );
-  // 把通话状态镜像出去 —— 聊天窗口顶上要跟着显示「正在语音通话 mm:ss」。
+  // 聊天窗口里的通话条按钮都转发到这里（挂断 / 接听 / 拒接 / 调音量）——
+  // 电话只有主程序窗口这一份（见 utils/voiceCallWindow.ts）。
+  useEffect(
+    () =>
+      installVoiceCallCommandListener((cmd) => {
+        if (cmd.action === 'hangup') vc.hangup();
+        else if (cmd.action === 'reject') vc.rejectCall();
+        else if (cmd.action === 'accept') void vc.acceptCall();
+        else if (cmd.action === 'setVolume' && typeof cmd.value === 'number') vc.setVolume(cmd.value);
+      }),
+    [vc.hangup, vc.rejectCall, vc.acceptCall, vc.setVolume],
+  );
+  // 把通话状态镜像出去 —— 聊天窗口顶上要跟着显示「正在语音通话 mm:ss」，
+  // 聊天窗口里的通话条也读它（带 volume）。空了就把键删掉，不留旧状态。
   useEffect(() => {
+    if (vc.callState.status === 'idle') {
+      clearVoiceCallState();
+      return;
+    }
     publishVoiceCallState({
       status: vc.callState.status,
       peerId: vc.callState.peerId,
       peerName: vc.callState.peerName,
       duration: vc.callState.duration,
+      volume: vc.callState.volume,
     });
-  }, [vc.callState.status, vc.callState.peerId, vc.callState.peerName, vc.callState.duration]);
+  }, [vc.callState.status, vc.callState.peerId, vc.callState.peerName, vc.callState.duration, vc.callState.volume]);
 
   const VoiceCallHandler = () => (
     <>

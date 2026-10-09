@@ -10,6 +10,11 @@ interface Props {
   volume?: number;
   onVolumeChange?: (v: number) => void;
   onHangup: () => void;
+  /**
+   * floating = 主程序窗口右下角浮着（默认）；
+   * inline = 铺在独立聊天窗口里（老板 2026-10-10：「能不能直接在聊天窗口里挂断」）。
+   */
+  variant?: 'floating' | 'inline';
 }
 
 function formatDuration(seconds?: number) {
@@ -19,16 +24,15 @@ function formatDuration(seconds?: number) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export default function VoiceCallBar({ peerName, duration, volume, onVolumeChange, onHangup }: Props) {
+export default function VoiceCallBar({ peerName, duration, volume, onVolumeChange, onHangup, variant = 'floating' }: Props) {
+  const inline = variant === 'inline';
   return (
     <div
       className="scale-in"
       style={{
-        position: 'fixed',
-        right: 20,
-        bottom: 20,
-        zIndex: 2000,
-        width: 280,
+        ...(inline
+          ? { position: 'relative', width: '100%', boxSizing: 'border-box' }
+          : { position: 'fixed', right: 20, bottom: 20, zIndex: 2000, width: 280 }),
         background: BG.inverse,
         color: TEXT.inverse,
         borderRadius: 12,
@@ -62,6 +66,7 @@ export default function VoiceCallBar({ peerName, duration, volume, onVolumeChang
           danger
           shape="circle"
           size="middle"
+          title="挂断"
           icon={<PhoneOutlined style={{ transform: 'rotate(135deg)' }} />}
           onClick={(e) => { e.stopPropagation(); onHangup(); }}
         />

@@ -10,19 +10,23 @@ interface Props {
   calling?: boolean;
   onAccept: () => void;
   onReject: () => void;
+  /**
+   * floating = 主程序窗口右下角浮着（默认）；
+   * inline = 铺在独立聊天窗口里（老板 2026-10-10：「能不能直接在聊天窗口里挂断」）。
+   */
+  variant?: 'floating' | 'inline';
 }
 
-const IncomingCallModal: React.FC<Props> = ({ open, callerName, calling, onAccept, onReject }) => {
+const IncomingCallModal: React.FC<Props> = ({ open, callerName, calling, onAccept, onReject, variant = 'floating' }) => {
   if (!open) return null;
+  const inline = variant === 'inline';
   return (
     <div
       className="scale-in"
       style={{
-        position: 'fixed',
-        right: 20,
-        bottom: 20,
-        zIndex: 2000,
-        width: 280,
+        ...(inline
+          ? { position: 'relative', width: '100%', boxSizing: 'border-box' }
+          : { position: 'fixed', right: 20, bottom: 20, zIndex: 2000, width: 280 }),
         background: `linear-gradient(135deg,${BG.inverse},#0F172A)`,
         color: TEXT.inverse,
         borderRadius: 12,
@@ -59,18 +63,19 @@ const IncomingCallModal: React.FC<Props> = ({ open, callerName, calling, onAccep
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: 28, marginTop: 16 }}>
         {calling ? (
-          <Button danger shape="circle" size="large" icon={<CloseOutlined />} onClick={onReject} />
+          <Button danger shape="circle" size="large" title="挂断" icon={<CloseOutlined />} onClick={onReject} />
         ) : (
           <>
             <Button
               type="primary"
               shape="circle"
               size="large"
+              title="接听"
               icon={<PhoneOutlined />}
               onClick={onAccept}
               style={{ background: '#52c41a', borderColor: '#52c41a' }}
             />
-            <Button danger shape="circle" size="large" icon={<CloseOutlined />} onClick={onReject} />
+            <Button danger shape="circle" size="large" title="拒接" icon={<CloseOutlined />} onClick={onReject} />
           </>
         )}
       </div>

@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ChatHeader from '../components/chat/ChatHeader';
+import ChatVoiceCallStrip from '../components/chat/ChatVoiceCallStrip';
 import { useVoiceCallStore } from '../stores/voiceCallStore';
 import {
+  clearVoiceCallState,
+  installVoiceCallCommandListener,
   installVoiceCallRequestListener,
   installVoiceCallStateMirror,
   isVoiceOwner,
   publishVoiceCallState,
   requestVoiceCallInOtherWindow,
+  sendVoiceCallCommand,
   setVoiceOwner,
   startVoiceCallFromCurrentWindow,
 } from '../utils/voiceCallWindow';
@@ -167,5 +171,83 @@ describe('聊天框的语音按钮：主程序窗口 / 独立聊天窗口（老�
     expect(localFired).toBe(0);
     const req = JSON.parse(localStorage.getItem('chunlv:voice-call-request') || '{}');
     expect(req.targetUserId).toBe('u-peer');
+  });
+});
+
+/**
+ * 老板 2026-10-10 追加：「通话条直接出现在聊天窗口里，在聊天窗口就能挂断，不用切回主程序。」
+ * 电话还是主程序窗口那一份（一个账号只该有一处接听），聊天窗口里的按钮只是**转发**：
+ * 挂断 / 接听 / 拒接 / 拖音量 → 一条跨窗口指令（chunlv:voice-call-command），主程序窗口接住并作用到通话上。
+ * 守三件事：① 指令通道通；② 通话中 / 来电话时，聊天窗口里真的出现通话条 / 来电卡片，且只出现在「跟这个人」的窗口；
+ * ③ 通话结束（镜像键删了）聊天窗口跟着收掉，不会挂着上一通的旧状态。
+ */
+describe('聊天窗口里的通话条 / 来电卡片（老板 2026-10-10）', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    infoSpy.mockReset();
+    warnSpy.mockReset();
+    setVoiceOwner(false);
+    useVoiceCallStore.setState({ call: { status: 'idle' } });
+  });
+
+  it('主程序窗口收得到聊天窗口发来的操作指令（挂断 / 调音量）', () => {
+    const seen: Array<{ action: string; value?: number }> = [];
+    const off = installVoiceCallCommandListener((cmd) => seen.push(cmd));
+
+    sendVoiceCallCommand('hangup');
+    fireStorage('chunlv:voice-call-command', localStorage.getItem('chunlv:voice-call-command')!);
+    sendVoiceCallCommand('setVolume', 42);
+    fireStorage('chunlv:voice-call-command', localStorage.getItem('chunlv:voice-call-command')!);
+
+    expect(seen.map((c) => c.action)).toEqual(['hangup', 'setVolume']);
+    expect(seen[1].value).toBe(42);
+    off();
+  });
+
+  it('通话中：聊天窗口里直接出现通话条，点「挂断」就是给主程序窗口发指令', () => {
+    publishVoiceCallState({ status: 'connected', peerId: 'u-peer', peerName: '童祥瑞', duration: 5, volume: 55 });
+    const off = installVoiceCallStateMirror();
+
+    render(<ChatVoiceCallStrip peerId="u-peer" />);
+    expect(screen.getByText('童祥瑞')).toBeTruthy();
+
+    fireEvent.click(screen.getByTitle('挂断'));
+    const cmd = JSON.parse(localStorage.getItem('chunlv:voice-call-command') || '{}');
+    expect(cmd.action).toBe('hangup');
+    off();
+  });
+
+  it('来电话：聊天窗口里能直接接听 / 拒接（也是转发给主程序窗口）', () => {
+    publishVoiceCallState({ status: 'ringing', peerId: 'u-peer', peerName: '童祥瑞' });
+    const off = installVoiceCallStateMirror();
+
+    render(<ChatVoiceCallStrip peerId="u-peer" />);
+    expect(screen.getByText(/邀请你进行语音通话/)).toBeTruthy();
+
+    fireEvent.click(screen.getByTitle('接听'));
+    expect(JSON.parse(localStorage.getItem('chunlv:voice-call-command') || '{}').action).toBe('accept');
+    fireEvent.click(screen.getByTitle('拒接'));
+    expect(JSON.parse(localStorage.getItem('chunlv:voice-call-command') || '{}').action).toBe('reject');
+    off();
+  });
+
+  it('电话不是跟这个人的 → 这个聊天窗口不冒通话条（别的会话窗口 / 群里不该出现）', () => {
+    publishVoiceCallState({ status: 'connected', peerId: 'u-other', peerName: '别人', duration: 5 });
+    const off = installVoiceCallStateMirror();
+
+    const { container } = render(<ChatVoiceCallStrip peerId="u-peer" />);
+    expect(container.textContent).toBe('');
+    off();
+  });
+
+  it('通话结束（主程序把镜像键删了）→ 聊天窗口跟着收掉，不留上一通的旧状态', () => {
+    publishVoiceCallState({ status: 'connected', peerId: 'u-peer', peerName: '童祥瑞', duration: 5, volume: 55 });
+    const off = installVoiceCallStateMirror();
+    expect(useVoiceCallStore.getState().call.status).toBe('connected');
+
+    clearVoiceCallState();
+    fireStorage('chunlv:voice-call-state', null);
+    expect(useVoiceCallStore.getState().call.status).toBe('idle');
+    off();
   });
 });

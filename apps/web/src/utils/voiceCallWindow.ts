@@ -16,6 +16,9 @@
  *   · 聊天窗口点电话 → 请主程序窗口去打（跨窗口通道 + 回执，跟 utils/windowNav.ts 同一套写法：
  *     localStorage 写一个键，同源的其他窗口收 storage 事件；写的人自己收不到，正好不会自己叫自己）；
  *   · 主程序窗口把通话状态镜像出来 → 聊天窗口顶上照样能看到「正在语音通话 mm:ss」；
+ *   · 通话条 / 来电卡片也铺到聊天窗口里（老板 2026-10-10 追加：「在聊天窗口就能挂断，不用切回主程序」）——
+ *     聊天窗口里的按钮只是**转发**（挂断 / 接听 / 拒接 / 调音量 → 另一条 storage 指令通道），
+ *     电话本身还是主程序窗口在跑，仍然只有一处接听；
  *   · 主程序窗口不在（被关了）→ 明确告诉人「去任务栏打开主程序再点」，不再是一点没反应。
  */
 
@@ -25,6 +28,7 @@ import { useVoiceCallStore, type ActiveVoiceCall } from '../stores/voiceCallStor
 const REQ_KEY = 'chunlv:voice-call-request';
 const ACK_KEY = 'chunlv:voice-call-ack';
 const STATE_KEY = 'chunlv:voice-call-state';
+const CMD_KEY = 'chunlv:voice-call-command';
 
 export interface VoiceCallRequest {
   id: string;
@@ -37,6 +41,16 @@ interface VoiceCallAck {
   id: string;
   ok: boolean;
   reason?: string;
+  at: number;
+}
+
+/** 聊天窗口 → 主程序窗口的操作（挂断 / 接听 / 拒接 / 调音量都作用在真正那通话上）。 */
+export type VoiceCallCommandAction = 'hangup' | 'reject' | 'accept' | 'setVolume';
+
+export interface VoiceCallCommand {
+  id: string;
+  action: VoiceCallCommandAction;
+  value?: number;
   at: number;
 }
 
@@ -155,7 +169,7 @@ export function startVoiceCallFromCurrentWindow(
   });
 }
 
-/** 主程序窗口：把通话状态镜像出去（存储键一改，同源的其他窗口都收得到）。 */
+/** 主程序窗口：把通话状态镜像出去（存储键一改，同源的其他窗口都收得到）。带 volume，通话条在聊天窗口里也能拖动。 */
 export function publishVoiceCallState(call: ActiveVoiceCall): void {
   try {
     localStorage.setItem(STATE_KEY, JSON.stringify({ ...call, at: Date.now() }));
@@ -164,10 +178,28 @@ export function publishVoiceCallState(call: ActiveVoiceCall): void {
   }
 }
 
-/** 聊天窗口：把主程序窗口镜像出来的通话状态搬进本窗口的 store —— 顶上那行「正在语音通话」才会显示。 */
+/**
+ * 主程序窗口：把镜像键删掉。通话结束 / 主程序退出时都要删，
+ * 否则下次开聊天窗口会读到上一通的旧状态，一进去就顶着一条「正在语音通话」。
+ */
+export function clearVoiceCallState(): void {
+  try {
+    localStorage.removeItem(STATE_KEY);
+  } catch {
+    /* 忽略 */
+  }
+}
+
+/**
+ * 聊天窗口：把主程序窗口镜像出来的通话状态搬进本窗口的 store —— 顶上那行「正在语音通话」
+ * 和聊天窗口里的通话条都读这个。主程序没在通话（键被删了）就跟着回 idle。
+ */
 export function installVoiceCallStateMirror(): () => void {
   const apply = (raw: string | null) => {
-    if (!raw) return;
+    if (!raw) {
+      useVoiceCallStore.getState().setCall({ status: 'idle' });
+      return;
+    }
     try {
       const state = JSON.parse(raw) as ActiveVoiceCall;
       if (!state?.status) return;
@@ -176,6 +208,7 @@ export function installVoiceCallStateMirror(): () => void {
         peerId: state.peerId,
         peerName: state.peerName,
         duration: state.duration,
+        volume: state.volume,
       });
     } catch {
       /* 忽略 */
@@ -185,6 +218,44 @@ export function installVoiceCallStateMirror(): () => void {
   const onStorage = (e: StorageEvent) => {
     if (e.key !== STATE_KEY) return;
     apply(e.newValue);
+  };
+  window.addEventListener('storage', onStorage);
+  return () => window.removeEventListener('storage', onStorage);
+}
+
+/**
+ * 聊天窗口 → 主程序窗口：操作真正的那通电话。
+ *
+ * 老板 2026-10-10：「通话条能不能直接出现在聊天窗口里，在聊天窗口就能挂断、不用切回主程序」。
+ * 通话本身还是主程序窗口在跑（一个账号只该有一处接听），所以聊天窗口里的通话条 /
+ * 来电卡片只是**把按钮的活儿转给主程序窗口**：挂断 → hangup，接听 → accept，
+ * 拒接 → reject，拖音量 → setVolume。
+ */
+export function sendVoiceCallCommand(action: VoiceCallCommandAction, value?: number): void {
+  try {
+    const cmd: VoiceCallCommand = { id: newId(), action, value, at: Date.now() };
+    localStorage.setItem(CMD_KEY, JSON.stringify(cmd));
+  } catch {
+    /* 存不下就算了 */
+  }
+}
+
+/** 主程序窗口：听聊天窗口发来的操作指令，作用到真正的那通电话上。 */
+export function installVoiceCallCommandListener(handler: (cmd: VoiceCallCommand) => void): () => void {
+  const onStorage = (e: StorageEvent) => {
+    if (e.key !== CMD_KEY || !e.newValue) return;
+    let cmd: VoiceCallCommand;
+    try {
+      cmd = JSON.parse(e.newValue) as VoiceCallCommand;
+    } catch {
+      return; // 不是我们写的，忽略
+    }
+    if (!cmd?.action) return;
+    try {
+      handler(cmd);
+    } catch {
+      /* 忽略 */
+    }
   };
   window.addEventListener('storage', onStorage);
   return () => window.removeEventListener('storage', onStorage);
