@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Tabs, Typography, Space, Tag, Input, Modal } from 'antd';
+import { Card, Button, Tabs, Typography, Space, Tag, Input, Modal, Image } from 'antd';
 import { message } from '../utils/feedback';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
@@ -9,7 +9,7 @@ import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreen
 import PageHeader from '../components/PageHeader';
 import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '@chunlv/shared';
-import { BRAND, TEXT } from '../styles/tokens';
+import { BRAND, BORDER, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -18,6 +18,16 @@ const STATUS: Record<string, { color: string; label: string }> = {
   APPROVED: { color: 'green', label: '已采纳' },
   REJECTED: { color: 'red', label: '已驳回' },
 };
+
+// 图片在服务器上丢了 / 加载失败时的占位，别留一块空白让人以为页面坏了。
+const BROKEN_IMAGE =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="92" height="92">' +
+      `<rect width="100%" height="100%" fill="${BORDER.secondary}"/>` +
+      `<text x="50%" y="50%" fill="${TEXT.tertiary}" font-size="12" text-anchor="middle" dominant-baseline="middle">图片打不开</text>` +
+      '</svg>',
+  );
 
 const BattleScreenshotReviewPage: React.FC = () => {
   const role = useAuthStore((s) => s.user?.role);
@@ -113,8 +123,8 @@ const BattleScreenshotReviewPage: React.FC = () => {
         title={canReview ? '战绩图审核' : '战绩图查看'}
         subtitle={
           canReview
-            ? '采纳后自动给该陪玩综合评分加分（作为小红书素材）'
-            : '查看陪玩上传的战绩图（点「下载图片包」存到文件夹里看）'
+            ? '点缩略图放大看原图；觉得可以就直接点「采纳并加分」（采纳后自动给该陪玩综合评分加分，作为小红书素材）'
+            : '点缩略图放大看原图'
         }
       />
       <Card size="small">
@@ -171,22 +181,47 @@ const BattleScreenshotReviewPage: React.FC = () => {
                     );
                   })()}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
+                {/* 缩略图直接铺在记录里（老板 2026-10-09：「点查看文件怎么疯狂弹窗？能不能直接改成
+                    缩略图的形式？方便查看，觉得可以就直接点采纳」）。以前这一页不显示图，
+                    「看到战绩图」只有「下载图片包 → 解压 → 开文件夹」这一条路，一组一弹、越点越多。
+                    现在点任意一张用 antd 大图预览放大（同一组里可左右切换），看清楚了下面就能直接采纳。 */}
+                {it.images.length > 0 ? (
+                  <Image.PreviewGroup>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {it.images.map((url, i) => (
+                        <Image
+                          key={`${it.id}-${i}`}
+                          src={url}
+                          width={92}
+                          height={92}
+                          style={{ objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.secondary}` }}
+                          preview={{ mask: <span style={{ fontSize: 12 }}>点开放大</span> }}
+                          fallback={BROKEN_IMAGE}
+                        />
+                      ))}
+                    </div>
+                  </Image.PreviewGroup>
+                ) : (
+                  <Text type="secondary" style={{ fontSize: 12 }}>这组没有图片</Text>
+                )}
+                {it.note && <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>备注：{it.note}</Text>}
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginTop: 10 }}>
+                  {it.status === 'PENDING' && canReview && (
+                    <Space>
+                      <Button type="primary" onClick={() => review(it.id, 'approve')}>采纳并加分</Button>
+                      <Button danger onClick={() => setRejecting(it)}>驳回</Button>
+                    </Space>
+                  )}
+                  {/* 想存原图（比如做小红书素材）再走这里；日常审核看缩略图就够了，不用再弹文件夹。 */}
                   <Button
                     size="small"
+                    type="link"
                     icon={<DownloadOutlined />}
                     onClick={() => downloadImages(it)}
                   >
-                    下载图片包（{it.images.length} 张，存到文件夹查看）
+                    下载原图包（{it.images.length} 张）
                   </Button>
                 </div>
-                {it.note && <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>备注：{it.note}</Text>}
-                {it.status === 'PENDING' && canReview && (
-                  <Space style={{ marginTop: 10 }}>
-                    <Button type="primary" onClick={() => review(it.id, 'approve')}>采纳并加分</Button>
-                    <Button danger onClick={() => setRejecting(it)}>驳回</Button>
-                  </Space>
-                )}
               </div>
             ))}
           </div>

@@ -110,6 +110,14 @@ const ME = USERS[ROLE] || USERS.OWNER;
 /** 相对现在的时间（截图用的假数据里，心跳 / 上报时间都按「几分钟前」算，别写死日期）。 */
 const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
 
+/** 截图用的假战绩图：SVG data URI。不然 /uploads/... 在本地 404，拍出来一排「图片打不开」。 */
+const fakeShot = (label, bg) =>
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="100%" height="100%" fill="${bg}"/>` +
+      `<text x="50%" y="50%" fill="#FFFFFF" font-size="20" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle">${label}</text></svg>`,
+  );
+
 const FIXTURES = [
   { m: 'GET', p: /^\/api\/auth\/me$/, body: { data: ME } },
   {
@@ -119,6 +127,40 @@ const FIXTURES = [
   },
   { m: 'POST', p: /^\/api\/auth\/refresh$/, body: { data: { accessToken: 'mock-access', refreshToken: 'mock-refresh' } } },
   { m: 'GET', p: /^\/api\/config/, body: { data: { data: {} } } },
+  // 战绩图审核页（老板 2026-10-09：改成「缩略图直接看」）—— 两组假数据，一组待审一组已采纳。
+  {
+    m: 'GET',
+    p: /^\/api\/battle-screenshots$/,
+    body: {
+      data: [
+        {
+          id: 'bs-1',
+          companionId: 'c-1',
+          images: [
+            fakeShot('1 战绩', '#7C3AED'),
+            fakeShot('2 战绩', '#2563EB'),
+            fakeShot('3 战绩', '#0891B2'),
+            fakeShot('4 战绩', '#16A34A'),
+          ],
+          status: 'PENDING',
+          note: null,
+          createdAt: ago(35),
+          companion: { user: { username: 'tongxiangrui', displayName: '童祥瑞', avatar: null } },
+          customer: { customerCode: 'KH20261009', wechatId: 'wx_tongxiang' },
+        },
+        {
+          id: 'bs-2',
+          companionId: 'c-2',
+          images: [fakeShot('1 战绩', '#EA580C'), fakeShot('2 战绩', '#F59E0B'), fakeShot('3 战绩', '#0891B2')],
+          status: 'APPROVED',
+          note: '这组留着发小红书',
+          createdAt: ago(180),
+          companion: { user: { username: 'zhangsan', displayName: '张三', avatar: null } },
+          customer: null,
+        },
+      ],
+    },
+  },
   // 考勤管理页的客服 / 店长表（班外打卡的时间后面会带金色「班外」小标签）。
   {
     m: 'GET',
