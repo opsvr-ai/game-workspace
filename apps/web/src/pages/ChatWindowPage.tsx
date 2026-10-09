@@ -7,6 +7,7 @@ import ChatPanel from '../components/chat/ChatPanel';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
 import http from '../api/client';
+import { installVoiceCallStateMirror } from '../utils/voiceCallWindow';
 import { BG } from '../styles/tokens';
 
 /**
@@ -127,6 +128,10 @@ const StandaloneChat: React.FC = () => {
 
 const ChatWindowPage: React.FC = () => {
   const [state, setState] = useState<'loading' | 'ok' | 'noauth'>('loading');
+
+  // 这个窗口不管语音（主程序窗口才管，见 utils/voiceCallWindow.ts），只把主程序镜像过来的
+  // 通话状态搬进本窗口 —— 跟这个人通话时，顶上要显示「正在语音通话 mm:ss」。
+  useEffect(() => installVoiceCallStateMirror(), []);
 
   useEffect(() => {
     let cancelled = false;

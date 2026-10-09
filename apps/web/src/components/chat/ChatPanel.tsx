@@ -10,6 +10,7 @@ import ChatHeader from './ChatHeader';
 import MessageList from './MessageList';
 import ChatComposer from './ChatComposer';
 import MessageContextMenu from './MessageContextMenu';
+import { startVoiceCallFromCurrentWindow } from '../../utils/voiceCallWindow';
 
 import { BG } from '../../styles/tokens';
 interface ChatPanelProps {
@@ -249,8 +250,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         standalone={standalone}
         onMinimize={onMinimize}
         onClose={onClose}
+        // 语音：主程序窗口自己打；独立聊天窗口没有语音能力（一个账号只能有一处接听，见
+        // utils/voiceCallWindow.ts），改成请主程序窗口去打 —— 以前这里直接 dispatch 一个
+        // 只有主程序窗口才监听的 CustomEvent，在聊天窗口里点等于石沉大海（老板 2026-10-10 报的）。
         onCallClick={participant?.userId ? () => {
-          window.dispatchEvent(new CustomEvent('start-voice-call', { detail: { targetUserId: participant!.userId, targetUserName: participantName } }));
+          startVoiceCallFromCurrentWindow(participant.userId, participantName);
         } : undefined}
         onTogglePin={() => {
           if (!roomId) return;

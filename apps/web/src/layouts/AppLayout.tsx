@@ -34,6 +34,11 @@ import SalaryDetailModal from '../components/SalaryDetailModal';
 import GrabSuccessModal from '../components/GrabSuccessModal';
 import { BG, BORDER, BRAND, SEMANTIC, TEXT, badgeGlow } from '../styles/tokens';
 import { installWindowNavListener } from '../utils/windowNav';
+import {
+  installVoiceCallRequestListener,
+  publishVoiceCallState,
+  setVoiceOwner,
+} from '../utils/voiceCallWindow';
 import { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, rolePage, IconLogout, IconFold, IconUnfold } from '../config/roleMenus';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
@@ -1629,6 +1634,33 @@ const AppLayout: React.FC = () => {
     window.addEventListener('start-voice-call', handler as EventListener);
     return () => window.removeEventListener('start-voice-call', handler as EventListener);
   }, [vc.startCall]);
+
+  // 主程序窗口 = 「管语音」的那个窗口：独立聊天窗口里点电话按钮会请它去打
+  // （聊天窗口自己不能打：一个账号的来电是往 user:<id> 房间广播的，谁装了语音就谁响铃，
+  //  开 3 个聊天窗口就会同时响 3 个。见 utils/voiceCallWindow.ts）。
+  useEffect(() => {
+    setVoiceOwner(true);
+    return () => setVoiceOwner(false);
+  }, []);
+  useEffect(
+    () =>
+      installVoiceCallRequestListener(({ targetUserId, targetUserName }) => {
+        // 打不了必须回一句话给点按钮的那个窗口，否则那边还是「点了一点反应没有」。
+        if (vc.callState.status !== 'idle') return '正在通话中，请先挂断';
+        void vc.startCall(targetUserId, targetUserName || '未知');
+        return null;
+      }),
+    [vc.startCall, vc.callState.status],
+  );
+  // 把通话状态镜像出去 —— 聊天窗口顶上要跟着显示「正在语音通话 mm:ss」。
+  useEffect(() => {
+    publishVoiceCallState({
+      status: vc.callState.status,
+      peerId: vc.callState.peerId,
+      peerName: vc.callState.peerName,
+      duration: vc.callState.duration,
+    });
+  }, [vc.callState.status, vc.callState.peerId, vc.callState.peerName, vc.callState.duration]);
 
   const VoiceCallHandler = () => (
     <>
