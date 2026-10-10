@@ -118,7 +118,7 @@ describe('补单审核 / 到期核查弹窗', () => {
     expect(screen.getByText('钱鸿鸣')).toBeInTheDocument();
   });
 
-  it('「退单」在客服那一格是「无异议，转店长」—— 点它调 CS_PASS，不直接批', async () => {
+  it('「补单申请」在客服那一格是「无异议，转店长」—— 点它调 CS_PASS，不直接批', async () => {
     useAuthStore.setState({ user: CS_USER as never, isAuthenticated: true });
     vi.mocked(ordersApi.supplementSummary).mockResolvedValue({
       data: { data: { pending: 1, due: 0, approvedToday: 0 } },
@@ -145,14 +145,14 @@ describe('补单审核 / 到期核查弹窗', () => {
     renderButton();
     fireEvent.click(screen.getByText('🧾 补单审核'));
 
-    expect(await screen.findByText('退单')).toBeInTheDocument();
+    expect(await screen.findByText('补单申请', { selector: '.ant-tag' })).toBeInTheDocument();
     expect(screen.getByText('待客服核对')).toBeInTheDocument();
-    expect(screen.queryByText('同意退单')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '同意补单' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '无异议，转店长' }));
     await waitFor(() => expect(ordersApi.decideSupplement).toHaveBeenCalledWith('sr9', 'CS_PASS'));
   });
 
-  it('店长那一格才是「同意退单」—— 点它调 APPROVE（同意 = 这单退掉 + 名额 +1）', async () => {
+  it('店长那一格才是「同意补单」—— 点它调 APPROVE（同意 = 这单退掉 + 名额 +1）', async () => {
     useAuthStore.setState({ user: ADMIN_USER as never, isAuthenticated: true });
     vi.mocked(ordersApi.supplementSummary).mockResolvedValue({
       data: { data: { pending: 1, due: 0, approvedToday: 0 } },
@@ -181,7 +181,7 @@ describe('补单审核 / 到期核查弹窗', () => {
 
     expect(await screen.findByText('待店长拍板')).toBeInTheDocument();
     expect(screen.queryByText('无异议，转店长')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '同意退单' }));
+    fireEvent.click(screen.getByRole('button', { name: '同意补单' }));
     await waitFor(() => expect(ordersApi.decideSupplement).toHaveBeenCalledWith('sr9', 'APPROVE'));
   });
 });
