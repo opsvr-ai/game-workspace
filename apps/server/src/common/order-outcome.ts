@@ -211,8 +211,8 @@ export function orderUnits(order: {
 }
 
 /**
- * 一张单的**流水**（元）=（主陪单价 + 搭档单价）× 时长。单价是「元/人/小时」，
- * 所以 2 小时的单流水是单价 ×2；双陪要把搭档那份（`coAmount`）一起算上，否则双陪的流水会少一半。
+ * 一张单的**业绩**（元）=（主陪单价 + 搭档单价）× 时长。单价是「元/人/小时」，
+ * 所以 2 小时的单业绩是单价 ×2；双陪要把搭档那份（`coAmount`）一起算上，否则双陪的业绩会少一半。
  */
 export function orderGrossYuan(order: {
   amount?: number | string | null;

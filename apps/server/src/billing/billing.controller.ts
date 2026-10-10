@@ -373,7 +373,7 @@ export class BillingController {
     return { code: 200, message: 'ok', data };
   }
 
-  // ── 下班转公户（当日实际流水的最终口径）──
+  // ── 下班转公户（当日实际业绩的最终口径）──
 
   @Post('billing/company-transfer')
   @Roles(UserRole.COMPANION)
@@ -387,7 +387,7 @@ export class BillingController {
       body?.amount,
       body?.screenshotUrl,
     );
-    return { code: 201, message: '转公户已提交，以该金额作为今日实际流水', data };
+    return { code: 201, message: '转公户已提交，以该金额作为今日实际业绩', data };
   }
 
   @Get('billing/daily-reconciliation')

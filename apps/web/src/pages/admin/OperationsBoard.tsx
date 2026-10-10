@@ -196,10 +196,10 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           （注意：antd 5.18 的 Row 上那个 align="stretch" 只会加个 class、并没有真的生成 CSS，
            实测 align-items 还是 flex-start，所以这里直接写行内样式。） */}
       <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
-        <Col xs={12} md={4}><StatCard label="今日流水" value={dash ? yuan(dash.today?.totalRevenue) : '—'} tint={BRAND.primary} /></Col>
-        <Col xs={12} md={4}><StatCard label="本月流水" value={overview ? yuan(overview.monthlyRevenue) : '—'} tint="#52c41a" /></Col>
+        <Col xs={12} md={4}><StatCard label="今日业绩" value={dash ? yuan(dash.today?.totalRevenue) : '—'} tint={BRAND.primary} /></Col>
+        <Col xs={12} md={4}><StatCard label="本月业绩" value={overview ? yuan(overview.monthlyRevenue) : '—'} tint="#52c41a" /></Col>
         {/* 今日单量 = 发单量（跟客服看板「全店发单」同一口径，老板 2026-10-07 定的）；
-            已完成单独放副标题，免得跟旁边的「今日流水」对不上号。 */}
+            已完成单独放副标题，免得跟旁边的「今日业绩」对不上号。 */}
         <Col xs={12} md={4}>
           <StatCard
             label="今日单量"
@@ -229,14 +229,14 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       {/* ── 图表 ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
         <Col xs={24} lg={15}>
-          <Card size="small" title="近 14 天流水" styles={{ body: { paddingTop: 8 } }}>
+          <Card size="small" title="近 14 天业绩" styles={{ body: { paddingTop: 8 } }}>
             {trendData.length ? (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={trendData} margin={{ top: 12, right: 8, left: -12, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `¥${v}`} />
-                  <Tooltip formatter={(v: any) => [`¥${Number(v).toFixed(1)}`, '流水']} />
+                  <Tooltip formatter={(v: any) => [`¥${Number(v).toFixed(1)}`, '业绩']} />
                   <Bar dataKey="revenue" fill={BRAND.primary} radius={[4, 4, 0, 0]} maxBarSize={26}>
                     <LabelList dataKey="revenue" position="top" formatter={(v: any) => (Number(v) > 0 ? Number(v).toFixed(0) : '')} style={{ fontSize: 10, fill: TEXT.tertiary }} />
                   </Bar>
@@ -335,7 +335,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
             onChange={(v) => setRankMode(v as any)}
             options={[
               { label: '综合分', value: 'score' },
-              { label: '本月流水', value: 'revenue' },
+              { label: '本月业绩', value: 'revenue' },
               { label: '客户数', value: 'customer' },
             ]}
           />
@@ -383,7 +383,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                   { title: '续单率', dataIndex: 'renewRate', width: 84, render: (v: number) => pct(v) },
                   { title: '复购率', dataIndex: 'repurchaseRate', width: 84, render: (v: number) => pct(v) },
                   { title: '成单(30天)', dataIndex: 'orders', width: 84 },
-                  { title: '本月流水', dataIndex: 'month', width: 96, render: (v: number) => yuan(v) },
+                  { title: '本月业绩', dataIndex: 'month', width: 96, render: (v: number) => yuan(v) },
                   { title: '客户', dataIndex: 'customers', width: 64, render: (v: number) => `${v} 个` },
                 ]}
               />

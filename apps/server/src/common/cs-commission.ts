@@ -15,7 +15,7 @@
 
 /** 一个人单独填的提成项（金额一律是**元**，跟设置页上填的一样；缺的项 = 用店里的） */
 export interface CsCommissionOverride {
-  /** 线下：流水 × 这个百分比，不足「线下保底」按保底发 */
+  /** 线下：业绩 × 这个百分比，不足「线下保底」按保底发 */
   offlineRatePercent?: number;
   /** 线下保底（元/单） */
   offlineFloorYuan?: number;
@@ -29,7 +29,7 @@ export interface CsCommissionOverride {
   bridgeTier5Threshold?: number;
   bridgeTier3Yuan?: number;
   bridgeTier5Yuan?: number;
-  /** 线上：'RATE' 按流水比例 / 'PER_ORDER' 按成功单数 × 每单单价 */
+  /** 线上：'RATE' 按业绩比例 / 'PER_ORDER' 按成功单数 × 每单单价 */
   onlineMode?: 'RATE' | 'PER_ORDER';
   onlineRatePercent?: number;
   onlinePerOrderYuan?: number;

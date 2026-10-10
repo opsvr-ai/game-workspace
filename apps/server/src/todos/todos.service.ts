@@ -393,8 +393,8 @@ export class TodosService {
       });
       push({
         key: 'transaction',
-        label: '陪玩流水待审',
-        hint: '陪玩报的收款流水，去「陪玩审核 + 支取」核对金额',
+        label: '陪玩业绩待审',
+        hint: '陪玩报的业绩，去「陪玩审核 + 支取」核对金额',
         count: (txPending as any[]).length,
         href: expenseHref,
         items: (txPending as any[]).slice(0, TAKE).map((r: any) => ({

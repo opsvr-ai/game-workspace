@@ -18,7 +18,7 @@ const roleOptions = [
 ];
 
 const basisOptions = [
-  { label: '认领流水（元）', value: 'CLAIMED_AMOUNT' },
+  { label: '认领业绩（元）', value: 'CLAIMED_AMOUNT' },
   { label: '派单量（单）', value: 'ORDER_COUNT' },
   { label: '认领量（单）', value: 'CLAIMED_COUNT' },
 ];
@@ -29,7 +29,7 @@ const typeOptions = [
 ];
 
 const basisLabel: Record<string, string> = {
-  CLAIMED_AMOUNT: '认领流水',
+  CLAIMED_AMOUNT: '认领业绩',
   ORDER_COUNT: '派单量',
   CLAIMED_COUNT: '认领量',
 };

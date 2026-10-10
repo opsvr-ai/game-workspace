@@ -393,7 +393,7 @@ const OrderPoolPage: React.FC = () => {
     );
   }
 
-  // 每日抢单名额（老板 2026-09-20 起取代「流水门槛」；2026-10-04 改成抢单即扣、没用完累计）
+  // 每日抢单名额（老板 2026-09-20 起取代「业绩门槛」；2026-10-04 改成抢单即扣、没用完累计）
   const quotaRemaining = Number(poolStatus?.remaining ?? 0);
   const quotaLimit = Number(poolStatus?.dailyLimit ?? 0);
   const quotaUsedToday = Number(poolStatus?.usedToday ?? 0);

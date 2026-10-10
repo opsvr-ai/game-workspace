@@ -22,7 +22,7 @@ const IconReload = React.createElement(ReloadOutlined);
 
 const CsvExport: React.FC<{ dailyRevenue: any[] }> = ({ dailyRevenue }) => {
   const exportCsv = () => {
-    const header = '日期,流水(元)';
+    const header = '日期,业绩(元)';
     const rows = dailyRevenue.map((d: any) => `${d.date},${d.revenue}`);
     const csv = [header, ...rows].join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
@@ -110,7 +110,7 @@ const RevenueDashboard: React.FC = () => {
     <div>
       <PageHeader
         title="营收报表"
-        subtitle="昨日 / 全月流水、在线陪玩、订单结构与陪玩收入排行"
+        subtitle="昨日 / 全月业绩、在线陪玩、订单结构与陪玩收入排行"
         extra={<Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>刷新</Button>}
       />
       {error && <ErrorBanner message={error} onRetry={fetchData} />}
@@ -120,10 +120,10 @@ const RevenueDashboard: React.FC = () => {
       {/* KPI Cards */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col xs={12} sm={6}>
-          <KpiCard label="昨日总流水" value={yuan(data?.yesterdayRevenue)} tint={`${SEMANTIC.successBright}`} />
+          <KpiCard label="昨日总业绩" value={yuan(data?.yesterdayRevenue)} tint={`${SEMANTIC.successBright}`} />
         </Col>
         <Col xs={12} sm={6}>
-          <KpiCard label="全月总流水" value={yuan(data?.monthlyRevenue)} tint={`${BRAND.primary}`} />
+          <KpiCard label="全月总业绩" value={yuan(data?.monthlyRevenue)} tint={`${BRAND.primary}`} />
         </Col>
         <Col xs={12} sm={6}>
           <KpiCard label="在线陪玩" value={`${onlineCount} 人`} tint={`${SEMANTIC.infoBright}`} />
@@ -144,7 +144,7 @@ const RevenueDashboard: React.FC = () => {
         <CsvExport dailyRevenue={dailyRevenue} />
       </div>
 
-      <Card title="📈 每日流水" size="small" style={{ marginBottom: 12 }}>
+      <Card title="📈 每日业绩" size="small" style={{ marginBottom: 12 }}>
         {dailyRevenue.length > 0 ? (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dailyRevenue}>
@@ -201,7 +201,7 @@ const RevenueDashboard: React.FC = () => {
         {detail && (
           <div>
             <Row gutter={16} style={{ marginBottom: 12 }}>
-              <Col span={12}><Statistic title="月流水" value={detail.totalRevenue} prefix="¥" precision={1} /></Col>
+              <Col span={12}><Statistic title="月业绩" value={detail.totalRevenue} prefix="¥" precision={1} /></Col>
               <Col span={12}><Statistic title="订单数" value={detail.orderCount} suffix="单" /></Col>
             </Row>
             {detailBarData.length > 0 && (

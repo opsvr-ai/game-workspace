@@ -2,7 +2,7 @@
  * 娱乐费唯一口径（老板 2026-09-20 定：全系统只能有一处算娱乐费）。
  *
  * 规则：
- * - 当日流水（含今天打掉的存单，见 sumDepositPlayedToday）>= 「娱乐模式门槛」
+ * - 当日业绩（含今天打掉的存单，见 sumDepositPlayedToday）>= 「娱乐模式门槛」
  *   (entertainment.revenue_threshold) → 免单，收 0
  * - 否则按 entertainment.hourly_rate（元/小时）折算到分钟，四舍五入到角
  *
@@ -16,13 +16,13 @@ import { currentBusinessDayRange } from './business-day';
 
 /** 没配置时的兜底费率（元/小时） */
 export const DEFAULT_ENTERTAINMENT_HOURLY_RATE = 60;
-/** 没配置时的兜底免单线（元/当日流水） */
+/** 没配置时的兜底免单线（元/当日业绩） */
 export const DEFAULT_ENTERTAINMENT_FREE_REVENUE = 0;
 
 export interface EntertainmentRule {
   /** 元/小时 */
   hourlyRate: number;
-  /** 当日流水达到这个数就免单 */
+  /** 当日业绩达到这个数就免单 */
   freeThreshold: number;
 }
 
@@ -53,7 +53,7 @@ export async function loadEntertainmentRule(
 export function computeEntertainmentFee(params: {
   /** 娱乐分钟数，允许小数 */
   minutes: number;
-  /** 该陪玩当日已完成流水（元） */
+  /** 该陪玩当日已完成业绩（元） */
   todayRevenue: number;
   hourlyRate: number;
   freeThreshold: number;
@@ -67,7 +67,7 @@ export function computeEntertainmentFee(params: {
   return roundToJiao(minutes * (hourlyRate / 60));
 }
 
-/** 当日流水是否已达免单线 */
+/** 当日业绩是否已达免单线 */
 export function isEntertainmentFree(todayRevenue: number, freeThreshold: number): boolean {
   return freeThreshold > 0 && todayRevenue >= freeThreshold;
 }
@@ -128,8 +128,8 @@ export function checkEntertainmentEligibility(params: {
   const funds = Math.max(0, Number(params.availableFunds) || 0);
   const rate = Math.max(0, Number(params.hourlyRate) || 0);
   const line = Number(params.freeThreshold) > 0
-    ? `今天流水到 ¥${params.freeThreshold} 就免单`
-    : '今天流水免单线没开';
+    ? `今天业绩到 ¥${params.freeThreshold} 就免单`
+    : '今天业绩免单线没开';
   return {
     ok: false,
     minutesLeft,
@@ -161,13 +161,13 @@ export function depositPlayedCredit(session: any): Array<{ companionId: string |
 /**
  * 今天「打存单」打掉的金额（老板 2026-10-04）。
  *
- * 老板原话：「每天可能要有存单要打，存单打了 9 个小时，新增流水可能就没有，那也不能娱乐了？
+ * 老板原话：「每天可能要有存单要打，存单打了 9 个小时，新增业绩可能就没有，那也不能娱乐了？
  * 我想改成打存单也算在娱乐那个门槛里。」
  *
- * 为什么按订单算的「当日流水」会漏：老客户的存单多半是**加在老的续单上**打的
- * （`addSession`，父单 `createdAt` 还是当初首单那天），而当日流水按「订单 createdAt」取数，自然算不到今天。
+ * 为什么按订单算的「当日业绩」会漏：老客户的存单多半是**加在老的续单上**打的
+ * （`addSession`，父单 `createdAt` 还是当初首单那天），而当日业绩按「订单 createdAt」取数，自然算不到今天。
  * 所以这里按**会话**补一份：今天结束、且 `paidByDeposit` 的会话，按 `claimedPrice × duration` 折算。
- * 父单本身就是今天建的（那笔钱已经在当日流水里）就不重复加。
+ * 父单本身就是今天建的（那笔钱已经在当日业绩里）就不重复加。
  *
  * 返回 Map<陪玩ID, 金额>；一个会话可能同时给主陪和副陪各记一份。
  */
@@ -206,7 +206,7 @@ export async function sumDepositPlayedToday(
   const idSet = new Set(ids);
   for (const row of rows as any[]) {
     const created = row?.parentOrder?.createdAt ? new Date(row.parentOrder.createdAt).getTime() : 0;
-    // 父单今天建的 → 那笔已经在「今日流水」里，别重复加
+    // 父单今天建的 → 那笔已经在「今日业绩」里，别重复加
     if (created >= window.start.getTime() && created < window.end.getTime()) continue;
     for (const credit of depositPlayedCredit(row)) {
       if (!credit.companionId || !idSet.has(credit.companionId) || credit.amount <= 0) continue;
@@ -217,7 +217,7 @@ export async function sumDepositPlayedToday(
 }
 
 /**
- * 娱乐门槛用的「当日流水」= 今天 DONE 单的流水 + 今天打掉的存单。
+ * 娱乐门槛用的「当日业绩」= 今天 DONE 单的业绩 + 今天打掉的存单。
  * 全系统只有这一处口径（看板 / 工作台 / 余额预警共用）。
  */
 export function entertainmentBasisRevenue(todayRevenue: number, depositPlayed: number): number {
@@ -225,19 +225,19 @@ export function entertainmentBasisRevenue(todayRevenue: number, depositPlayed: n
   const b = Number.isFinite(depositPlayed) ? depositPlayed : 0;
   return roundToJiao(a + b);
 }
-/** 「能不能玩娱乐」要用到的全部数（余额、费率、免单线、今日流水 + 打掉的存单） */
+/** 「能不能玩娱乐」要用到的全部数（余额、费率、免单线、今日业绩 + 打掉的存单） */
 export interface EntertainmentStanding {
   /** 余额 + 押金 */
   availableFunds: number;
   hourlyRate: number;
   freeThreshold: number;
-  /** 今日订单流水（口径 A：主陪拿主陪金额、搭档拿搭档金额，谁的钱算谁的） */
+  /** 今日订单业绩（口径 A：主陪拿主陪金额、搭档拿搭档金额，谁的钱算谁的） */
   todayRevenue: number;
   /** 今天「打掉的存单」金额（老板 2026-10-04：也算进娱乐门槛） */
   depositPlayed: number;
-  /** 门槛口径：今日流水 + 打掉的存单 */
+  /** 门槛口径：今日业绩 + 打掉的存单 */
   basisRevenue: number;
-  /** 今天流水是否已到免单线 */
+  /** 今天业绩是否已到免单线 */
   freeToday: boolean;
   /** 数据库里此刻的状态（心跳那条要拿它确认「人还在娱乐里」） */
   status: string | null;

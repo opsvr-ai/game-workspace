@@ -13,8 +13,8 @@ import { SEMANTIC } from '../styles/tokens';
 
 describe('StatCard', () => {
   it('标签、数字、下面那行小字都画得出来', () => {
-    render(<StatCard label="今日流水" value="￥12,860" sub="较昨日 +8%" tint={SEMANTIC.successDeep} />);
-    expect(screen.getByText('今日流水')).toBeInTheDocument();
+    render(<StatCard label="今日业绩" value="￥12,860" sub="较昨日 +8%" tint={SEMANTIC.successDeep} />);
+    expect(screen.getByText('今日业绩')).toBeInTheDocument();
     expect(screen.getByText('￥12,860')).toBeInTheDocument();
     expect(screen.getByText('较昨日 +8%')).toBeInTheDocument();
   });

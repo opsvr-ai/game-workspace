@@ -243,18 +243,18 @@
   让持单陪玩把单转给同工作室的另一个人（一个事务里换 `companionId`/`grabbedAt`、落留痕、转客户归属、清零联系进度），
   转出方的接单记录靠 `transfers.some(fromCompanionId = 我)` 保留，并标注「已于某时转让给某人」
 
-- **统一数据看板**: 昨日/全月流水, 31天趋势图, 订单类型饼图, 陪玩收入排行+明细下钻
+- **统一数据看板**: 昨日/全月业绩, 31天趋势图, 订单类型饼图, 陪玩收入排行+明细下钻
 - **陪玩钱包+结算**: 押金/余额/冻结/可支取 + 支取申请审核 + 阶梯分成月底结算
 - **客户画像+AI**: 19字段画像, 首单/复购检测, 活跃状态判定, AI分析+话术生成
 - **双陪搭档**: 呼叫/接受搭档 WebSocket 通知
 - **流量池+离职+授权+工作微信**: 渠道管理, 离职清退, 租客授权, 微信绑定
 - **客服派单范围 + 结果反馈 + 提成看板**（2026-09-29）: 每张单入池方式（`Order.poolScope`：线下→线上流转 /
   线上→线下流转）、线上 / 桥接单的接单方反馈（`Order.outcome`，线下点「开始首单」即成功）、
-  成功口径唯一实现 `common/order-outcome.ts`（含 `orderUnits` 单量、`orderGrossYuan` 流水、
+  成功口径唯一实现 `common/order-outcome.ts`（含 `orderUnits` 单量、`orderGrossYuan` 业绩、
   `outsideViewerVisible` 别家可见时机）、按人客服档位 `CsProfile`、重做的今日看板
 - **入池方式两条链 + 线下转桥接 / 线上统计**（2026-10-01 改口径）: 「线下→线上流转」本店线下先抢
   `pool.offline_first_bridge_minutes`（默认 3 分钟）再轮到桥接 / 线上；「线上→线下流转」桥接 + 线上俱乐部**秒看到**，
-  没人接再按 `pool.online_first_release_minutes`（默认 5 分钟）放给本店线下（到点自动放的那一刻会**给本店每个陪玩弹一次**，见 `OnlineFirstReleaseService`）；客服提成桥接按单量、线上按流水比例（`commission.cs_online_rate_percent`）；
+  没人接再按 `pool.online_first_release_minutes`（默认 5 分钟）放给本店线下（到点自动放的那一刻会**给本店每个陪玩弹一次**，见 `OnlineFirstReleaseService`）；客服提成桥接按单量、线上按业绩比例（`commission.cs_online_rate_percent`）；
   新页「线下转桥接/线上统计」（`GET /orders/escalated-pool` + `EscalatedPoolPanel`）标注去向 / 结算模式
   （首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里，并给按月汇总；
   这页可按月 + 按客服（`csUserId`，CS 角色服务端强制成自己）筛选，前端一键导出 CSV（逐单明细 + 汇总）；
@@ -286,7 +286,7 @@
 - **待处理工作台**（老板 2026-10-06「把店长 / 老板 / 客服需要处理的集合起来……每天上班先点开待处理看一下」）：
   新模块 `apps/server/src/todos`（`TodosService` / `TodosController`），`GET /api/todos` 按角色
   （CS / ADMIN / OWNER）汇总散在各页面的待办 —— 成交核对待拍板 / 等我核对 / 抢了没结果、客服该跟进的客户、
-  补单申请、陪玩报账 / 支取 / 流水待审、战绩图、工作微信、实名审核、删除客户、桥接申请（老板专属）——
+  补单申请、陪玩报账 / 支取 / 业绩待审、战绩图、工作微信、实名审核、删除客户、桥接申请（老板专属）——
   **「战绩图」这一条 2026-10-09 起客服也有**（老板「客服端怎么不能采纳陪玩上传的战绩图？」）：
   `POST /api/battle-screenshots/:id/review` 的 `@Roles` 加了 `CS`，待办里这条也不再只挂店长 / 老板那一组。
   范围跟「战绩图审核」页一致 —— 只看本店（老板全量）；非老板动别家的记录一律 `Forbidden`。
@@ -1049,7 +1049,7 @@ sequenceDiagram
 
 **数据模型:**
 - PriceRule: 游戏/模式价格规则 (首单底价、续单区间，金额整数分)
-- MerchantPaymentRecord: 员工收款码到账流水
+- MerchantPaymentRecord: 员工收款码到账业绩
 - CommissionRule / CommissionLedger: 客服/店长提成规则与月度结算
 - SettlementSnapshot: 陪玩月度分成不可变快照
 
@@ -1058,7 +1058,7 @@ sequenceDiagram
 - 分成阶梯：**只用于线下工作室**（Studio.type=DIRECT、splitMode=TIERED；线上俱乐部 RENTAL 是按人固定比例，
   不走阶梯）。阶梯明细以「设置 → 分成阶梯」里老板填的为准（线上现在是 0–5999.9 五五 / 6000–9999.99 六四 /
   ≥10000 七三，老板口语里也写成 55/64/73，指的是同一套）；**最高一档需入职满 6 个月**，没满回落下一档（勾「老员工」可豁免）
-- 一单流水的四个人分（老板 2026-09-21）：**陪玩**（线下阶梯 / 线上俱乐部固定比例）+ **客服**（线下按流水比例、
+- 一单业绩的四个人分（老板 2026-09-21）：**陪玩**（线下阶梯 / 线上俱乐部固定比例）+ **客服**（线下按业绩比例、
   线上按每单固定金额，均在「客服设置」）+ **店长**（`commission.admin_offline_rate_percent` /
   `commission.admin_online_rate_percent`，在「设置 → 利润分成（分账规则）」页填）+ **工作室**（拿剩下的）。
   唯一实现在 `common/order-split.ts`；店长分成随月度提成写入 `CommissionLedger`（一店多店长按人数均分，
@@ -1066,7 +1066,7 @@ sequenceDiagram
 - **桥接往来「只统计、不转账」（老板 2026-09-21 定口径）**：桥接 = 双方能互相抢单、人员互通，
   钱由两个店长在微信上定期互相结。系统只算清两向：我店发的单被对方店陪玩接走 = **我应付**对方店；
   对方店发的单被我店陪玩接走 = **我应收**。金额 = 该陪玩在这笔单里的业绩（主陪 / 搭档 / splits 各算各的）
-  × 他**自己店**的分成比例（含 6 个月工龄门槛、按当月总流水落档），与
+  × 他**自己店**的分成比例（含 6 个月工龄门槛、按当月总业绩落档），与
   `billing/settlement.service.ts` 发工资时是同一套算法 —— 统计口径必须等于发钱口径，否则对不上账。
   实现在 `studios/bridge.service.ts#settlementStats` + `studios/bridge-settlement.util.ts`（纯函数：
   方向判定 / 汇总 / 按店分组，15 条单测覆盖）；接口 `GET /api/bridges/settlement`，
@@ -1114,11 +1114,11 @@ sequenceDiagram
   完全一致（`outcome` 空 + 没点「开始首单」+ 没退款 / 取消 + 最近 14 天），节奏「当天 1 次 + 之后每天 1 次 × 7 天」，
   按人汇总、24 小时一条；端点 `order:unstarted_reminder`（陪玩本人）/ `order:unstarted_reminder_admin`（满 7 天给管理端）。
   它只催人：`successOrderWhere()` 与 `commission.service` 都不看它，钱和名额都不变。
-- **线上俱乐部提成口径**（老板 2026-09-30）：`commission.cs_online_mode` = `RATE`（默认，流水 ×
+- **线上俱乐部提成口径**（老板 2026-09-30）：`commission.cs_online_mode` = `RATE`（默认，业绩 ×
   `commission.cs_online_rate_percent`，2026-09-29 定的口径）/ `PER_ORDER`（成功单数 ×
   `commission.cs_online_per_order_yuan`）。判定在 `onlineModeOf`，算钱只走 `CommissionService.onlineCommissionOf`，
   月度工资、今日看板、`computeCsCommission`、月度对账（`reconciliation.service`）四处共用同一份 ——
-  **两个数不叠加**，没配过就是按流水，钱不变
+  **两个数不叠加**，没配过就是按业绩，钱不变
 - **客服档位**：`CsProfile`（`userId` 唯一）按人存 `poolScope`（默认派单范围，发单弹窗的默认值）、
   `baseSalaryYuan`（空 = 用 `PayrollConfig(role=CS).baseSalary`）与 `commissionConfig`（这个人的「单独一套提成」，
   JSON，只存他填过的项；空 = 全套用店里的）；今日看板、月度结算、工资生成按人取底薪
@@ -1171,6 +1171,6 @@ sequenceDiagram
 - `GET /api/orders/reviews?scope=waiting|recheck|archived|decided` — 成交核对清单（待拍板 / 抢了没结果 / 历史记录 / 已拍板；OWNER 全量，其余按可见工作室）
 - `GET /api/orders/reviews/summary` — 成交核对条数（管理端菜单红数字 `{ waiting, waitingCs, waitingDecide, recheck, rejected }`）
 - `POST /api/orders/:id/review-reject` — 店长 / 老板「打回重写」（**仅 ADMIN/OWNER**）：`{ note }` 必填，把失败单退回接单方重填（`reviewStatus=REJECTED` + `customFields.outcomeReject` 留痕，推接单方 + 发单客服）
-- `GET /api/todos` — 待处理工作台（**CS/ADMIN/OWNER**）：按角色汇总待拍板 / 等我核对 / 抢了没结果 / 跟进的客户 / 补单 / 报账 / 支取 / 流水 / 战绩图 / 工作微信 / 实名 / 删除客户 / 桥接申请，返回 `{ total, groups[] }`
+- `GET /api/todos` — 待处理工作台（**CS/ADMIN/OWNER**）：按角色汇总待拍板 / 等我核对 / 抢了没结果 / 跟进的客户 / 补单 / 报账 / 支取 / 业绩 / 战绩图 / 工作微信 / 实名 / 删除客户 / 桥接申请，返回 `{ total, groups[] }`
 - `POST /api/upload/screenshot` — 截图上传（`COMPANION`/`CS`/`ADMIN`/`OWNER`，失败结果证据 / 客服代录用）
 - `GET/PUT /api/config` — 全局配置（含 `capture.*` 截图阈值）

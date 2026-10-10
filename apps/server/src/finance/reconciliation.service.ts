@@ -314,7 +314,7 @@ export class ReconciliationService {
     const secretPrice = Number(scopedCfg['bridge.secret_price_yuan'] ?? 35);
     const juejuNet = Number(scopedCfg['bridge.jueju_net_yuan'] ?? 30);
     const bridgePerOrder = Number(scopedCfg['commission.cs_bridge_per_order_yuan'] ?? 1);
-    // 线上俱乐部客服提成：按流水比例计提（老板 2026-09-29），或按单数 × 每单单价
+    // 线上俱乐部客服提成：按业绩比例计提（老板 2026-09-29），或按单数 × 每单单价
     // —— 用哪一种由「设置 → 客服设置」里的 `commission.cs_online_mode` 决定（老板 2026-09-30）。
     const onlineRatePct = Number(scopedCfg['commission.cs_online_rate_percent'] ?? 1);
     const onlinePerOrder = Number(scopedCfg['commission.cs_online_per_order_yuan'] ?? 1);
@@ -325,7 +325,7 @@ export class ReconciliationService {
     const daysInMonth = new Date(year, mon, 0).getDate();
     const dailyExpense = daysInMonth > 0 ? monthlyTotalExpense / daysInMonth : 0;
 
-    // 线下阶梯分成：先算每个本工作室陪玩当月流水，再按对应档位取工作室分成比例。
+    // 线下阶梯分成：先算每个本工作室陪玩当月业绩，再按对应档位取工作室分成比例。
     const ownRevenue = new Map<string, number>();
     const companionTenure = new Map<string, number>();
     for (const o of orders) {
@@ -373,7 +373,7 @@ export class ReconciliationService {
         }
       }
 
-      // 客服提成：桥接按单量（每单单价 × 单量）+ 线上按流水比例（或按单数 × 每单单价）+ 线下按订单流水比例。
+      // 客服提成：桥接按单量（每单单价 × 单量）+ 线上按业绩比例（或按单数 × 每单单价）+ 线下按订单业绩比例。
       let csCommission = 0;
       if (o.attributedCsUserId || o.claimedCsUserId || o.csUserId) {
         if (compStudio?.type === 'RENTAL') {
@@ -434,10 +434,10 @@ export class ReconciliationService {
    *
    * 口径（跟本页其他卡片对齐）：
    *  - 只算**本店线下陪玩**接的、本店发的、未取消（CONFIRMED/DONE）的单；
-   *  - 流水 =（主陪单价 + 搭档单价）× 时长（双陪把搭档那份算上，跟「应收」口径一致）；
-   *  - **本店实得** = 流水 ×（100 − 该陪玩当月档位）/ 100，档位同「线下利润」（阶梯 + 6 个月工龄门槛）；
+   *  - 业绩 =（主陪单价 + 搭档单价）× 时长（双陪把搭档那份算上，跟「应收」口径一致）；
+   *  - **本店实得** = 业绩 ×（100 − 该陪玩当月档位）/ 100，档位同「线下利润」（阶梯 + 6 个月工龄门槛）；
    *  - **派桥接** = 机密 35 / 绝密净 30 元/人/时 × 时长 × 人时（首单不结，跟桥接利润同一口径）；
-   *  - **派线上** = 流水 ×（100 − revenue.club_companion_share）/ 100。
+   *  - **派线上** = 业绩 ×（100 − revenue.club_companion_share）/ 100。
    * 返回按「本店实得 − 对外更优的那个」升序，最不划算的排最上面。
    */
   async getCompanionValueCompare(studioId: string, month: string) {

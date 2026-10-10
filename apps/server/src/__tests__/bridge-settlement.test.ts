@@ -135,7 +135,7 @@ function makeService(opts: {
     studioBridge: {
       findMany: vi.fn(async () => [{ studioAId: 'A', studioBId: 'B', status: 'ACTIVE' }]),
     },
-    // 第一次查「我店 + 桥接店的单」，第二次查「这些人的当月全部流水」
+    // 第一次查「我店 + 桥接店的单」，第二次查「这些人的当月全部业绩」
     order: {
       findMany: vi.fn(async (args: any) =>
         args?.where?.studioId ? opts.orders : opts.monthOrders,

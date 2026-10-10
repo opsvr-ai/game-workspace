@@ -258,8 +258,8 @@ const CompanionPage: React.FC = () => {
     data?.availableFunds ?? 0,
   )}，娱乐 ¥${Number(data?.hourlyRate ?? 0)}/小时，${
     Number(data?.entertainmentThreshold ?? 0) > 0
-      ? `今天流水到 ¥${data.entertainmentThreshold} 就免单`
-      : '今天流水免单线没开'
+      ? `今天业绩到 ¥${data.entertainmentThreshold} 就免单`
+      : '今天业绩免单线没开'
   }）—— 先充值或交押金，或者今天多打几单再进。`;
 
   if (loading) return <LoadingState size="large" minHeight={220} />;
@@ -345,14 +345,14 @@ const CompanionPage: React.FC = () => {
           </Col>
           <Col>
             <Space>
-              {/* 门槛口径（老板 2026-10-04）：今天到手的钱 = 订单流水 + 打掉的存单 */}
+              {/* 门槛口径（老板 2026-10-04）：今天到手的钱 = 订单业绩 + 打掉的存单 */}
               <Tooltip
                 title={
                   !entertainmentAffordable
                     ? entertainmentBlockReason
                     : data.entertainmentFreeToday
-                      ? `娱乐随时可进：今天流水 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，已到 ¥${data.entertainmentThreshold ?? 0} 门槛 → 今天免费`
-                      : `娱乐随时可进：今天流水 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，还没到 ¥${data.entertainmentThreshold ?? 0} → 按 ¥${data.hourlyRate ?? 0}/小时 计费`
+                      ? `娱乐随时可进：今天业绩 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，已到 ¥${data.entertainmentThreshold ?? 0} 门槛 → 今天免费`
+                      : `娱乐随时可进：今天业绩 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，还没到 ¥${data.entertainmentThreshold ?? 0} → 按 ¥${data.hourlyRate ?? 0}/小时 计费`
                 }
               >
                 <Button
@@ -399,7 +399,7 @@ const CompanionPage: React.FC = () => {
         </Row>
       </Card>
 
-      {/* 📊 我的首页看板：进度条风格，一眼看完自己的流水 / KPI / 客户（老板 2026-10-04） */}
+      {/* 📊 我的首页看板：进度条风格，一眼看完自己的业绩 / KPI / 客户（老板 2026-10-04） */}
       <CompanionHomeBoard
         workbench={data}
         excellence={excellence}
@@ -416,7 +416,7 @@ const CompanionPage: React.FC = () => {
           <Space size={12} wrap style={{ marginBottom: 8 }}>
             <Text strong>阶梯分成</Text>
             <Tag color="blue">
-              本月流水 ¥{Number(data.tierInfo.monthlyRevenue || 0).toFixed(2)}
+              本月业绩 ¥{Number(data.tierInfo.monthlyRevenue || 0).toFixed(2)}
             </Tag>
             <Tag color="gold" style={{ fontSize: 14, fontWeight: 600 }}>
               当前分成 {data.tierInfo.companionPct}%
@@ -541,7 +541,7 @@ const CompanionPage: React.FC = () => {
                 <thead>
                   <tr style={{ color: '#999', borderBottom: '1px solid #f0f0f0' }}>
                     <th style={{ textAlign: 'left', padding: 2 }}>陪玩</th>
-                    <th style={{ padding: 2 }}>流水</th>
+                    <th style={{ padding: 2 }}>业绩</th>
                     <th style={{ padding: 2 }}>首单</th>
                     <th style={{ padding: 2 }}>续单</th>
                     <th style={{ padding: 2 }}>复购</th>
@@ -723,7 +723,7 @@ const CompanionPage: React.FC = () => {
         <Text strong>💰 报账</Text>
         <br />
         <Text>
-          总流水 ¥{(wallet?.totalRevenue ?? 0).toFixed(0)} · 可支取 ¥{(wallet?.withdrawable ?? 0).toFixed(0)} · 押金 ¥
+          总业绩 ¥{(wallet?.totalRevenue ?? 0).toFixed(0)} · 可支取 ¥{(wallet?.withdrawable ?? 0).toFixed(0)} · 押金 ¥
           {(wallet?.deposit ?? 0).toFixed(0)}
         </Text>
         <br />

@@ -9,9 +9,9 @@ import { BadRequestException } from '@nestjs/common';
  * 口径：**陪玩那一栏才是真正参与算钱的比例**，工作室 = 剩余份额，
  * 所以这里以 `companion` 为准，把 `studio` 归一化成 `100 − companion − 店长 − 客服`。
  * （`deductPercent` 就是店长 + 客服那两个比例之和 —— 老板 2026-09-21：
- * 不管线下还是线上，一单流水由 工作室 / 店长 / 客服 / 陪玩 四个人分，
+ * 不管线下还是线上，一单业绩由 工作室 / 店长 / 客服 / 陪玩 四个人分，
  * 店长与客服拿的也是工作室那一份，所以工作室真正到手的份额要把这两项减掉。）
- * 对账（`reconciliation.service.ts` 用 `tier.studio` 算工作室流水）与
+ * 对账（`reconciliation.service.ts` 用 `tier.studio` 算工作室业绩）与
  * 结算（`settlement.service.ts` 用 `companion` 算陪玩分成）因此永远自洽，
  * 界面上「工作室」那一行显示的数字也和库里存的一致。
  */

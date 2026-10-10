@@ -50,7 +50,7 @@ const RevenueSettings: React.FC = () => {
     <div>
       {/* Revenue & Pricing */}
       <Card
-        title="💰 流水与价格"
+        title="💰 业绩与价格"
         style={{ marginBottom: 16 }}
         extra={
           <Space>
@@ -66,7 +66,7 @@ const RevenueSettings: React.FC = () => {
                     'billing.report_diff_warning_yuan': config?.['billing.report_diff_warning_yuan'],
                     'entertainment.hourly_rate': config?.['entertainment.hourly_rate'],
                   },
-                  '流水与价格',
+                  '业绩与价格',
                 )
               }
             >
@@ -85,10 +85,10 @@ const RevenueSettings: React.FC = () => {
               onChange={(v) => update('entertainment.revenue_threshold', v ?? 0)}
               style={{ width: 200 }}
             />
-            <Text type="secondary" style={{ marginLeft: 8 }}>当日流水达到此金额后，娱乐时长不再扣费（0 = 不免单）</Text>
+            <Text type="secondary" style={{ marginLeft: 8 }}>当日业绩达到此金额后，娱乐时长不再扣费（0 = 不免单）</Text>
           </div>
           <div>
-            <Label>低流水预警</Label>
+            <Label>低业绩预警</Label>
             <InputNumber
               min={0} step={10}
               suffix="元"
@@ -96,7 +96,7 @@ const RevenueSettings: React.FC = () => {
               onChange={(v) => update('revenue.low_warning', v ?? 300)}
               style={{ width: 200 }}
             />
-            <Text type="secondary" style={{ marginLeft: 8 }}>低于此金额触发低流水警告</Text>
+            <Text type="secondary" style={{ marginLeft: 8 }}>低于此金额触发低业绩警告</Text>
           </div>
           <div>
             <Label>报账差额预警阈值</Label>

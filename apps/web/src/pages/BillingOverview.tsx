@@ -471,7 +471,7 @@ const BillingOverview: React.FC = () => {
         <Row gutter={[16, 16]} style={{ marginBottom: 12 }}>
           <Col span={4}>
             <StatBlock
-              label="今日流水"
+              label="今日业绩"
               value={`¥${(overviewData?.summary?.todayRevenue ?? 0).toFixed(1)}`}
               icon={IconDollar}
               color={BRAND.primary}
@@ -479,7 +479,7 @@ const BillingOverview: React.FC = () => {
           </Col>
           <Col span={4}>
             <StatBlock
-              label="总流水"
+              label="总业绩"
               value={`¥${(overviewData?.summary?.totalRevenue ?? 0).toFixed(1)}`}
               icon={IconWallet}
               color={`${SEMANTIC.direct}`}
@@ -646,7 +646,7 @@ const BillingOverview: React.FC = () => {
         {isCompanion && (
           <Space>
             <Button icon={<UploadOutlined />} loading={reportLoading} onClick={() => loadReport('day')}>
-              上报流水
+              上报业绩
             </Button>
             <Button icon={<HistoryOutlined />} loading={reportLoading} onClick={() => loadReport('unreported')}>
               补报漏单
@@ -686,7 +686,7 @@ const BillingOverview: React.FC = () => {
       </div>
 
       {/* Report Today Modal */}
-      <Modal title="📋 上报流水" open={reportVisible} width={1600}
+      <Modal title="📋 上报业绩" open={reportVisible} width={1600}
         onOk={async () => {
           const total = Object.values(reportAmounts).reduce((s: number, v: number) => s + (v || 0), 0);
           if (total <= 0) {
@@ -861,7 +861,7 @@ const BillingOverview: React.FC = () => {
             }}
           >
             <Text>
-              总流水：
+              总业绩：
               <Text strong>¥{(overviewData?.summary?.totalRevenue ?? 0).toFixed(1)}</Text>
             </Text>
             <br />

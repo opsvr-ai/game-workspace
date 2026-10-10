@@ -12,7 +12,7 @@ const { Text } = Typography;
  * 陪玩端首页看板（老板 2026-10-04）。
  * 老板原话：「我打开首页，把我想看的全部一目了然多好……包括陪玩端 客服端 老板端 都让他们去首页一目了然」，
  * 而且明确要「进度条样式，从高到低排列」。所以这一块全部用进度条，不用表格：
- *   ① 我的关键数字（今日/本月流水、单量、名额、客户）
+ *   ① 我的关键数字（今日/本月业绩、单量、名额、客户）
  *   ② 我的 KPI 进度条（首单成功率 / 续单率 / 复购率 / 微信添加率 / 转化率）+ 综合分与距下一级
  *   ③ 我的客户消费榜（金额从高到低，进度条）
  */
@@ -54,13 +54,13 @@ interface Props {
 
 const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, customers, attendance }) => {
   const w = workbench || {};
-  // 本月流水：只算他自己那份 —— 当主陪拿主陪金额、当搭档拿搭档金额，「搭档（别人）那份」永远不进这个数。
+  // 本月业绩：只算他自己那份 —— 当主陪拿主陪金额、当搭档拿搭档金额，「搭档（别人）那份」永远不进这个数。
   // 服务端 workbench 直接给总额，这里只显示它。
   // 以前这里兜底过 excellence.revenueYuan —— 那是「最近 30 天」的数（还把上个月算进来），
   // 跟「本月」不是一回事，也正是老板看着像「把别人的钱加进来了」的原因之一，已删掉。
   //
-  // 老板 2026-10-08：「本月流水 ¥X（只算自己那份）……小字摊开『当主陪 ¥A + 当搭档 ¥B』……
-  // 这个小字都不用写，谁还不知道只算自己的那一部分呢？」—— 所以卡片上只留「本月流水 ¥X」，
+  // 老板 2026-10-08：「本月业绩 ¥X（只算自己那份）……小字摊开『当主陪 ¥A + 当搭档 ¥B』……
+  // 这个小字都不用写，谁还不知道只算自己的那一部分呢？」—— 所以卡片上只留「本月业绩 ¥X」，
   // 小字拆分和那句悬停说明整条删掉（口径一个字没变，只是不再写在脸上）。
   const monthRevenue = Number(w?.monthRevenue ?? w?.tierInfo?.monthlyRevenue ?? 0);
   // 段位分 = 四项 KPI（不含战绩图加分）；段位 / 距下一级都看它。
@@ -100,15 +100,15 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
         showIcon
         style={{ marginBottom: 10 }}
         message="打完一定要点「结束服务」！"
-        description="系统只认「已经打完（结束过）」的单：不点结束，这一单不计流水，也不算首单成交 / 续单 / 复购 —— 分数和抢单名额都会少。到点后右下角会每隔一会儿提醒你一次。"
+        description="系统只认「已经打完（结束过）」的单：不点结束，这一单不计业绩，也不算首单成交 / 续单 / 复购 —— 分数和抢单名额都会少。到点后右下角会每隔一会儿提醒你一次。"
       />
       {/* ① 关键数字 */}
       <Row gutter={[8, 8]} style={{ marginBottom: 10 }}>
         <Col xs={12} md={4}>
           <StatCard
-            label="今日流水"
+            label="今日业绩"
             value={yuan(w.todayRevenue)}
-            sub={`本月流水 ${yuan(monthRevenue)}`}
+            sub={`本月业绩 ${yuan(monthRevenue)}`}
             tint={BRAND.primary}
           />
         </Col>

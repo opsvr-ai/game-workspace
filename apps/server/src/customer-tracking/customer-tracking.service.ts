@@ -50,7 +50,7 @@ export class CustomerTrackingService {
     if (!companionId) throw new ForbiddenException('仅陪玩可查看抢单状态');
 
     // 抢单资格：老板 2026-09-20 起只看「每日立即打名额」，
-    // 原来的「流水门槛」已删除；成功率门槛保留但默认关闭（线上没配置时不再误报受限）。
+    // 原来的「业绩门槛」已删除；成功率门槛保留但默认关闭（线上没配置时不再误报受限）。
     const keys = ['pool.success_rate_gate_enabled', 'pool.success_rate_gate_threshold'];
     const cfg = await resolveConfigsRaw(this.prisma, user.studioId ?? null, keys);
 

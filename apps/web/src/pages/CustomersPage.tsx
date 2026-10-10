@@ -1269,7 +1269,7 @@ const CustomersPage: React.FC = () => {
         >
           <p style={{ marginTop: 8 }}>
             把 <Text strong>{archiveTarget?.wechatId || archiveTarget?.customerCode}</Text> 收起来？
-            档案、订单、流水、跟进记录全都保留，只是不再出现在活跃客户里；
+            档案、订单、业绩、跟进记录全都保留，只是不再出现在活跃客户里；
             以后想再试一次，可以在「已封存」里解封、顺手换一个陪玩加。
           </p>
           <Input.TextArea

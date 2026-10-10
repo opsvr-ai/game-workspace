@@ -13,7 +13,7 @@ import {
 // 娱乐费在老板的系统里只有一个算法（看板 / 工作台 / 搭档结算 / 余额预警共用），
 // 这里的用例就是那个算法的说明书。
 describe('娱乐费唯一口径', () => {
-  it('当日流水达到免单线 → 免费', () => {
+  it('当日业绩达到免单线 → 免费', () => {
     expect(
       computeEntertainmentFee({ minutes: 120, todayRevenue: 300, hourlyRate: 60, freeThreshold: 300 }),
     ).toBe(0);
@@ -57,7 +57,7 @@ describe('娱乐费唯一口径', () => {
 });
 
 // ── 老板 2026-10-04：「打存单也算在娱乐那个门槛里」 ──
-// 存单常加在老的续单上打（父单 createdAt 不是今天），按订单取数的当日流水会漏，
+// 存单常加在老的续单上打（父单 createdAt 不是今天），按订单取数的当日业绩会漏，
 // 所以按「今天结束的存单会话」补一份；父单本身就是今天建的就不重复加。
 describe('打存单也算进娱乐门槛（老板 2026-10-04）', () => {
   const day = { start: new Date('2026-10-04T12:00:00+08:00'), end: new Date('2026-10-05T12:00:00+08:00') };
@@ -103,7 +103,7 @@ describe('打存单也算进娱乐门槛（老板 2026-10-04）', () => {
     expect(where.endedAt).toEqual({ gte: day.start, lt: day.end });
   });
 
-  it('父单本身就是今天建的 → 已经在今日流水里，不重复加', async () => {
+  it('父单本身就是今天建的 → 已经在今日业绩里，不重复加', async () => {
     const prisma = fakePrisma([
       {
         companionId: 'c1',
@@ -143,7 +143,7 @@ describe('打存单也算进娱乐门槛（老板 2026-10-04）', () => {
     expect(empty.size).toBe(0);
   });
 
-  it('门槛口径：流水 0 + 存单 300 = 300 → 免费', () => {
+  it('门槛口径：业绩 0 + 存单 300 = 300 → 免费', () => {
     const basis = entertainmentBasisRevenue(0, 300);
     expect(basis).toBe(300);
     expect(isEntertainmentFree(basis, 300)).toBe(true);

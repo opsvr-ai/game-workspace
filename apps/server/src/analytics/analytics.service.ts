@@ -90,12 +90,12 @@ export class AnalyticsService {
         const tags: string[] = [];
         if (renewRate >= 30) tags.push('续单强');
         if (repurchaseRate >= 30) tags.push('复购强');
-        if (total >= 500) tags.push('高流水');
+        if (total >= 500) tags.push('高业绩');
         if (orders.length >= 10) tags.push('努力型');
         const suggestions: string[] = [];
         if (renewRate < 30) suggestions.push('续单率偏低，建议培训复购话术');
         if (repurchaseRate < 30) suggestions.push('复购率偏低，建议加强客户维护');
-        if (total >= 500) suggestions.push('高流水陪玩，建议优先派优质客户');
+        if (total >= 500) suggestions.push('高业绩陪玩，建议优先派优质客户');
         return {
           id: comp.id,
           name: comp.user?.username || comp.id,

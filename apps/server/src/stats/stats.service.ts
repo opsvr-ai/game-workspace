@@ -99,7 +99,7 @@ export interface DailyKpiRow {
   denomCustomers: number;
   /** 当天在他这打了首单的客户数（新客） */
   newCustomers: number;
-  /** 当天流水（元） */
+  /** 当天业绩（元） */
   amount: number;
   /** 当天时长（小时，按打完的会话算） */
   hours: number;

@@ -219,13 +219,13 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.low_tier_daily_new_limit': 1,
   'dispatch.break_even_hours': 2.5,
   // 综合评分：每一项「取达到的最高一档」的分（不叠加），四项满分之和 ≤ 100。
-  // 以前那套「权重占比」（excellence.*_weight）与「流水封顶」已整条去掉（老板 2026-10-04）。
+  // 以前那套「权重占比」（excellence.*_weight）与「业绩封顶」已整条去掉（老板 2026-10-04）。
   // 老板 2026-10-04 定稿、2026-10-05 选 B 微调的档位表 + 一条硬门槛，满分 45 + 20 + 20 + 10 = 95：
-  //   流水 8000 + 三率都过半 = 45+20+20+10 = 95 → 上等马（上等马线 85，留 10 分缓冲）；
-  //   流水 10000 只吃老客（首单 0）= 50+20+20 = 90 → 上等马；
+  //   业绩 8000 + 三率都过半 = 45+20+20+10 = 95 → 上等马（上等马线 85，留 10 分缓冲）；
+  //   业绩 10000 只吃老客（首单 0）= 50+20+20 = 90 → 上等马；
   //   纯新客打满 ≈ 4050 元（3 单/天 × 45 元 × 30 天）够不到门槛 → 必然下等马。
-  // revenue_floor：最近 30 天流水没到这条线的人**一律下等马**（KPI 再高也不算）；
-  //   流水达标的人最低也是中等马。填 0 = 关掉这条硬线。
+  // revenue_floor：最近 30 天业绩没到这条线的人**一律下等马**（KPI 再高也不算）；
+  //   业绩达标的人最低也是中等马。填 0 = 关掉这条硬线。
   'excellence.excellent_threshold': 85,
   'excellence.middle_tier_threshold': 60,
   'excellence.revenue_floor': 5200,
@@ -289,17 +289,17 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'commission.cs_daily_bridge_target': 10,
   // 2026-09-30 老板：「别这样了，扣底薪客服会不愿意的」—— 「未达标扣提成 / 扣底薪」两个比例整条删除，
   // 桥接跑不够只影响单价阶梯（< 最低单数按 cs_bridge_per_order_yuan）。老库里留下的这两行没人再读。
-  // 店长分成比例（% 流水，老板 2026-09-21：一单流水由 工作室/店长/客服/陪玩 四个人分）。
+  // 店长分成比例（% 业绩，老板 2026-09-21：一单业绩由 工作室/店长/客服/陪玩 四个人分）。
   // 默认 0 = 店长暂不参与分成（老口径不变），在「利润分成」页里填。
   'commission.admin_offline_rate_percent': 0,
   'commission.admin_online_rate_percent': 0,
   'commission.cs_offline_floor_cents': 200,
   'commission.cs_online_per_order_yuan': 1,
-  // 线上俱乐部订单的客服提成：按**流水比例**计提（老板 2026-09-29：「桥接按单量计提、线上按流水计提」）。
+  // 线上俱乐部订单的客服提成：按**业绩比例**计提（老板 2026-09-29：「桥接按单量计提、线上按业绩计提」）。
   // 桥接工作室仍是「按单量计提」（见 commission.cs_bridge_per_order_yuan 与 cs_bridge_tier*_*）。
   'commission.cs_online_rate_percent': 1,
   // 线上俱乐部订单的客服提成口径（老板 2026-09-30：「这些我自己填写」）：
-  //   'RATE'      = 按流水比例（`commission.cs_online_rate_percent`，2026-09-29 定的口径，默认）
+  //   'RATE'      = 按业绩比例（`commission.cs_online_rate_percent`，2026-09-29 定的口径，默认）
   //   'PER_ORDER' = 按成功单数 × 每单单价（`commission.cs_online_per_order_yuan`）
   // 两个数都在「设置 → 客服设置」里填，这里只管默认用哪一种。
   'commission.cs_online_mode': 'RATE',

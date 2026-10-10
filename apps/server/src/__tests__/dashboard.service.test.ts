@@ -70,7 +70,7 @@ describe('DashboardService', () => {
 
       const result = await service.getDashboard('studio-001');
 
-      // 流水 / 已完成只算 DONE：100 + 200 = 300、2 单
+      // 业绩 / 已完成只算 DONE：100 + 200 = 300、2 单
       expect(result.today.totalRevenue).toBe(300);
       expect(result.today.orderCount).toBe(2);
       // 今日单量（发单量）含还没打完的：3 单 —— 老板 2026-10-07 定的口径

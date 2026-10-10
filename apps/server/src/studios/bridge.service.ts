@@ -380,7 +380,7 @@ export class BridgeService {
           studio: { select: { id: true, name: true, splitMode: true } },
         },
       }),
-      // 当月业绩：口径与月度结算一致（主陪 + 搭档都算进同一个人的月流水，用来定分成档位）
+      // 当月业绩：口径与月度结算一致（主陪 + 搭档都算进同一个人的月业绩，用来定分成档位）
       this.prisma.order.findMany({
         where: {
           status: 'DONE',

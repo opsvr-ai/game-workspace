@@ -3093,7 +3093,7 @@ export class OrdersService implements OnModuleInit {
    *  - 只统计**已经被人抢走**、而且抢的人不是本店线下（桥接工作室 / 线上俱乐部）的单；
    *  - **桥接工作室** = 「首单不结」模式：机密 35 元/人/时、绝密 30 元/人/时是工作室净得的；
    *  - **线上俱乐部** = 「抽成」模式：工作室拿 100 − 陪玩分成（revenue.club_companion_share）；
-   *  - 应收 = 客户按流水（单价 × 时长，双陪算两份）；
+   *  - 应收 = 客户按业绩（单价 × 时长，双陪算两份）；
    *  - 应返还 = 绝密单返还给接单方（默认 15 元/人/小时，双陪 ×2）；机密首单不结、不返还。
    */
   async listEscalatedPoolOrders(studioId: string, opts?: { month?: string; csUserId?: string }) {
@@ -3325,7 +3325,7 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
-  // 店长把客服微信里的余额转走，记录一笔清零流水，让系统余额归零
+  // 店长把客服微信里的余额转走，记录一笔清零业绩，让系统余额归零
   async clearCsWechatBalance(studioId: string, workWechatId: string, note?: string) {
     const balances = await this.listCsWechatBalances(studioId);
     const target = balances.find((b) => b.id === workWechatId);
@@ -3497,7 +3497,7 @@ export class OrdersService implements OnModuleInit {
     return problems;
   }
 
-  // 客服记完流水后，检查这单账是否还有异常；有异常就提醒负责的客服去修改。
+  // 客服记完业绩后，检查这单账是否还有异常；有异常就提醒负责的客服去修改。
   async checkAndNotifyCsAnomaly(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -3734,7 +3734,7 @@ export class OrdersService implements OnModuleInit {
     if (!order) throw new ForbiddenException('订单不存在');
     if (companionId && order.companionId !== companionId) throw new ForbiddenException('只能操作自己的订单');
 
-    // 已完成过的订单在退款时回冲累计流水与客户总消费，避免财务虚高
+    // 已完成过的订单在退款时回冲累计业绩与客户总消费，避免财务虚高
     if (order.status === 'DONE') {
       await this.reverseOrderRevenue(order);
     }
@@ -3848,7 +3848,7 @@ export class OrdersService implements OnModuleInit {
     for (const u of owners) this.wsGateway.notifyUser(u.id, 'review:alert', payload);
   }
 
-  /** 回冲一笔已完成订单已累计的流水与总消费 */
+  /** 回冲一笔已完成订单已累计的业绩与总消费 */
   private async reverseOrderRevenue(order: any) {
     const splits: Array<{ companionId: string; amount: number }> =
       (order.customFields as any)?.splits || [];
@@ -3882,7 +3882,7 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
-   * 抢单池状态（老板 2026-09-20 起：只返回「每日立即打名额」，不再有流水门槛）。
+   * 抢单池状态（老板 2026-09-20 起：只返回「每日立即打名额」，不再有业绩门槛）。
    */
   async getPoolStatus(companionId: string) {
     const quota = await this.quota.status(companionId);
@@ -4117,7 +4117,7 @@ export class OrdersService implements OnModuleInit {
       this.schedulePartnerInviteExpiry(session.id, order.studioId || '');
     }
 
-    // 通知被续单换掉的旧陪玩：这一段已结束 + 本段计入流水，并释放其状态
+    // 通知被续单换掉的旧陪玩：这一段已结束 + 本段计入业绩，并释放其状态
     const newMemberIds = new Set([dto.companionId, session.coCompanionId].filter(Boolean) as string[]);
     for (const prev of previousActive) {
       const replaced = [
@@ -4137,7 +4137,7 @@ export class OrdersService implements OnModuleInit {
           orderId,
           gameName: order?.gameName || '',
           amount: r.amount ?? 0,
-          message: `${name}，你这一段服务已结束，本段计入流水 ¥${Number(r.amount || 0).toFixed(1)}`,
+          message: `${name}，你这一段服务已结束，本段计入业绩 ¥${Number(r.amount || 0).toFixed(1)}`,
         });
         // 被换掉的旧陪玩：无条件放回空闲（走统一入口，顺带把「接单中」那段计时日志封口）
         await switchCompanionStatus(this.prisma, r.id as string, 'AVAILABLE');
@@ -4242,10 +4242,10 @@ export class OrdersService implements OnModuleInit {
       });
       if (openLog) {
         const elapsed = Math.max(0, Math.round((Date.now() - new Date(openLog.startedAt).getTime()) / 1000));
-        // 娱乐费统一口径（当日流水达标免单），避免和看板/工作台算法不一致
+        // 娱乐费统一口径（当日业绩达标免单），避免和看板/工作台算法不一致
         const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma, partner?.studioId);
         const { start: entDayStart, end: entDayEnd } = currentBusinessDayRange();
-        // 口径 A（老板 2026-10-07「谁的钱算谁的」）：今日流水 = 主陪 amount + 他当搭档的 coAmount。
+        // 口径 A（老板 2026-10-07「谁的钱算谁的」）：今日业绩 = 主陪 amount + 他当搭档的 coAmount。
         const entDayOrders = await this.prisma.order
           .findMany({
             where: {

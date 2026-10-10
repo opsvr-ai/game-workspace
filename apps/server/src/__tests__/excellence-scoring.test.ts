@@ -7,7 +7,7 @@ import { ExcellenceService } from '../companions/excellence.service';
  * 第一次：「只需要到了什么档次 就给他重新统计为多少分就行了……别叠加，我要求整体别超过 100 分」
  * → 每一项取**达到的最高那一档**的分数，不把几档加起来。
  *
- * 第二次：「假设这个陪玩一直跟某 2 个客户玩，流水达到 10000 了，也才 50 分……」+「按照你的建议把 30 天」
+ * 第二次：「假设这个陪玩一直跟某 2 个客户玩，业绩达到 10000 了，也才 50 分……」+「按照你的建议把 30 天」
  * → 续单率 / 复购率 改成 **按客户算 + 只看最近 30 天**，不再按「订单类型」算。
  *
  * 第三次（本次）：
@@ -18,11 +18,11 @@ import { ExcellenceService } from '../companions/excellence.service';
  *   两栏仍然**不互斥**：隔天回头的客户两边都算。
  *
  * 第四次（本次）：
- *   · 段位多一条**最近 30 天流水硬门槛**（默认 5200 元）：没到线的人一律下等马，其他分再高也不算；
- *   · 反过来，**流水达标的人最低也是中等马**（要的少、挣得少可以理解，留着也妨）；
+ *   · 段位多一条**最近 30 天业绩硬门槛**（默认 5200 元）：没到线的人一律下等马，其他分再高也不算；
+ *   · 反过来，**业绩达标的人最低也是中等马**（要的少、挣得少可以理解，留着也妨）；
  *   · 四个档位表按老板举的例子定稿；**2026-10-05 老板选 B** 微调成：
- *     流水 8000 + 三率都过半 = 95（上等马，线 85、留 10 分缓冲）、
- *     流水 10000 纯老客 = 90（上等马）、流水 6000 + 三率过半 = 80（中等马）。
+ *     业绩 8000 + 三率都过半 = 95（上等马，线 85、留 10 分缓冲）、
+ *     业绩 10000 纯老客 = 90（上等马）、业绩 6000 + 三率过半 = 80（中等马）。
  *     （纯新客打满也只有约 4050 元、够不到 5200 门槛 → 必然下等马，不是 60 分中等马。）
  *
  * 第五次（2026-10-04）：
@@ -32,7 +32,7 @@ import { ExcellenceService } from '../companions/excellence.service';
  *   ⚠️ 上面这条「不等单子结束」的口径 **2026-10-05 被老板当面推翻**
  *   （「我什么时候说过，不打完怎么算？」）→ 见第八次，分子改成「打完才算」。
  *
- * 第六次（2026-10-04）：老板「所有指标都按照最近 30 天统计」→ **流水分档与流水硬门槛
+ * 第六次（2026-10-04）：老板「所有指标都按照最近 30 天统计」→ **业绩分档与业绩硬门槛
  * 也从「本营业月」改成「最近 30 天」**（续单率 / 复购率 / 首单成功率本来就是 30 天），
  * 月初不再全员归零。变量名 monthlyRevenue* 保留，只换取数窗口。
  *
@@ -45,7 +45,7 @@ import { ExcellenceService } from '../companions/excellence.service';
  *   · **首单成功率也要求打完**：分子 = 最近 30 天**已打完（父单 DONE）**的首单客户数，
  *     点了「开始首单」还在打的不算；
  *   · 分母不变 = 「添加成功」的客户数（按客户去重，加了微信没打成的照样留着拉低成功率）；
- *   · 至此四项 KPI 口径统一：**只有 DONE 才算数**（流水本来只算 DONE，续单率 / 复购率 2026-10-05 已卡 DONE）。
+ *   · 至此四项 KPI 口径统一：**只有 DONE 才算数**（业绩本来只算 DONE，续单率 / 复购率 2026-10-05 已卡 DONE）。
  */
 
 const LIVE_CFG = [
@@ -53,10 +53,10 @@ const LIVE_CFG = [
   { key: 'excellence.renew_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
   { key: 'excellence.repurchase_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
   { key: 'excellence.first_success_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 5 }, { min: 50, score: 10 }] },
-  // 老板 2026-10-04 拍板 90 / 60；2026-10-05 选 B：上等马线 90 → 85、流水 8000 档 40 → 45（中等马线 60 不动）
+  // 老板 2026-10-04 拍板 90 / 60；2026-10-05 选 B：上等马线 90 → 85、业绩 8000 档 40 → 45（中等马线 60 不动）
   { key: 'excellence.excellent_threshold', value: 85 },
   { key: 'excellence.middle_tier_threshold', value: 60 },
-  // 最近 30 天流水硬门槛（第四次拍板）：「月流水没过 5200 在我眼里就是下等马，就算他各种 KPI 都高」
+  // 最近 30 天业绩硬门槛（第四次拍板）：「月业绩没过 5200 在我眼里就是下等马，就算他各种 KPI 都高」
   { key: 'excellence.revenue_floor', value: 5200 },
 ];
 
@@ -228,7 +228,7 @@ describe('综合评分：每项取达到的最高一档（不叠加）', () => {
 });
 
 describe('回头客口径：按客户算 + 最近 30 天 + 12 点营业日', () => {
-  it('只吃老客的陪玩也能上上等马（老板那个例子：流水过万 + 2 个老客户一直玩）', async () => {
+  it('只吃老客的陪玩也能上上等马（老板那个例子：业绩过万 + 2 个老客户一直玩）', async () => {
     const svc = setup({
       // 2 个客户，每人打了 5 单（隔天再来）→ 续单 2/2=100%、复购 2/2=100%
       doneOrders: { c1: [{ cust: 'a', count: 5 }, { cust: 'b', count: 5 }] },
@@ -441,33 +441,33 @@ describe('健壮性', () => {
   });
 });
 
-describe('最近 30 天流水硬门槛：没到线一律下等马，流水达标最低中等马（老板 2026-10-04）', () => {
+describe('最近 30 天业绩硬门槛：没到线一律下等马，业绩达标最低中等马（老板 2026-10-04）', () => {
   /** 2 个客户各打 2 单（隔天）→ 续单 100%、复购 100%；成交 2 个首单 ÷ 加了 3 个微信 = 67% */
   const hotCustomerSpec = { c1: [{ cust: 'a', count: 2 }, { cust: 'b', count: 2 }] };
   const hotExtra = { added: { c1: 3 } };
 
-  it('流水 8000 + 三率都过半 = 45+20+20+10 = 95 → 上等马（老板举的目标画像，B 方案留 10 分缓冲）', async () => {
+  it('业绩 8000 + 三率都过半 = 45+20+20+10 = 95 → 上等马（老板举的目标画像，B 方案留 10 分缓冲）', async () => {
     const svc = setup({ ...hotExtra, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 8000 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
     expect(r.revenueScore).toBe(45);
     expect(r.rankScore).toBe(95);
     expect(r.excellentThreshold).toBe(85);
     expect(r.tier).toBe('TOP');
-    // 掉一档：流水掉回 6000（30 分）→ 80 分，低于 85 线 → 中等马（这正是 B 要的「留一点缓冲」）
+    // 掉一档：业绩掉回 6000（30 分）→ 80 分，低于 85 线 → 中等马（这正是 B 要的「留一点缓冲」）
     const mid = setup({ ...hotExtra, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 6000 } });
     const rMid = (await mid.computeForCompanions(['c1'])).get('c1')!;
     expect(rMid.rankScore).toBe(80);
     expect(rMid.tier).toBe('MIDDLE');
   });
 
-  it('流水 6000 + 三率都过半 = 30+20+20+10 = 80 → 中等马（差一点的那个）', async () => {
+  it('业绩 6000 + 三率都过半 = 30+20+20+10 = 80 → 中等马（差一点的那个）', async () => {
     const svc = setup({ ...hotExtra, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 6000 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
     expect(r.rankScore).toBe(80);
     expect(r.tier).toBe('MIDDLE');
   });
 
-  it('流水 5000 + 三率都过半（分数 70）：没到 5200 就是下等马，分数再高也不算', async () => {
+  it('业绩 5000 + 三率都过半（分数 70）：没到 5200 就是下等马，分数再高也不算', async () => {
     const svc = setup({ ...hotExtra, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 5000 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
     expect(r.rankScore).toBe(70); // 20 + 20 + 20 + 10
@@ -475,7 +475,7 @@ describe('最近 30 天流水硬门槛：没到线一律下等马，流水达标
     expect(r.isExcellent).toBe(false);
   });
 
-  it('流水刚到 5200、其他全是 0：分数只有 20，但流水达标 → 至少中等马', async () => {
+  it('业绩刚到 5200、其他全是 0：分数只有 20，但业绩达标 → 至少中等马', async () => {
     const svc = setup({ doneOrders: {}, monthlyRevenue: { c1: 5200 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
     expect(r.rankScore).toBe(20);
@@ -527,8 +527,8 @@ describe('段位按配置的线判定', () => {
   });
 });
 
-describe('流水窗口 = 最近 30 天（老板 2026-10-04「所有指标都按照最近 30 天统计」）', () => {
-  it('取数不再卡「营业月」：上界去掉、下界是 30 天前，流水分档照算', async () => {
+describe('业绩窗口 = 最近 30 天（老板 2026-10-04「所有指标都按照最近 30 天统计」）', () => {
+  it('取数不再卡「营业月」：上界去掉、下界是 30 天前，业绩分档照算', async () => {
     const groupByArgs: any[] = [];
     const prisma = {
       order: {
@@ -573,7 +573,7 @@ describe('战绩图加分不参与段位（老板 2026-10-04：堆截图刷不�
   /** 2 个客户各打 2 单（隔天）→ 续单 100%、复购 100%；成交 2 个首单 ÷ 加 3 个微信 = 67%。三率合计 50 分 */
   const spec = { c1: [{ cust: 'a', count: 2 }, { cust: 'b', count: 2 }] };
 
-  it('段位分 80（流水 6000 + 三率过半）+ 战绩图 10 分：综合分 90，但段位仍是中等马', async () => {
+  it('段位分 80（业绩 6000 + 三率过半）+ 战绩图 10 分：综合分 90，但段位仍是中等马', async () => {
     const svc = setup({ doneOrders: spec, added: { c1: 3 }, monthlyRevenue: { c1: 6000 }, bonus: { c1: 10 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
     expect(r.tierScore).toBe(80);
@@ -591,7 +591,7 @@ describe('战绩图加分不参与段位（老板 2026-10-04：堆截图刷不�
     expect(r.tier).toBe('MIDDLE');
   });
 
-  it('段位分自己够线才升段：流水 8000 + 三率过半 = 95 → 上等马（跟战绩图无关）', async () => {
+  it('段位分自己够线才升段：业绩 8000 + 三率过半 = 95 → 上等马（跟战绩图无关）', async () => {
     const svc = setup({ doneOrders: spec, added: { c1: 3 }, monthlyRevenue: { c1: 8000 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
     expect(r.tierScore).toBe(95);

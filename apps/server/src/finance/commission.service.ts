@@ -13,9 +13,9 @@ import {
 
 /**
  * 线上俱乐部订单的客服提成口径（老板 2026-09-30「这些数我自己填」）：
- *  - `RATE`（默认）= 流水 × `commission.cs_online_rate_percent`（2026-09-29 定的口径）；
+ *  - `RATE`（默认）= 业绩 × `commission.cs_online_rate_percent`（2026-09-29 定的口径）；
  *  - `PER_ORDER`  = 成功单数 × `commission.cs_online_per_order_yuan`。
- * 两个数都在「设置 → 客服设置」里，老板自己拨；**没配过就还是按流水算，钱一分不变**。
+ * 两个数都在「设置 → 客服设置」里，老板自己拨；**没配过就还是按业绩算，钱一分不变**。
  */
 function onlineModeOf(raw: unknown): 'RATE' | 'PER_ORDER' {
   return String(raw ?? '').toUpperCase() === 'PER_ORDER' ? 'PER_ORDER' : 'RATE';
@@ -111,7 +111,7 @@ export class CommissionService {
       });
     }
 
-    // 店长分成（老板 2026-09-21：一单流水由 工作室 / 店长 / 客服 / 陪玩 四个人分）。
+    // 店长分成（老板 2026-09-21：一单业绩由 工作室 / 店长 / 客服 / 陪玩 四个人分）。
     // 比例默认 0，没填就一条记录都不产生 —— 老口径完全不变。
     const adminBuilt = await this.buildAdminRows(studioId, start, end);
     if (adminBuilt.rows.length) {
@@ -214,12 +214,12 @@ export class CommissionService {
       floorCents: map['commission.cs_offline_floor_cents'] ?? 200,
       bridgePerOrderCents: Math.round((map['commission.cs_bridge_per_order_yuan'] ?? 1) * 100),
       onlinePerOrderCents: Math.round((map['commission.cs_online_per_order_yuan'] ?? 1) * 100),
-      // 线上俱乐部订单：客服**按流水比例**计提（老板 2026-09-29）。桥接仍是按单量。
+      // 线上俱乐部订单：客服**按业绩比例**计提（老板 2026-09-29）。桥接仍是按单量。
       onlineRatePercent: Number.isFinite(map['commission.cs_online_rate_percent'])
         ? map['commission.cs_online_rate_percent']
         : 1,
       perOrderCapCents: map['commission.cs_offline_per_order_cap_cents'] ?? 0,
-      // 线上俱乐部订单怎么算提成（老板 2026-09-30：线上是「单数 × 每单单价」还是「流水 × 比例」他自己填）
+      // 线上俱乐部订单怎么算提成（老板 2026-09-30：线上是「单数 × 每单单价」还是「业绩 × 比例」他自己填）
       onlineMode: onlineModeOf(resolved['commission.cs_online_mode']),
       // 客服提成只算首单（默认）；打开开关后续单 / 复购 / 打赏也算（老板 2026-09-30「我自己填写」）
       includeRenewal:
@@ -268,7 +268,7 @@ export class CommissionService {
     };
   }
 
-  /** 店长分成比例（% 流水）：线下 / 线上分开配，默认 0 = 暂不参与分成。 */
+  /** 店长分成比例（% 业绩）：线下 / 线上分开配，默认 0 = 暂不参与分成。 */
   private async adminRateConfig(studioId?: string) {
     const keys = ['commission.admin_offline_rate_percent', 'commission.admin_online_rate_percent'];
     const resolved = await resolveConfigsRaw(this.prisma, studioId, keys);
@@ -279,7 +279,7 @@ export class CommissionService {
   }
 
   /**
-   * 店长分成明细：店里当月成功单流水 × 店长比例。
+   * 店长分成明细：店里当月成功单业绩 × 店长比例。
    * 一店多位店长时**按人数均分**，所以「店长比例」= 店里店长这一项的总支出，
    * 不会因为多挂了几个店长账号就重复发钱。
    */
@@ -517,7 +517,7 @@ export class CommissionService {
           commissionYuan = centsToYuan(c);
           offlineCents += c;
         } else if (kind === 'online') {
-          // 线上俱乐部：客服**按流水比例**计提（老板 2026-09-29）；单量只用于看板统计
+          // 线上俱乐部：客服**按业绩比例**计提（老板 2026-09-29）；单量只用于看板统计
           onlineUnits += units;
           onlineRevenueYuan += gross;
           commissionYuan = this.onlineCommissionOf(uCfg, units, gross);

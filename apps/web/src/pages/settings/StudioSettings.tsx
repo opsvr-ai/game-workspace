@@ -170,7 +170,7 @@ const StudioSettings: React.FC = () => {
           setSaving(false);
         }}>保存</Button>
       }>
-        <Text type="secondary">设置每天的流水统计和娱乐计费清零的时间点</Text>
+        <Text type="secondary">设置每天的业绩统计和娱乐计费清零的时间点</Text>
         <div style={{ marginTop: 8 }}>
           <Label>结算开始时间</Label>
           <InputNumber

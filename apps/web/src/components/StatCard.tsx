@@ -25,7 +25,7 @@ function withAlpha(hex: string, ratio: number): string {
 }
 
 export interface StatCardProps {
-  /** 卡左上角那行小字（如「今日流水」）。 */
+  /** 卡左上角那行小字（如「今日业绩」）。 */
   label: React.ReactNode;
   /** 大数字本身（金额 / 人数 / 时长，自己格式化好再传进来）。 */
   value: React.ReactNode;

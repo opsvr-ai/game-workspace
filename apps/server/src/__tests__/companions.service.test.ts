@@ -265,7 +265,7 @@ describe('CompanionsService', () => {
       expect(mockPrisma.companion.update).not.toHaveBeenCalled();
     });
 
-    it('今天流水到了免单线 → 余额 0 也能进娱乐', async () => {
+    it('今天业绩到了免单线 → 余额 0 也能进娱乐', async () => {
       const companionUser = {
         id: 'u5',
         username: 'zhangsan',

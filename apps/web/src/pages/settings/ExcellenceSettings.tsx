@@ -12,7 +12,7 @@ const { Text } = Typography;
 type Tier = { min: number; score: number };
 
 const TIER_DEFS: Array<{ key: string; label: string; unit: string; def: Tier[] }> = [
-  { key: 'excellence.revenue_tiers', label: '最近 30 天流水', unit: '元', def: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 30 }, { min: 8000, score: 45 }, { min: 10000, score: 50 }] },
+  { key: 'excellence.revenue_tiers', label: '最近 30 天业绩', unit: '元', def: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 30 }, { min: 8000, score: 45 }, { min: 10000, score: 50 }] },
   { key: 'excellence.renew_tiers', label: '续单率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
   { key: 'excellence.repurchase_tiers', label: '复购率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
   { key: 'excellence.first_success_tiers', label: '首单成功率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 5 }, { min: 50, score: 10 }] },
@@ -80,7 +80,7 @@ const ExcellenceSettings: React.FC = () => {
   const rawTopThreshold = Number(config?.['excellence.excellent_threshold'] ?? 50);
   const midThreshold = Math.max(0, Math.min(100, Number.isFinite(rawMidThreshold) ? rawMidThreshold : 0));
   const topThreshold = Math.max(midThreshold, Math.min(100, Number.isFinite(rawTopThreshold) ? rawTopThreshold : 0));
-  // 老板 2026-10-04：最近 30 天流水硬门槛 —— 没到这条线一律下等马（分数再高也不算），流水达标最低中等马。
+  // 老板 2026-10-04：最近 30 天业绩硬门槛 —— 没到这条线一律下等马（分数再高也不算），业绩达标最低中等马。
   const revenueFloor = Math.max(0, Number(config?.['excellence.revenue_floor'] ?? 5200) || 0);
   const lineMarks: Record<number, any> = {
     0: { style: { fontSize: 11 }, label: '0' },
@@ -131,16 +131,16 @@ const ExcellenceSettings: React.FC = () => {
         }
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          <b>段位分 = 最近 30 天流水 + 续单率 + 复购率 + 首单成功率</b>（段位只看这四项）。
+          <b>段位分 = 最近 30 天业绩 + 续单率 + 复购率 + 首单成功率</b>（段位只看这四项）。
           每一项只取「达到的<b>最高一档</b>」的分，<b>不叠加</b>
-          （比如填了「达到 6000 得 20 分」「达到 10000 得 40 分」，流水 10000 的人这一项就是 40 分，不是 20+40）。
+          （比如填了「达到 6000 得 20 分」「达到 10000 得 40 分」，业绩 10000 的人这一项就是 40 分，不是 20+40）。
           段位分按下面这条分数线分成 下等马 / 中等马 / 上等马 三档。
           <br />
           <b>战绩图加分只加在「综合分 / 排行榜」上，不参与段位判定</b> ——
-          防止「流水、三率都不够，靠堆截图也能维持上等马」，那样段位就没意义了。
+          防止「业绩、三率都不够，靠堆截图也能维持上等马」，那样段位就没意义了。
           <br />
-          <b>但段位还有一条更硬的线</b>：<b>最近 30 天流水没到「流水硬门槛」的人一律下等马</b>（其他分再高也不算）；
-          反过来，<b>流水达标的人最低也是中等马</b> —— 要的少、挣得少可以理解，要的少、挣得多才是最理想的陪玩。
+          <b>但段位还有一条更硬的线</b>：<b>最近 30 天业绩没到「业绩硬门槛」的人一律下等马</b>（其他分再高也不算）；
+          反过来，<b>业绩达标的人最低也是中等马</b> —— 要的少、挣得少可以理解，要的少、挣得多才是最理想的陪玩。
           <br />
           <b>续单率</b> = 最近 30 天里「有第 2 段及以后**已打完**会话（点续单加的那段、且已结束）」的客户占比；
           <b>复购率</b> = 隔了一个营业日（12:00 为界）又来打的客户占比；
@@ -158,7 +158,7 @@ const ExcellenceSettings: React.FC = () => {
               ? `四项满分合计 ${fourMax} 分，超过 100 了 —— 请把某一项调小再保存`
               : `四项满分合计 ${fourMax} 分（上限 100）`
           }
-          description={`段位分 = 最近 30 天流水 ${maxOf('excellence.revenue_tiers')} + 续单率 ${maxOf('excellence.renew_tiers')} + 复购率 ${maxOf('excellence.repurchase_tiers')} + 首单成功率 ${maxOf('excellence.first_success_tiers')}。超过 100 分保存会被服务端拦下。战绩图加分另算，不影响段位。`}
+          description={`段位分 = 最近 30 天业绩 ${maxOf('excellence.revenue_tiers')} + 续单率 ${maxOf('excellence.renew_tiers')} + 复购率 ${maxOf('excellence.repurchase_tiers')} + 首单成功率 ${maxOf('excellence.first_success_tiers')}。超过 100 分保存会被服务端拦下。战绩图加分另算，不影响段位。`}
         />
         <Row gutter={24}>
           <Col span={12}>
@@ -238,8 +238,8 @@ const ExcellenceSettings: React.FC = () => {
               </div>
               {revenueFloor > 0 ? (
                 <Text type="secondary" style={{ display: 'block', marginTop: 10, fontSize: 12 }}>
-                  上面这三段只是「按分数」分 —— 真正的段位还看一条硬线：最近 30 天流水没到 {revenueFloor} 元的一律下等马
-                  （分数再高也不算；要的少、挣得少可以理解，留着也妨），流水达标的人最低也是中等马。
+                  上面这三段只是「按分数」分 —— 真正的段位还看一条硬线：最近 30 天业绩没到 {revenueFloor} 元的一律下等马
+                  （分数再高也不算；要的少、挣得少可以理解，留着也妨），业绩达标的人最低也是中等马。
                 </Text>
               ) : null}
               {rawTopThreshold > 100 ? (
@@ -252,7 +252,7 @@ const ExcellenceSettings: React.FC = () => {
                 </Text>
               ) : null}
             </div>
-            <Field label="流水硬门槛" unit="元" value={config?.['excellence.revenue_floor'] ?? 5200} step={100} onChange={(v) => update('excellence.revenue_floor', v)} suffix="最近 30 天流水没到它一律下等马（填 0 = 关掉这条硬线）" />
+            <Field label="业绩硬门槛" unit="元" value={config?.['excellence.revenue_floor'] ?? 5200} step={100} onChange={(v) => update('excellence.revenue_floor', v)} suffix="最近 30 天业绩没到它一律下等马（填 0 = 关掉这条硬线）" />
             <Field label="下等马自动离职天数" value={config?.['excellence.low_tier_auto_resign_days'] ?? 0} step={1} onChange={(v) => update('excellence.low_tier_auto_resign_days', v)} suffix="0=不自动离职" />
           </Col>
           <Col span={12}>

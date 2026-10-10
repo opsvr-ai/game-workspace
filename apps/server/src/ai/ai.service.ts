@@ -27,7 +27,7 @@ export class AiService {
     const apiKey = process.env.DOUBAO_API_KEY;
     if (apiKey) {
       try {
-        const prompt = `你是游戏陪玩业绩教练。陪玩数据：总流水¥${totalAmount}，${totalCount}单，首单${newRate}%，续单率${renewRate}%，复购率${repurchaseRate}%，礼物占比${tipRatio}%。行业标准：续单率≥30%，复购率≥30%，礼物≥15%。注意：客户已有微信，不需提加微信。请给3条提高续单/复购/礼物的建议（每条15字内）。例如：打完约下次时间、服务到位直接要礼物、老客户给存单折扣。`;
+        const prompt = `你是游戏陪玩业绩教练。陪玩数据：总业绩¥${totalAmount}，${totalCount}单，首单${newRate}%，续单率${renewRate}%，复购率${repurchaseRate}%，礼物占比${tipRatio}%。行业标准：续单率≥30%，复购率≥30%，礼物≥15%。注意：客户已有微信，不需提加微信。请给3条提高续单/复购/礼物的建议（每条15字内）。例如：打完约下次时间、服务到位直接要礼物、老客户给存单折扣。`;
         const { data } = await axios.post(
           'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
           {

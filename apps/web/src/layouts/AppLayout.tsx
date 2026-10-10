@@ -111,7 +111,7 @@ const AppLayout: React.FC = () => {
   const [myCommission, setMyCommission] = React.useState<number | null>(null);
   const [mySalary, setMySalary] = React.useState<any>(null);
   const [salaryOpen, setSalaryOpen] = React.useState(false);
-  // 左侧栏「工资 / 提成」后面那点比例：陪玩 / 店长 / 客服各拿流水的百分之几。
+  // 左侧栏「工资 / 提成」后面那点比例：陪玩 / 店长 / 客服各拿业绩的百分之几。
   // 和「设置 → 分账规则」是同一份配置（页面加载一次，改完设置刷新页面即同步）。
   const [shareRatios, setShareRatios] = React.useState<Record<string, number | null>>({});
   React.useEffect(() => {
@@ -130,7 +130,7 @@ const AppLayout: React.FC = () => {
           .map((t: any) => Number(t?.companion))
           .filter((n: number) => Number.isFinite(n));
         setShareRatios({
-          // 陪玩那一栏按流水有多个档，左侧栏显示**最高那一档**，一眼看到最好能拿到多少。
+          // 陪玩那一栏按业绩有多个档，左侧栏显示**最高那一档**，一眼看到最好能拿到多少。
           companion: companions.length
             ? Math.max(...companions)
             : Number(cfg['revenue.club_companion_share']) || null,
@@ -1163,7 +1163,7 @@ const AppLayout: React.FC = () => {
     },
     onSegmentFinished: (data: any) => {
       const amount = Number(data?.amount || 0).toFixed(1);
-      const desc = data?.message || `你这一段服务已结束，本段计入流水 ¥${amount}`;
+      const desc = data?.message || `你这一段服务已结束，本段计入业绩 ¥${amount}`;
       notifyNotice({
         kind: 'order',
         icon: '🏁',
@@ -1184,10 +1184,10 @@ const AppLayout: React.FC = () => {
     },
     onServiceDurationReminder: (data: any) => {
       // 老板 2026-10-05：「不点结束不会计入影响评分增加，让他们主动点」——
-      // 这条提醒现在带「不点结束不计流水/不算分」，而且服务端每 30 分钟会再推一次（没结束就一直提醒）。
+      // 这条提醒现在带「不点结束不计业绩/不算分」，而且服务端每 30 分钟会再推一次（没结束就一直提醒）。
       const desc =
         data?.message ||
-        '服务时间已到，请引导客户续单；打完记得点「结束服务」，不点结束这一单不算流水也不算分';
+        '服务时间已到，请引导客户续单；打完记得点「结束服务」，不点结束这一单不算业绩也不算分';
       const overdue = Number(data?.overdueMin) || 0;
       const title = overdue >= 5 ? '⏰ 还没点「结束服务」' : '⏰ 时间到了';
       notifyNotice({
@@ -1826,7 +1826,7 @@ const AppLayout: React.FC = () => {
       });
 
     const badged = applyBadges(items);
-    // 先把「模块图标色 + 流水比例小字」挂好，再平铺单子菜单 ——
+    // 先把「模块图标色 + 业绩比例小字」挂好，再平铺单子菜单 ——
     // 平铺时父级的图标/文字会被搬到子项上，顺序反了颜色就丢了。
     const decorated = decorateMenu(badged, shareRatios);
     const flattened = decorated.map((item) => {
@@ -1852,7 +1852,7 @@ const AppLayout: React.FC = () => {
             .map((ch: any) => {
               const cp = noticePath(ch.key);
               const ts = cp ? titlesByPath[cp] || [] : [];
-              // ch.label 可能已被 decorateMenu 换成节点（带流水比例那种），只对字符串拼提示。
+              // ch.label 可能已被 decorateMenu 换成节点（带业绩比例那种），只对字符串拼提示。
               const name = typeof ch.label === 'string' ? ch.label : '';
               return ts.length ? `${name ? name + '：' : ''}${ts[0]}${ts.length > 1 ? ` 等 ${ts.length} 条` : ''}` : '';
             })
@@ -1885,7 +1885,7 @@ const AppLayout: React.FC = () => {
     // 最后一步：分组标题（type: 'group'，如「陪玩工资 70%」）本来只做视觉分段、点了不跳（老板
     // 2026-10-08 的「最多两级」规矩），但它长得跟能点的菜单项一模一样 —— 老板 2026-10-10 直接问
     // 「陪玩工资 70% 点不开？」。所以把它包成可点：点一下进里面第一个页面，不折叠这条规矩不变。
-    // 必须放在徽标 / 流水比例之后：那些是按 label 字符串比对的，先换成节点就比不中了。
+    // 必须放在徽标 / 业绩比例之后：那些是按 label 字符串比对的，先换成节点就比不中了。
     return makeGroupsClickable(withTodosBadge, (key) => navigate(key));
   }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, reviewBadge, outcomeReviewBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey, rememberCleared, navigate, markSeen, markBridgeSeen, markBillingSeen, markReviewSeen, markContactSeen, markPendingStartSeen, todosBadge, todosHint]);
 

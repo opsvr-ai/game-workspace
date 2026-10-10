@@ -950,7 +950,7 @@ export class CompanionsService {
   }
 
   /**
-   * 本营业月「只算自己那份」的流水（老板 2026-10-07 口径 A；2026-10-08 老板再确认「只算自己」）。
+   * 本营业月「只算自己那份」的业绩（老板 2026-10-07 口径 A；2026-10-08 老板再确认「只算自己」）。
    *
    * 拆成 primary / co / split 三块给陪玩端首页摊开显示 —— 他当**搭档**挣的那份是他自己的（实打实到手的钱），
    * 而**搭档（别人）那份永远不进他的数**：主陪只拿自己那格填的「主陪金额」、搭档只拿「搭档金额」。
@@ -979,8 +979,8 @@ export class CompanionsService {
   async getWorkbench(companionId: string) {
     const { start: today, end: tomorrow } = currentBusinessDayRange();
 
-    // 今日流水（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪算「主陪金额」、搭档算
-    // 「搭档金额」，他当搭档打的那份也进今日流水。以前只查 companionId（他自己当主陪的单），
+    // 今日业绩（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪算「主陪金额」、搭档算
+    // 「搭档金额」，他当搭档打的那份也进今日业绩。以前只查 companionId（他自己当主陪的单），
     // 当搭档挣的一分不加，同一天「今日」和「本月」两个数就对不上。
     const todayOrders = await this.prisma.order.findMany({
       where: {
@@ -993,7 +993,7 @@ export class CompanionsService {
     const todayRevenue = todayOrders.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0);
 
     // 订单分型（口径 A：主陪算「主陪金额」、搭档算「搭档金额」；他当搭档打的那份也算他自己打过的单）
-    // 范围 = 本营业月（当月 1 日 12:00 至次月 1 日 12:00），跟顶上「本月流水」是同一批单。
+    // 范围 = 本营业月（当月 1 日 12:00 至次月 1 日 12:00），跟顶上「本月业绩」是同一批单。
     const { start: monthTypeStart, end: monthTypeEnd } = currentSettlementMonthRange();
     const typeOrders = await this.prisma.order.findMany({
       where: {
@@ -1092,7 +1092,7 @@ export class CompanionsService {
     const entertainmentMinutes = Math.floor(durations.entertainment / 60);
     const { hourlyRate } = await loadEntertainmentRule(this.prisma, workbenchStudioId);
     // 老板 2026-10-04：「打存单也算在娱乐那个门槛里」——
-    // 门槛看「今天到手的钱」：订单流水 + 今天打掉的存单（存单常加在老的续单上，订单取数算不到今天）。
+    // 门槛看「今天到手的钱」：订单业绩 + 今天打掉的存单（存单常加在老的续单上，订单取数算不到今天）。
     const depositPlayedMap = await sumDepositPlayedToday(this.prisma, [companionId], {
       start: todayStart,
       end: todayEnd,
@@ -1149,13 +1149,13 @@ export class CompanionsService {
       tierInfo = {
         mode: 'FIXED',
         companionPct: Math.round((companion?.revenueShare ?? 0.6) * 100),
-        // 固定分成也要给「本月流水」：以前这里没给，陪玩端就退回「最近 30 天流水」那个兜底 ——
-        // 同一个「本月流水」在固定分成的工作室显示的是 30 天的数（还把上个月的钱也算进来了，
-        // 老板 2026-10-08 问「本月流水你把别人的加进去干啥」）。
+        // 固定分成也要给「本月业绩」：以前这里没给，陪玩端就退回「最近 30 天业绩」那个兜底 ——
+        // 同一个「本月业绩」在固定分成的工作室显示的是 30 天的数（还把上个月的钱也算进来了，
+        // 老板 2026-10-08 问「本月业绩你把别人的加进去干啥」）。
         monthlyRevenue: monthRevenue,
       };
     } else {
-      // TIERED：严格按营业月流水计算当前所在阶梯
+      // TIERED：严格按营业月业绩计算当前所在阶梯
       // 分成阶梯也按店解析（线上上活的就是这一处）
       const tiersCfg = await resolveConfigsRaw(this.prisma, companion?.studioId, [
         'revenue.share_tiers',
@@ -1236,7 +1236,7 @@ export class CompanionsService {
 
     return {
       todayRevenue: roundToJiao(todayRevenue),
-      // 本营业月流水（口径 A，只算自己那份）：跟 orderStats 各分型金额之和一致，「订单占比 → 全月」标题用这个
+      // 本营业月业绩（口径 A，只算自己那份）：跟 orderStats 各分型金额之和一致，「订单占比 → 全月」标题用这个
       monthRevenue: roundToJiao(monthRevenue),
       // 同一笔钱拆开（当主陪 / 当搭档 / 跨店分成）—— 首页摊开显示给陪玩看，明说「搭档的钱不算在里面」
       monthRevenueParts: { primary: monthRev.primary, co: monthRev.co, split: monthRev.split },
@@ -1249,7 +1249,7 @@ export class CompanionsService {
       entertainmentMinutes,
       entertainmentFee,
       hourlyRate,
-      // 娱乐门槛口径（老板 2026-10-04）：订单流水 + 今天打掉的存单
+      // 娱乐门槛口径（老板 2026-10-04）：订单业绩 + 今天打掉的存单
       todayDepositPlayed: roundToJiao(todayDepositPlayed),
       entertainmentBasis: roundToJiao(entertainmentBasis),
       entertainmentFreeToday: isEntertainmentFree(entertainmentBasis, entertainmentThreshold),

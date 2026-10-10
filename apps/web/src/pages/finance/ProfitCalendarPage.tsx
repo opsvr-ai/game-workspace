@@ -253,7 +253,7 @@ const ProfitCalendarPage: React.FC = () => {
               ),
             },
             {
-              title: '本月流水',
+              title: '本月业绩',
               dataIndex: 'gross',
               align: 'right',
               render: (v: any) => '¥' + Number(v || 0).toFixed(1),
@@ -333,9 +333,9 @@ const ProfitCalendarPage: React.FC = () => {
           }}
         />
         <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-          口径：只算本店线下陪玩接的、未取消的单。「本店实得」= 流水 × 本店分成比例（按陪玩当月档位 × 6
-          个月工龄门槛）；「派桥接」= 机密 35 / 绝密净 30 元/人/时 × 人时（首单不结）；「派线上」= 流水
-          ×（100 − 线上陪玩分成）。流水 =（主陪单价 + 搭档单价）× 时长。
+          口径：只算本店线下陪玩接的、未取消的单。「本店实得」= 业绩 × 本店分成比例（按陪玩当月档位 × 6
+          个月工龄门槛）；「派桥接」= 机密 35 / 绝密净 30 元/人/时 × 人时（首单不结）；「派线上」= 业绩
+          ×（100 − 线上陪玩分成）。业绩 =（主陪单价 + 搭档单价）× 时长。
         </Text>
       </Card>
 

@@ -250,7 +250,7 @@ const UiKitPage: React.FC = () => (
       <Section id="cards" title="卡片 / 统计卡" hint=".ui-panel / StatCard（看板上的大数字只有这一个来源）">
         <Row gutter={SPACE.lg}>
           <Col span={6}>
-            <StatCard label="今日流水" value="￥12,860" sub="较昨日 +8%" tint={BRAND.primary} />
+            <StatCard label="今日业绩" value="￥12,860" sub="较昨日 +8%" tint={BRAND.primary} />
           </Col>
           <Col span={6}>
             <StatCard label="待抢单" value="6" sub="最久等了 12 分钟" tint={SEMANTIC.warning} />

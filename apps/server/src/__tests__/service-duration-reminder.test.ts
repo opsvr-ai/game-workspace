@@ -5,9 +5,9 @@ import { ServiceDurationReminderService } from '../orders/service-duration-remin
 /**
  * 老板 2026-10-05：「你也给陪玩提示一下，不点结束不会计入影响评分增加，让他们主动点」——
  * 这条服务端提醒现在两件事一起做：
- *   ① 文案里必须写清「不点结束 = 不计流水、不算分」；
+ *   ① 文案里必须写清「不点结束 = 不计业绩、不算分」；
  *   ② 只要这段还挂着没点「结束服务」，**每 30 分钟再提醒一次**（以前只提醒一次、之后再也不吭声，
- *      陪玩就一直挂着不点结束 —— 那这一单在流水 / 首单成功率 / 续单率 / 复购率里全都不算数）。
+ *      陪玩就一直挂着不点结束 —— 那这一单在业绩 / 首单成功率 / 续单率 / 复购率里全都不算数）。
  */
 
 const HOUR = 3600 * 1000;
@@ -53,7 +53,7 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
     expect(pushed).toHaveLength(0);
   });
 
-  it('到点：推一条，文案写清「不点结束不计流水 / 不算分」，并记下这次提醒时间', async () => {
+  it('到点：推一条，文案写清「不点结束不计业绩 / 不算分」，并记下这次提醒时间', async () => {
     const { svc, pushed, updated } = setup([row()]);
     await svc.tick();
     expect(pushed).toHaveLength(1);
@@ -61,7 +61,7 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
     expect(pushed[0].event).toBe('service:duration_reminder');
     expect(pushed[0].data.message).toContain('结束服务');
     expect(pushed[0].data.message).toContain('续单'); // 客户接着打就先点续单，别让人白打
-    expect(pushed[0].data.message).toContain('不计流水');
+    expect(pushed[0].data.message).toContain('不计业绩');
     expect(pushed[0].data.message).toContain('不算首单成交');
     expect(pushed[0].data.overdueMin).toBeGreaterThan(50);
     expect(updated).toHaveLength(1);

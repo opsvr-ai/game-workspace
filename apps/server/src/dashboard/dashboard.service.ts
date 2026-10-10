@@ -37,7 +37,7 @@ export class DashboardService {
     const doneOrders = todayOrders.filter((o) => o.status === 'DONE');
 
     const totalRevenue = doneOrders.reduce((s, o) => s + o.amount, 0);
-    /** 今日已完成（DONE）单量 —— 跟「今日流水」配对的还是这个数 */
+    /** 今日已完成（DONE）单量 —— 跟「今日业绩」配对的还是这个数 */
     const orderCount = doneOrders.length;
     /** 今日发单量 —— 今天新开的单，含还没派出去 / 正在打 / 已取消的 */
     const publishedCount = todayOrders.length;
@@ -103,23 +103,23 @@ export class DashboardService {
     });
 
     // Alerts: companions with low revenue
-    // 低流水预警线：本店店长填的优先
+    // 低业绩预警线：本店店长填的优先
     const scopedCfg = await resolveConfigsRaw(this.prisma, studioId, ['revenue.low_warning']);
     const lowThreshold = (scopedCfg['revenue.low_warning'] as number) ?? 300;
 
     // H3 fix: use Order table for alerts (same source as KPI)
     // 直接用上面那份「今日已完成单」，不再重复查一遍。
     // 口径（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪算 amount、搭档算 coAmount，
-    // 谁打的那份算谁头上。娱乐费门槛用的就是这份「今日流水」，两边必须是一回事。
+    // 谁打的那份算谁头上。娱乐费门槛用的就是这份「今日业绩」，两边必须是一回事。
     const revMap = new Map<string, number>();
     for (const o of doneOrders) {
       for (const cid of new Set([o.companionId, o.coCompanionId].filter(Boolean) as string[])) {
         revMap.set(cid, (revMap.get(cid) || 0) + companionOrderRevenue(o as any, cid));
       }
     }
-    // 娱乐费：走全系统唯一口径（门槛 = 订单流水 + 今天打掉的存单，达标免单，否则按配置时薪折算）
+    // 娱乐费：走全系统唯一口径（门槛 = 订单业绩 + 今天打掉的存单，达标免单，否则按配置时薪折算）
     // 老板 2026-10-04：「打存单也算在娱乐那个门槛里」——存单常加在老的续单上打，
-    // 订单 createdAt 不是今天，按订单取数的当日流水会漏，按会话补回来。
+    // 订单 createdAt 不是今天，按订单取数的当日业绩会漏，按会话补回来。
     const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma, studioId);
     const depositPlayedMap = await sumDepositPlayedToday(
       this.prisma,
@@ -145,7 +145,7 @@ export class DashboardService {
       .map(c => ({
         companionId: c.id,
         companionName: '',
-        message: `今日流水低于${lowThreshold}预警线`,
+        message: `今日业绩低于${lowThreshold}预警线`,
       }));
 
     // 今日段位变动（老板 2026-10-04）：每天 12:05 由 ExcellenceService 复核后留档，
@@ -254,7 +254,7 @@ export class DashboardService {
     });
     const companionRevenue: any[] = [];
     for (const c of companions) {
-      // 本月流水（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪 amount + 他当搭档的 coAmount。
+      // 本月业绩（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪 amount + 他当搭档的 coAmount。
       const rev = monthOrders
         .filter((o) => o.companionId === c.id || o.coCompanionId === c.id)
         .reduce((s, o) => s + companionOrderRevenue(o as any, c.id), 0);

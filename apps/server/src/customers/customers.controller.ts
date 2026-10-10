@@ -143,7 +143,7 @@ export class CustomersController {
 
   /**
    * 封存客户（老板 2026-10-04）：客户一直不通过、小红书也不回 → 先收起来，以后再换人加。
-   * 不删档案、不动订单流水。
+   * 不删档案、不动订单业绩。
    */
   @Post('customers/:id/archive')
   @Roles(UserRole.ADMIN, UserRole.OWNER)

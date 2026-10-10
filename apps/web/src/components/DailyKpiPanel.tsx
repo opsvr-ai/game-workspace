@@ -318,7 +318,7 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
       { title: '服务客户', dataIndex: 'customers', width: 74, align: 'right' as const },
       { title: '新客', dataIndex: 'newCustomers', width: 56, align: 'right' as const },
       {
-        title: '流水',
+        title: '业绩',
         dataIndex: 'amount',
         width: 84,
         align: 'right' as const,
@@ -519,7 +519,7 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
               />
             </Col>
             <Col xs={12} md={4}>
-              <StatCard size="sm" label="区间流水" value={yuan(total?.amount)} sub={`时长 ${hours(total?.hours)}`} tint={SEMANTIC.orangeDeeper} />
+              <StatCard size="sm" label="区间业绩" value={yuan(total?.amount)} sub={`时长 ${hours(total?.hours)}`} tint={SEMANTIC.orangeDeeper} />
             </Col>
           </Row>
 

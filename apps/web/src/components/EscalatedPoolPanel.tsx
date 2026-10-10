@@ -201,7 +201,7 @@ const EscalatedPoolPanel: React.FC = () => {
       render: (v: number) => `${v} 单`,
     },
     {
-      title: '应收（流水）',
+      title: '应收（业绩）',
       dataIndex: 'grossYuan',
       width: 110,
       align: 'right' as const,
@@ -325,7 +325,7 @@ const EscalatedPoolPanel: React.FC = () => {
         </Col>
         <Col xs={12} md={6}>
           <Card size="small">
-            <Text type="secondary">应收（客户流水）</Text>
+            <Text type="secondary">应收（客户业绩）</Text>
             <div style={{ fontSize: 22, fontWeight: 600 }}>{yuan(totals.grossYuan)}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>
               桥接 {yuan(totals.bridgeGrossYuan)} / 线上 {yuan(totals.onlineGrossYuan)}

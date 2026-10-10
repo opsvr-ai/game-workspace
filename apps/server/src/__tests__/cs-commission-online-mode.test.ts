@@ -5,11 +5,11 @@ import { CommissionService } from '../finance/commission.service';
  * 线上俱乐部订单的客服提成口径（老板 2026-09-30「这些数我自己填」）。
  *
  * 两种口径都在「设置 → 客服设置」里由老板自己拨：
- *   - 按流水比例（`commission.cs_online_rate_percent`，2026-09-29 定的口径，默认）；
+ *   - 按业绩比例（`commission.cs_online_rate_percent`，2026-09-29 定的口径，默认）；
  *   - 按成功单数 × 每单单价（`commission.cs_online_per_order_yuan`，`commission.cs_online_mode = 'PER_ORDER'`）。
  *
  * 这份测试只钉一件事：**拨了哪个口径就只有那一个数生效，两个数不会叠加**；
- * 没拨过（库里没有 `commission.cs_online_mode`）= 还是按流水，钱一分不变。
+ * 没拨过（库里没有 `commission.cs_online_mode`）= 还是按业绩，钱一分不变。
  */
 
 const STUDIO = 'st-own';
@@ -77,8 +77,8 @@ const row0 = async (configs: Record<string, any>, orders: any[]) =>
   (await makeService(configs, orders).computeCsCommission(STUDIO, MONTH)).rows[0] as any;
 
 describe('客服提成 · 线上口径（老板 2026-09-30）', () => {
-  it('线上 · 没配过口径 = 按流水比例（默认，钱不变）', async () => {
-    // 流水 200 × 5% = 10 元；「每单单价」这时完全不参与
+  it('线上 · 没配过口径 = 按业绩比例（默认，钱不变）', async () => {
+    // 业绩 200 × 5% = 10 元；「每单单价」这时完全不参与
     const row = await row0({ 'commission.cs_online_rate_percent': 5 }, [order()]);
     expect(row.onlineYuan).toBe(10);
     expect(row.totalYuan).toBe(10);
@@ -89,7 +89,7 @@ describe('客服提成 · 线上口径（老板 2026-09-30）', () => {
       { 'commission.cs_online_mode': 'PER_ORDER', 'commission.cs_online_per_order_yuan': 3, 'commission.cs_online_rate_percent': 5 },
       [order()],
     );
-    // 1 单 × 3 元 = 3 元（流水比例不再参与，不能两个一起加）
+    // 1 单 × 3 元 = 3 元（业绩比例不再参与，不能两个一起加）
     expect(single.onlineYuan).toBe(3);
 
     const double = await row0(
@@ -100,10 +100,10 @@ describe('客服提成 · 线上口径（老板 2026-09-30）', () => {
     expect(double.onlineYuan).toBe(6);
   });
 
-  it('线下 · max(流水 × 比例, 保底)', async () => {
-    // 流水 50 × 1% = 0.5 元 → 不足保底 2 元，按保底发
+  it('线下 · max(业绩 × 比例, 保底)', async () => {
+    // 业绩 50 × 1% = 0.5 元 → 不足保底 2 元，按保底发
     expect((await row0({}, [offlineOrder({ amount: 50 })])).offlineYuan).toBe(2);
-    // 比例改成 5%：流水 2000 × 5% = 100 元
+    // 比例改成 5%：业绩 2000 × 5% = 100 元
     expect((await row0({ 'commission.cs_offline_rate_percent': 5 }, [offlineOrder({ amount: 2000 })])).offlineYuan).toBe(100);
   });
 

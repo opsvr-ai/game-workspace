@@ -1290,16 +1290,16 @@ export class CustomersService {
    *
    * 老板 2026-10-04：抢单后客户一直没通过、陪玩也没标记的，管理端把这个客户删掉即可。
    * 但订单表对客户是 RESTRICT 外键，只要客户名下还有订单就删不掉；
-   * 而且真正成交过的客户删了会把订单 / 流水一起带走。所以这里分两种情况：
-   *   - 名下订单全是「从未成交」的（待抢 / 已抢 / 已确认 / 已取消，无流水、无会话、无补单申请）
+   * 而且真正成交过的客户删了会把订单 / 业绩一起带走。所以这里分两种情况：
+   *   - 名下订单全是「从未成交」的（待抢 / 已抢 / 已确认 / 已取消，无业绩、无会话、无补单申请）
    *     → 连这些僵尸单一起清掉，客户才能真的删掉；
-   *   - 只要有一单成交 / 有流水 / 有服务会话 / 有补单申请
+   *   - 只要有一单成交 / 有业绩 / 有服务会话 / 有补单申请
    *     → 明确挡住，不动账目（真要处理由老板点名）。
    */
   /**
    * 封存客户（老板 2026-10-04）：
    *   「客户小红书也不回，那只能把这个客户信息封存起来了，找合适的时候再找别的陪玩加加试试」。
-   * 不是删除 —— 档案、订单、流水、跟进记录全留着，只是从活跃列表里收起来。
+   * 不是删除 —— 档案、订单、业绩、跟进记录全留着，只是从活跃列表里收起来。
    */
   async archive(id: string, user: AuthenticatedUser, reason?: string) {
     const customer = await this.findOne(id, user);
@@ -1372,7 +1372,7 @@ export class CustomersService {
     return this.prisma.customer.delete({ where: { id } });
   }
 
-  /** 客户名下订单里是否已经有「不能删」的痕迹（成交状态 / 流水 / 服务会话 / 补单申请）。 */
+  /** 客户名下订单里是否已经有「不能删」的痕迹（成交状态 / 业绩 / 服务会话 / 补单申请）。 */
   private async hasSettledOrderHistory(orders: any[], orderIds: string[]): Promise<boolean> {
     const cleanStatuses = ['PENDING', 'GRABBED', 'CONFIRMED', 'CANCELLED'];
     if (orders.some((o) => !cleanStatuses.includes(String(o.status)))) return true;

@@ -283,7 +283,7 @@ const CsCommissionTodayPage: React.FC = () => {
       render: (_: unknown, r: any) => (
         <div>
           <Text strong>{r.offlineOrders ?? 0} 单</Text>
-          <div style={{ fontSize: 11, color: TEXT.tertiary }}>流水 {yuan(r.offlineFlow)}</div>
+          <div style={{ fontSize: 11, color: TEXT.tertiary }}>业绩 {yuan(r.offlineFlow)}</div>
           <div style={{ fontSize: 11, color: SEMANTIC.dangerDeep }}>提成 {yuan(r.offlineCommission)}</div>
         </div>
       ),
@@ -540,7 +540,7 @@ const CsCommissionTodayPage: React.FC = () => {
           <StatCard
             label="线下（本店陪玩）"
             value={`${s?.offlineOrders ?? 0} 单`}
-            sub={`流水 ${yuan(s?.offlineFlow)} · 提成 ${yuan(s?.offlineCommission)}`}
+            sub={`业绩 ${yuan(s?.offlineFlow)} · 提成 ${yuan(s?.offlineCommission)}`}
             tint={SEMANTIC.dangerDeep}
           />
         </Col>
@@ -578,7 +578,7 @@ const CsCommissionTodayPage: React.FC = () => {
                 {s?.bridgeTarget ?? 10} 单只是看板上的进度，线上按
                 {data?.config?.onlineMode === 'PER_ORDER'
                   ? `每单 ¥${data?.config?.onlinePerOrderYuan ?? 1}`
-                  : `流水 ${data?.config?.onlineRatePercent ?? 1}%`}
+                  : `业绩 ${data?.config?.onlineRatePercent ?? 1}%`}
                 算
               </>
             }

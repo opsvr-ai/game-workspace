@@ -1,14 +1,14 @@
 import { BadRequestException } from '@nestjs/common';
 
 /**
- * 一单流水的「四个人分成」口径（老板 2026-09-21 拍板）：
+ * 一单业绩的「四个人分成」口径（老板 2026-09-21 拍板）：
  *
- * > 不管线下工作室还是线上俱乐部，流水有 **工作室、店长、客服、陪玩** 这四个人分。
+ * > 不管线下工作室还是线上俱乐部，业绩有 **工作室、店长、客服、陪玩** 这四个人分。
  *
  * 规则：
  * - **陪玩**：线下按阶梯（`revenue.share_tiers`）、线上按固定比例（`revenue.club_companion_share`），
  *   这一栏是**已经生效的口径**，本函数只接收、不改写；
- * - **客服 / 店长**：按流水比例（`commission.cs_offline_rate_percent`、
+ * - **客服 / 店长**：按业绩比例（`commission.cs_offline_rate_percent`、
  *   `commission.admin_offline_rate_percent` / `commission.admin_online_rate_percent`）；
  * - **工作室**：拿**剩下的**（100% − 陪玩 − 客服 − 店长），所以四个人加起来永远是 100%；
  * - 三者加起来超过 100% 直接报错，不允许保存。

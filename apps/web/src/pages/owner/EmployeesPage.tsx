@@ -385,7 +385,7 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
       render: (_: unknown, record: any) => <Text strong style={{fontSize:13}}>{record.companion?.todayOrderCount ?? '-'}</Text>,
     },
     {
-      title: '总流水',
+      title: '总业绩',
       dataIndex: ['companion', 'monthlyRevenue'],
       key: 'revenue',
       width: 88,
@@ -488,7 +488,7 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
               ) : (
                 <Popconfirm
                   title="确定办理离职？"
-                  description="账号停用、无法登录；陪玩还会清空流水/余额并释放工位与工作微信。历史记录保留"
+                  description="账号停用、无法登录；陪玩还会清空业绩/余额并释放工位与工作微信。历史记录保留"
                   onConfirm={() => handleResign(record)}
                   okText="离职"
                   cancelText="取消"
@@ -706,10 +706,10 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
         destroyOnClose
       >
         <Form form={financeForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="todayRevenue" label="今日流水">
+          <Form.Item name="todayRevenue" label="今日业绩">
             <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
           </Form.Item>
-          <Form.Item name="totalRevenue" label="总流水">
+          <Form.Item name="totalRevenue" label="总业绩">
             <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
           </Form.Item>
           <Form.Item name="totalWithdrawn" label="已支取">

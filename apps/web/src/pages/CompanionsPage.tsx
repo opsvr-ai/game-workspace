@@ -253,7 +253,8 @@ const CompanionsPage: React.FC = () => {
    * 入口就放在「陪玩列表」每行（比单独开一页顺手）：店长 / 老板看得到这个按钮，
    * 客服 / 陪玩看不到 —— 后端 `PUT /companions/:id/finance` 同样只放行 店长 + 老板。
    *
-   * 「业绩」= 列表里的「月收入」= 财务弹窗里的「总流水」= `Companion.monthlyRevenue`，一份数据三处叫法。
+   * 「业绩」= 列表里的「业绩」列 = 财务弹窗里的「总业绩」= `Companion.monthlyRevenue`。
+   * 老板 2026-10-10 统一口径：全站只叫「业绩」，不再有「月收入 / 流水 / 总流水」几种叫法。
    */
   const openFinance = (record: Personnel) => {
     setFinanceCompanion(record);
@@ -520,7 +521,7 @@ const CompanionsPage: React.FC = () => {
         ),
       },
       {
-        title: '月收入',
+        title: '业绩',
         dataIndex: 'monthlyRevenue',
         key: 'monthlyRevenue',
         width: 80,
@@ -620,7 +621,7 @@ const CompanionsPage: React.FC = () => {
                 ) : (
                   <Popconfirm
                     title="确认离职处理？"
-                    description="账号停用、无法登录；流水/余额清零，工位和工作微信交回。历史记录保留"
+                    description="账号停用、无法登录；业绩/余额清零，工位和工作微信交回。历史记录保留"
                     onConfirm={() => handleResign(record.companionId || '')}
                     okText="确认"
                     cancelText="取消"
@@ -887,7 +888,7 @@ const CompanionsPage: React.FC = () => {
           <Form.Item
             name="revenue"
             label="业绩金额"
-            extra="就是列表里那个「月收入」（财务弹窗里叫「总流水」），改的是同一份数据。"
+            extra="就是列表里那一列「业绩」（财务弹窗里叫「总业绩」），改的是同一份数据。"
             rules={[{ required: true, message: '请填业绩金额' }]}
           >
             <InputNumber min={0} step={100} style={{ width: '100%' }} prefix="¥" />

@@ -12,12 +12,12 @@ const { Text } = Typography;
 /**
  * 分账规则（老板 2026-09-21）
  *
- * 一单流水由 **陪玩 / 店长 / 客服 / 工作室** 四个人分，四个数字加起来永远 100%。
+ * 一单业绩由 **陪玩 / 店长 / 客服 / 工作室** 四个人分，四个数字加起来永远 100%。
  * 所以这一页从上到下就按这个顺序排四行：
  *
- * - 陪玩：线下按当月流水分档（一档一列），线上俱乐部用固定比例；
- * - 店长：全店统一，不随流水变化，按流水比例提成；
- * - 客服：线下按流水比例、线上（俱乐部）也按流水比例、桥接按单量；
+ * - 陪玩：线下按当月业绩分档（一档一列），线上俱乐部用固定比例；
+ * - 店长：全店统一，不随业绩变化，按业绩比例提成；
+ * - 客服：线下按业绩比例、线上（俱乐部）也按业绩比例、桥接按单量；
  * - 工作室：**自动** = 100 − 陪玩 − 店长 − 客服，只读、不用手填 —— 从源头杜绝「加起来 120%」，
  *   库里存的也正好是工作室真正拿到手的份额（对账直接用这个数）。
  *
@@ -154,7 +154,7 @@ const PaymentSettings: React.FC = () => {
   const clubCompanion = clampPercent(config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE, 1, 99);
   const adminOnline = clampPercent(config?.['commission.admin_online_rate_percent'] ?? 0);
   const csOnlinePerOrder = Number(config?.['commission.cs_online_per_order_yuan'] ?? 1);
-  // 线上俱乐部订单的客服提成：按流水比例计提（老板 2026-09-29）。
+  // 线上俱乐部订单的客服提成：按业绩比例计提（老板 2026-09-29）。
   const csOnlineRate = clampPercent(config?.['commission.cs_online_rate_percent'] ?? 1);
   // 桥接工作室：单价（元/人/小时）+ 首单返款（库里存「分」，界面显示「元」）。
   const bridgeSecretPrice = Number(config?.['bridge.secret_price_yuan'] ?? 35);
@@ -284,7 +284,7 @@ const PaymentSettings: React.FC = () => {
         }}
       >
         <span>
-          一单流水由 <Text strong>陪玩 / 店长 / 客服 / 工作室</Text> 四个人分，四项加起来永远 100%。
+          一单业绩由 <Text strong>陪玩 / 店长 / 客服 / 工作室</Text> 四个人分，四项加起来永远 100%。
           填好前三个，<Text strong style={{ color: ROLE_TINT.studio }}>工作室自动算</Text>
           （不用手填，也填不出 120%）。
         </span>
@@ -293,9 +293,9 @@ const PaymentSettings: React.FC = () => {
       {/* ── 线下工作室 ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span className="ui-dot" style={{ background: GROUP_TINT.offline }} />
-        <Text strong style={{ fontSize: 14 }}>线下工作室（按流水阶梯分）</Text>
+        <Text strong style={{ fontSize: 14 }}>线下工作室（按业绩阶梯分）</Text>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          陪玩那一行按当月流水分档，其余三人全店统一
+          陪玩那一行按当月业绩分档，其余三人全店统一
         </Text>
       </div>
       {offlineBroken && (
@@ -321,7 +321,7 @@ const PaymentSettings: React.FC = () => {
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Text type="secondary" style={{ fontSize: 11, flex: '0 0 52px' }}>最低流水</Text>
+                <Text type="secondary" style={{ fontSize: 11, flex: '0 0 52px' }}>最低业绩</Text>
                 <InputNumber
                   size="small" min={0} step={100} value={t?.min} disabled={i === 0}
                   onChange={(v) => updateTier(i, 'min', Number(v ?? 0))}
@@ -329,7 +329,7 @@ const PaymentSettings: React.FC = () => {
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Text type="secondary" style={{ fontSize: 11, flex: '0 0 52px' }}>最高流水</Text>
+                <Text type="secondary" style={{ fontSize: 11, flex: '0 0 52px' }}>最高业绩</Text>
                 <InputNumber
                   size="small" min={0} step={100} value={t?.max ?? undefined} placeholder="留空 = 无上限"
                   onChange={(v) => updateTier(i, 'max', v == null ? null : Number(v))}
@@ -340,7 +340,7 @@ const PaymentSettings: React.FC = () => {
           ))}
 
           {/* 陪玩 */}
-          {labelCell('companion', '陪玩', '按流水档位')}
+          {labelCell('companion', '陪玩', '按业绩档位')}
           {tiers.map((t, i) => (
             <div key={`c${i}`} style={CELL}>
               {percentInput(clampPercent(t?.companion), (v) => updateTier(i, 'companion', v))}
@@ -352,7 +352,7 @@ const PaymentSettings: React.FC = () => {
           <div style={{ ...CELL, gridColumn: `span ${tiers.length}` }}>
             {percentInput(adminOffline, (v) => update('commission.admin_offline_rate_percent', v))}
             <Text type="secondary" style={{ fontSize: 12 }}>
-              全店统一，不随流水档位变化；店里多位店长时按人数均分
+              全店统一，不随业绩档位变化；店里多位店长时按人数均分
             </Text>
           </div>
 
@@ -361,7 +361,7 @@ const PaymentSettings: React.FC = () => {
           <div style={{ ...CELL, gridColumn: `span ${tiers.length}` }}>
             {percentInput(csOffline, (v) => update('commission.cs_offline_rate_percent', v))}
             <Text type="secondary" style={{ fontSize: 12 }}>
-              按流水比例提成；线上俱乐部也按流水比例，在下面单独设置
+              按业绩比例提成；线上俱乐部也按业绩比例，在下面单独设置
             </Text>
           </div>
 
@@ -378,7 +378,7 @@ const PaymentSettings: React.FC = () => {
 
           {/* 添加档位 */}
           <div style={{ ...CELL, gridColumn: `span ${tiers.length + 1}`, padding: '8px 10px' }}>
-            <Button type="dashed" block icon={<PlusOutlined />} onClick={addTier}>添加流水档位</Button>
+            <Button type="dashed" block icon={<PlusOutlined />} onClick={addTier}>添加业绩档位</Button>
           </div>
         </div>
       </div>
@@ -388,7 +388,7 @@ const PaymentSettings: React.FC = () => {
         <span className="ui-dot" style={{ background: GROUP_TINT.online }} />
         <Text strong style={{ fontSize: 14 }}>线上俱乐部（固定比例）</Text>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          不按流水分档，全店只有一个比例
+          不按业绩分档，全店只有一个比例
         </Text>
       </div>
       {onlineBroken && (
@@ -404,7 +404,7 @@ const PaymentSettings: React.FC = () => {
           <div style={{ ...HEAD_CELL, ...LABEL_CELL }}>分成对象</div>
           <div style={{ ...HEAD_CELL, flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
             <Text strong style={{ fontSize: 12 }}>线上俱乐部 · 固定比例</Text>
-            <Text type="secondary" style={{ fontSize: 11 }}>不分流水档位，所有线上单一个标准</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>不分业绩档位，所有线上单一个标准</Text>
           </div>
 
           {labelCell('companion', '陪玩', '固定比例')}
@@ -416,13 +416,13 @@ const PaymentSettings: React.FC = () => {
           {labelCell('admin', '店长', '全店统一')}
           <div style={CELL}>
             {percentInput(adminOnline, (v) => update('commission.admin_online_rate_percent', v))}
-            <Text type="secondary" style={{ fontSize: 12 }}>按线上单流水比例；店里多位店长时按人数均分</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>按线上单业绩比例；店里多位店长时按人数均分</Text>
           </div>
 
-          {labelCell('cs', '客服', '按流水比例')}
+          {labelCell('cs', '客服', '按业绩比例')}
           <div style={CELL}>
             {percentInput(csOnlineRate, (v) => update('commission.cs_online_rate_percent', v))}
-            <Text type="secondary" style={{ fontSize: 12 }}>按线上单流水比例提成；从工作室那份里出</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>按线上单业绩比例提成；从工作室那份里出</Text>
           </div>
 
           {labelCell('studio', '工作室', '自动算出')}

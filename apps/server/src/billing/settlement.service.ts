@@ -223,7 +223,7 @@ export class SettlementService {
     }
 
     // 可支取余额：唯一口径在 common/withdrawable.ts。
-    // 以前这里自己算了一遍（用全店流水套一个档位、还带着写死的 5200 兜底），
+    // 以前这里自己算了一遍（用全店业绩套一个档位、还带着写死的 5200 兜底），
     // 跟「钱包 / 支取审核」算出来的数能差出几百块，所以统一收敛过去。
     // 全店视图 = 每个陪玩各自的可用额相加（分润档位本来就是按人按月算的）。
     let splitRatio = 0;
@@ -239,7 +239,7 @@ export class SettlementService {
       depositReserve = w.depositReserve;
       withdrawable = w.withdrawable;
     } else {
-      // 平均分润比例 = 各人提成之和 ÷ 各人流水之和（全店视图只做展示）
+      // 平均分润比例 = 各人提成之和 ÷ 各人业绩之和（全店视图只做展示）
       let weightedShare = 0;
       let revenueSum = 0;
       for (const c of allCompanions) {

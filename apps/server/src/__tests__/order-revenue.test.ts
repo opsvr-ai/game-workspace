@@ -55,11 +55,11 @@ describe('companionOrderRevenue：口径 A（谁的钱算谁的）', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 本月流水拆分（老板 2026-10-08 再确认「只算自己那份」）：
-//   陪玩端首页那个大号「本月流水」只能是他自己的钱 —— 他当主陪拿主陪金额、
+// 本月业绩拆分（老板 2026-10-08 再确认「只算自己那份」）：
+//   陪玩端首页那个大号「本月业绩」只能是他自己的钱 —— 他当主陪拿主陪金额、
 //   他当搭档拿搭档金额（那是发给他本人的那一份）；**搭档（别人）那份永远不进他的数**。
 // ---------------------------------------------------------------------------
-describe('companionMonthRevenueParts：本月流水只算自己那份', () => {
+describe('companionMonthRevenueParts：本月业绩只算自己那份', () => {
   it('双陪单：主陪与搭档各拿各的，两边 total 里都没有对方的钱（线上 703 单回归）', () => {
     const order = { amount: 105, coAmount: 150, companionId: 'tong', coCompanionId: 'zhou', customFields: {} };
     expect(companionMonthRevenueParts([order], 'tong')).toEqual({ total: 105, primary: 105, co: 0, split: 0 });

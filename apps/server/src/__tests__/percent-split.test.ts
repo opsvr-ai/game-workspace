@@ -53,7 +53,7 @@ describe('percent-split 归一化（老板 2026-09-21：避免超过百分百）
   });
 });
 
-describe('percent-split 四人口径（老板 2026-09-21：流水由 工作室 / 店长 / 客服 / 陪玩 四个人分）', () => {
+describe('percent-split 四人口径（老板 2026-09-21：业绩由 工作室 / 店长 / 客服 / 陪玩 四个人分）', () => {
   it('工作室 = 100 − 陪玩 − 店长 − 客服（店长 / 客服拿的也是工作室那份）', () => {
     const [t] = normalizeShareTiers([{ min: 0, companion: 50 }], 10 + 1);
     expect(t.companion).toBe(50);

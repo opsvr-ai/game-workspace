@@ -9,7 +9,7 @@ import { WsGateway } from '../ws/ws.gateway';
  *
  * 老板 2026-10-05：「你也给陪玩提示一下，不点结束不会计入影响评分增加，让他们主动点」——
  * 所以这条提醒现在做两件事：
- *   ① 文案直接说清「不点结束 = 不计流水、不算分」，逼着人去点；
+ *   ① 文案直接说清「不点结束 = 不计业绩、不算分」，逼着人去点；
  *   ② **不再只提醒一次**：只要这段还挂着（ACTIVE），每 30 分钟再提醒一次，直到他点「结束服务」。
  *      （以前是 `durationRemindedAt = null` 才提醒，提醒过一次就再也不吭声了。）
  */
@@ -64,7 +64,7 @@ export class ServiceDurationReminderService implements OnModuleInit {
       const message =
         `已服务 ${durationH} 小时，${overdueText}。` +
         '打完请立刻点「结束服务」；客户还要接着打就先点「续单」—— ' +
-        '不点的话这一单不计流水，也不算首单成交 / 续单 / 复购（评分和抢单名额都会少）';
+        '不点的话这一单不计业绩，也不算首单成交 / 续单 / 复购（评分和抢单名额都会少）';
       if (s.companionId) {
         this.wsGateway.pushToCompanion(s.companionId, 'service:duration_reminder', {
           sessionId: s.id,

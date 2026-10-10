@@ -203,7 +203,7 @@ const CsSettingsPage: React.FC = () => {
               value={getCfg('commission.cs_offline_rate_percent', 1)}
               step={0.5}
               onChange={(v) => setCfg('commission.cs_offline_rate_percent', v)}
-              hint="每单 = 流水 × 此比例，不足「线下保底」按保底发"
+              hint="每单 = 业绩 × 此比例，不足「线下保底」按保底发"
             />
             <Field label="线下保底" unit="元/单" value={getCfg('commission.cs_offline_floor_cents', 200) / 100} step={0.5} onChange={(v) => setCfg('commission.cs_offline_floor_cents', Math.round(v * 100))} hint="每单提成不足时按保底发" />
             <Field label="线下每单封顶" unit="元/单" value={getCfg('commission.cs_offline_per_order_cap_cents', 0) / 100} step={0.5} onChange={(v) => setCfg('commission.cs_offline_per_order_cap_cents', Math.round(v * 100))} hint="每单线下提成上限，0=不封顶" />
@@ -224,19 +224,19 @@ const CsSettingsPage: React.FC = () => {
                 onChange={(v) => setCfg('commission.cs_online_mode', v as any)}
                 style={{ width: 230 }}
                 options={[
-                  { value: 'RATE', label: '按流水比例（%）' },
+                  { value: 'RATE', label: '按业绩比例（%）' },
                   { value: 'PER_ORDER', label: '按成功单数 × 每单单价' },
                 ]}
               />
               <Text type="secondary">两个数都填也只按选中的这一种算，不会叠加</Text>
             </div>
             <Field
-              label="线上流水比例"
+              label="线上业绩比例"
               unit="%"
               value={getCfg('commission.cs_online_rate_percent', 1)}
               step={0.5}
               onChange={(v) => setCfg('commission.cs_online_rate_percent', v)}
-              hint="选「按流水比例」时用：每单 = 流水 × 此比例"
+              hint="选「按业绩比例」时用：每单 = 业绩 × 此比例"
             />
             <Field
               label="线上每单单价"
@@ -435,16 +435,16 @@ const CsSettingsPage: React.FC = () => {
                 allowClear
                 style={{ width: '100%' }}
                 value={(cfgDraft.onlineMode as any) ?? undefined}
-                placeholder={`本店 ${defs.onlineMode === 'PER_ORDER' ? '按成功单数 × 每单单价' : '按流水比例'}`}
+                placeholder={`本店 ${defs.onlineMode === 'PER_ORDER' ? '按成功单数 × 每单单价' : '按业绩比例'}`}
                 onChange={(v) => numDraft('onlineMode', v as any)}
                 options={[
-                  { value: 'RATE', label: '按流水比例（%）' },
+                  { value: 'RATE', label: '按业绩比例（%）' },
                   { value: 'PER_ORDER', label: '按成功单数 × 每单单价' },
                 ]}
               />
             </div>
           </Col>
-          {cfgNum('onlineRatePercent', '线上流水比例', '%', defs.onlineRatePercent, 0.5)}
+          {cfgNum('onlineRatePercent', '线上业绩比例', '%', defs.onlineRatePercent, 0.5)}
           {cfgNum('onlinePerOrderYuan', '线上每单单价', '元/单', defs.onlinePerOrderYuan, 0.5)}
         </Row>
       </Modal>

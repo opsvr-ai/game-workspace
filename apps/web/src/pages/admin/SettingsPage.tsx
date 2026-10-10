@@ -55,9 +55,9 @@ const GROUPS: SettingGroup[] = [
     items: [
       {
         key: 'revenue',
-        label: '流水与价格',
+        label: '业绩与价格',
         hint: '单价、支取、押金',
-        keywords: '流水 价格 单价 支取 提现 押金 钱包 结算',
+        keywords: '业绩 价格 单价 支取 提现 押金 钱包 结算',
         render: () => <RevenueSettings />,
       },
       {

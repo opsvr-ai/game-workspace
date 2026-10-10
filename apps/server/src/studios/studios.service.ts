@@ -299,7 +299,7 @@ export class StudiosService {
     });
     if (!user) return;
     // 先删陪玩档案再删账号：Companion.userId 是必填外键，不先删会直接报「数据操作失败」
-    // （2026-09-26 验证时踩到：删除陪玩账号 100% 失败）。陪玩有订单/流水等历史时会继续报错，
+    // （2026-09-26 验证时踩到：删除陪玩账号 100% 失败）。陪玩有订单/业绩等历史时会继续报错，
     // 这是有意的 —— 有历史的人应该走「离职」，而不是「删除」。
     await this.prisma.$transaction(async (tx) => {
       const companionId = user.companion?.id;

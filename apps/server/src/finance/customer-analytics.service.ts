@@ -398,7 +398,7 @@ export class CustomerAnalyticsService {
   ): string {
     const parts: string[] = [];
     if (s.orderCount === 0) return `${name} 近 90 天暂无完成订单，暂无异常基线`;
-    parts.push(`${name} 近 90 天完成 ${s.orderCount} 单、流水 ¥${Math.round(s.revenueYuan)}`);
+    parts.push(`${name} 近 90 天完成 ${s.orderCount} 单、业绩 ¥${Math.round(s.revenueYuan)}`);
     if (s.flaggedCount > 0) parts.push(`${s.flaggedCount} 单转账与上报金额不符`);
     if (s.lowPriceCount > 0) parts.push(`${s.lowPriceCount} 次单价低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）`);
     if (s.consumptionDropCount > 0) parts.push(`${s.consumptionDropCount} 位客户周消费腰斩`);

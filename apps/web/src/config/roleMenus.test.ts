@@ -120,7 +120,7 @@ describe('左侧导航菜单（roleMenus）', () => {
     expect(problems).toEqual([]);
   });
 
-  it('「流水比例」小字只挂在工资 / 提成那几项上（值来自「设置 → 分账规则」）', () => {
+  it('「业绩比例」小字只挂在工资 / 提成那几项上（值来自「设置 → 分账规则」）', () => {
     const withRatio = new Map<string, string[]>();
     for (const role of ROLES) {
       for (const item of flatten(roleMenus[role])) {

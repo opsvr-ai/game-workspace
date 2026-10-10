@@ -96,7 +96,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
     );
   }, [companions, keyword]);
 
-  // 陪玩端：每天的报账（上报今日流水）
+  // 陪玩端：每天的报账（上报今日业绩）
   const dailyReports = useMemo(
     () =>
       reports
@@ -291,7 +291,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
           />
         </Spin>
         <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-          📌 收入 = 结算分成 + 押金；支取 = 提现；只统计已通过的流水。净额 = 收入 − 支取。
+          📌 收入 = 结算分成 + 押金；支取 = 提现；只统计已通过的业绩。净额 = 收入 − 支取。
         </Text>
       </Card>
     </div>

@@ -192,7 +192,7 @@ describe('单量：单陪算 1 单、双陪算 2 单（老板 2026-09-29）', ()
   });
 });
 
-describe('流水：（主陪单价 + 搭档单价）× 时长', () => {
+describe('业绩：（主陪单价 + 搭档单价）× 时长', () => {
   it('2 小时 x 80 = 160', () => {
     expect(orderGrossYuan({ amount: 80, duration: 2 })).toBe(160);
   });

@@ -436,7 +436,7 @@ export class BillingService {
 
   // ── Revenue Diff Check ──
 
-  /** 计算某陪玩当前营业日的真实服务时长与系统预估流水（主陪 + 副陪都算，按实际计时）。 */
+  /** 计算某陪玩当前营业日的真实服务时长与系统预估业绩（主陪 + 副陪都算，按实际计时）。 */
   private async computeActualServiceStats(companionId: string, start: Date, end: Date) {
     const sessions = await this.prisma.orderSession.findMany({
       where: {
@@ -558,7 +558,7 @@ export class BillingService {
     }
   }
 
-  /** 下班前转公户：业绩金额 + 公户转账截图，作为当日实际流水的最终口径 */
+  /** 下班前转公户：业绩金额 + 公户转账截图，作为当日实际业绩的最终口径 */
   async submitCompanyTransfer(
     companionId: string,
     studioId: string,
@@ -578,12 +578,12 @@ export class BillingService {
       amount,
       screenshotUrl,
     });
-    // 用转公户金额与系统累计流水做一次对账提示（仅提示，不影响最终口径）
+    // 用转公户金额与系统累计业绩做一次对账提示（仅提示，不影响最终口径）
     await this.checkRevenueDiff(companionId, studioId, amount);
     return report;
   }
 
-  /** 获取某陪玩当前营业日的系统累计流水与转公户金额 */
+  /** 获取某陪玩当前营业日的系统累计业绩与转公户金额 */
   async getCompanionDailyReconciliation(companionId: string) {
     const { start, end } = currentBusinessDayRange();
     // 系统累计：按真实计时（结束时间 - 开始时间 - 暂停时间），主陪 + 副陪都算

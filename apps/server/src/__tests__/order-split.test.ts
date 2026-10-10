@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { splitRoles, splitAmountYuan, parsePercent } from '../common/order-split';
 
-describe('order-split 一单流水「工作室/店长/客服/陪玩」四个人分（老板 2026-09-21 拍板）', () => {
+describe('order-split 一单业绩「工作室/店长/客服/陪玩」四个人分（老板 2026-09-21 拍板）', () => {
   it('工作室拿剩下的：陪玩 60 + 客服 5 + 店长 10 → 工作室 25，合计 100%', () => {
     const r = splitRoles({ companion: 60, cs: 5, admin: 10 });
     expect(r).toEqual({ companion: 60, cs: 5, admin: 10, studio: 25 });

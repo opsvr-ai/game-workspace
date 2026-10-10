@@ -9,7 +9,7 @@ import { resolveConfigsRaw } from '../common/studio-config';
 /**
  * 陪玩「每日抢单名额」（按下等马 / 中等马 / 上等马发放，没用完的自动累计）。
  *
- * 老板 2026-09-20 拍板：不再用「流水门槛」卡抢单，改成「每天按段位发几个客户名额」。
+ * 老板 2026-09-20 拍板：不再用「业绩门槛」卡抢单，改成「每天按段位发几个客户名额」。
  * 老板 2026-10-04 补充（本次）：
  * - 名额**在抢单那一刻就扣**，不是「添加成功 / 转账了才算一单」——防止有人一直不点添加成功就一直抢；
  * - **线下工作室（Studio.type = DIRECT）的预约单也占名额**；
@@ -126,7 +126,7 @@ export class CompanionQuotaService {
     return { tier, limit, studioType: companion?.studio?.type || 'DIRECT' };
   }
 
-  /** 记一笔名额流水（失败不影响主流程）。 */
+  /** 记一笔名额业绩（失败不影响主流程）。 */
   private async log(
     companionId: string,
     delta: number,
@@ -315,8 +315,8 @@ export class CompanionQuotaService {
     const days = [...byDay.values()].sort((a, b) => (a.dayKey < b.dayKey ? 1 : -1));
 
     const todayFromLogs = byDay.get(todayKey)?.used ?? 0;
-    // 台账是今天才开始记的：当天还没有 GRAB 流水时，退回按「今天抢到的单」估一个数，
-    // 免得刚上线那半天「今日已用」一直是 0。有流水就一律以流水为准。
+    // 台账是今天才开始记的：当天还没有 GRAB 业绩时，退回按「今天抢到的单」估一个数，
+    // 免得刚上线那半天「今日已用」一直是 0。有业绩就一律以业绩为准。
     const rolledToday = logs.some((r) => r.reason === QUOTA_REASON.GRAB && (r.dayKey || '') === todayKey);
     let usedToday = todayFromLogs;
     if (!rolledToday) {

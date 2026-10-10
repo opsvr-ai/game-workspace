@@ -193,7 +193,7 @@ const RiskWorkbenchPage: React.FC = () => {
             render={(v: number) => <Text strong style={{ color: v >= 50 ? SEMANTIC.dangerDeep : v >= 20 ? '#d46b08' : '#389e0d' }}>{v}</Text>}
           />
           <Table.Column title="90天订单" dataIndex="orderCount" />
-          <Table.Column title="流水（元）" dataIndex="revenueYuan" render={(v: number) => `¥${Number(v || 0).toFixed(0)}`} />
+          <Table.Column title="业绩（元）" dataIndex="revenueYuan" render={(v: number) => `¥${Number(v || 0).toFixed(0)}`} />
           <Table.Column title="转账异常" dataIndex="flaggedCount" render={(v: number) => (v ? <Tag color="red">{v}</Tag> : '-')} />
           <Table.Column title="低价异常" dataIndex="lowPriceCount" render={(v: number) => (v ? <Tag color="orange">{v}</Tag> : '-')} />
           <Table.Column

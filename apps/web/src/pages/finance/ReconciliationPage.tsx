@@ -38,7 +38,7 @@ const ReconciliationPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="陪玩应报vs实报流水"
+        title="陪玩应报vs实报业绩"
         subtitle="按「陪玩 × 营业日」核对应收合计与员工收款码实际到账，差额标红"
         extra={
           <Space>
