@@ -180,7 +180,7 @@ describe('娱乐能不能进 / 该不该踢（老板 2026-10-08）', () => {
     });
     expect(verdict.ok).toBe(false);
     expect(verdict.minutesLeft).toBe(0);
-    expect(verdict.reason).toContain('业绩 + 押金不够玩娱乐');
+    expect(verdict.reason).toContain('钱包业绩 + 押金不够玩娱乐');
   });
 
   it('宽限只给「已经进去的人」：stay 刚进去 20 秒不踢，到 60 秒才踢；enter 一律不宽限', () => {

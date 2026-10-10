@@ -268,10 +268,15 @@ const CompanionsPage: React.FC = () => {
     if (!values) return; // 校验没过：红字提示由 antd 出，不发请求
     setFinanceSaving(true);
     try {
-      await companionsApi.updateFinance(companionId, {
+      const payload: any = {
         totalRevenue: Number(values.revenue) || 0,
         note: values.note?.trim() || '店长手动调整业绩',
-      });
+      };
+      // 「今日业绩」留空就不发（保持原样）；填了才覆盖今天那个数。
+      if (values.todayRevenue !== undefined && values.todayRevenue !== null) {
+        payload.todayRevenue = Number(values.todayRevenue) || 0;
+      }
+      await companionsApi.updateFinance(companionId, payload);
       message.success(`${financeCompanion?.username || '该陪玩'} 的业绩已更新`);
       setFinanceCompanion(null);
       financeForm.resetFields();
@@ -886,9 +891,16 @@ const CompanionsPage: React.FC = () => {
       >
         <Form form={financeForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
+            name="todayRevenue"
+            label="今日业绩（要测娱乐就填这格，留空 = 不改）"
+            extra="能不能点「娱乐」、接单名额解不解锁，看的就是「今天」的业绩 —— 填到本店免单线，他今天就能免费玩娱乐。只算今天这一天，明天自动失效。"
+          >
+            <InputNumber min={0} step={50} style={{ width: '100%' }} prefix="¥" placeholder="不改就不填" />
+          </Form.Item>
+          <Form.Item
             name="revenue"
-            label="业绩金额"
-            extra="就是列表里那一列「业绩」（财务弹窗里叫「总业绩」），改的是同一份数据。"
+            label="累计业绩（列表里那一列，不影响娱乐）"
+            extra="就是列表里那一列「业绩」（财务弹窗里叫「总业绩」），改的是同一份数据；只记账，跟今天能不能玩娱乐无关。"
             rules={[{ required: true, message: '请填业绩金额' }]}
           >
             <InputNumber min={0} step={100} style={{ width: '100%' }} prefix="¥" />

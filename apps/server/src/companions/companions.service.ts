@@ -10,7 +10,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { companionMonthRevenueParts, companionOrderRevenue } from '../common/order-revenue';
-import { checkEntertainmentEligibility, computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, loadEntertainmentStanding, sumDepositPlayedToday } from '../common/entertainment-fee';
+import { checkEntertainmentEligibility, computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, loadEntertainmentStanding, manualTodayBoost, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { roundToJiao } from '../common/money';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { CompanionRevenueService } from './companion-revenue.service';
@@ -990,7 +990,8 @@ export class CompanionsService {
       },
       select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
     });
-    const todayRevenue = todayOrders.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0);
+    // 打单算出来的今日业绩；再叠加「手工补录」（见下面 studioRow 之后）。
+    const todayRevenueFromOrders = todayOrders.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0);
 
     // 订单分型（口径 A：主陪算「主陪金额」、搭档算「搭档金额」；他当搭档打的那份也算他自己打过的单）
     // 范围 = 本营业月（当月 1 日 12:00 至次月 1 日 12:00），跟顶上「本月业绩」是同一批单。
@@ -1052,8 +1053,13 @@ export class CompanionsService {
     });
     // 阈值配置：按「本店店长填的 → 老板全局默认 → 代码兜底」解析
     const studioRow = await this.prisma.companion
-      .findUnique({ where: { id: companionId }, select: { studioId: true } })
+      .findUnique({
+        where: { id: companionId },
+        select: { studioId: true, todayRevenueBoost: true, todayRevenueBoostDay: true },
+      })
       .catch(() => null);
+    // 手工补录的今日业绩（老板 2026-10-11）：娱乐门槛 / 接单解锁 / 首页都认这个数。
+    const todayRevenue = todayRevenueFromOrders + manualTodayBoost(studioRow, new Date());
     const workbenchStudioId = studioRow?.studioId;
     const scopedCfg = await resolveConfigsRaw(this.prisma, workbenchStudioId, [
         'revenue.free_threshold',
@@ -1571,6 +1577,36 @@ export class CompanionsService {
           },
         }),
       );
+    }
+
+    if (data.todayRevenue !== undefined) {
+      // 「今日业绩」手工设定（老板 2026-10-11）。
+      // 娱乐门槛 / 接单解锁 / 陪玩端首页看的都是**今日业绩**，而这个数是当天打单算出来的 ——
+      // 老板要能手工改（补录线下打的单、或者临时让某个人能测娱乐）。以前「编辑财务 → 今日业绩」
+      // 填了被这里忽略，等于白填。
+      // 存的是「补录差额」，所以填多少、今天的今日业绩就是多少（打单算出来的那部分照旧算在里面）。
+      // 只算补录的那一个营业日，过了自动失效（判定见 common/entertainment-fee.ts 的 manualTodayBoost）。
+      // 这里**不写钱包台账**：今日业绩不是钱，写进去会让陪玩的「报账 / 支取日历」凭空多一笔收入。
+      const { start: dayStart, end: dayEnd } = currentBusinessDayRange();
+      const dayOrders = await this.prisma.order.findMany({
+        where: {
+          status: 'DONE',
+          createdAt: { gte: dayStart, lt: dayEnd },
+          OR: [{ companionId }, { coCompanionId: companionId }],
+        },
+        select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
+      });
+      const fromOrders = dayOrders.reduce(
+        (s, o) => s + companionOrderRevenue(o as any, companionId),
+        0,
+      );
+      await this.prisma.companion.update({
+        where: { id: companionId },
+        data: {
+          todayRevenueBoost: data.todayRevenue - fromOrders,
+          todayRevenueBoostDay: businessDayKey(new Date()),
+        },
+      });
     }
 
     if (data.totalWithdrawn !== undefined) {

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CompanionsService } from '../companions/companions.service';
 import { ForbiddenException } from '@nestjs/common';
 import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
+import { businessDayKey } from '../common/business-day';
 
 function createMockRevenueService() {
   return {
@@ -260,7 +261,7 @@ describe('CompanionsService', () => {
       ]);
 
       await expect(service.updateStatus('comp-1', 'ENTERTAINMENT', companionUser)).rejects.toThrow(
-        /业绩 \+ 押金不够玩娱乐/,
+        /钱包业绩 \+ 押金不够玩娱乐/,
       );
       expect(mockPrisma.companion.update).not.toHaveBeenCalled();
     });
@@ -502,6 +503,41 @@ describe('CompanionsService', () => {
         notifyWhileEntertainment: true,
         status: 'AVAILABLE',
       });
+    });
+  });
+
+  /**
+   * 手工补录「今日业绩」（老板 2026-10-11）。
+   * 老板原话：「我说的改动就是改动他的总业绩啊，没业绩怎么点娱乐，我要先测试娱乐」——
+   * 娱乐门槛认的是「今日业绩」，所以「编辑业绩」要能把今天这个数直接设成值。
+   */
+  describe('updateFinance：手工补录今日业绩', () => {
+    it('填了今日业绩 → 存的是「差额」并记在今天的营业日上，而且不写钱包台账', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValue({ monthlyRevenue: 0 } as any);
+      // 今天已经打了 100 的单，老板把今日业绩设成 300 → 只补 200 的差额。
+      mockPrisma.order.findMany.mockResolvedValue([
+        { companionId: 'comp-1', coCompanionId: null, amount: 100, coAmount: 0, customFields: null },
+      ] as any);
+
+      await service.updateFinance('comp-1', { todayRevenue: 300 }, 'op-1');
+
+      expect(mockPrisma.companion.update).toHaveBeenCalledTimes(1);
+      const arg = mockPrisma.companion.update.mock.calls[0][0] as any;
+      expect(arg.where).toEqual({ id: 'comp-1' });
+      expect(arg.data.todayRevenueBoost).toBe(200);
+      expect(arg.data.todayRevenueBoostDay).toBe(businessDayKey(new Date()));
+      // 今日业绩不是钱，不能凭空往钱包里记一笔收入
+      expect(mockPrisma.walletTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it('没填今日业绩 → 一个字都不写（不能把别人的补录冲掉）', async () => {
+      await service.updateFinance('comp-1', { totalRevenue: 8888 }, 'op-1');
+
+      const boosted = mockPrisma.companion.update.mock.calls.some(
+        (c: any[]) => c[0]?.data?.todayRevenueBoost !== undefined,
+      );
+      expect(boosted).toBe(false);
+      expect(mockPrisma.order.findMany).not.toHaveBeenCalled();
     });
   });
 });

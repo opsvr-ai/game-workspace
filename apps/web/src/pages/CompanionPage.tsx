@@ -254,7 +254,7 @@ const CompanionPage: React.FC = () => {
     !!data?.entertainmentFreeToday ||
     Number(data?.hourlyRate ?? 0) <= 0 ||
     Number(data?.availableFunds ?? 0) * 60 >= Number(data?.hourlyRate ?? 0);
-  const entertainmentBlockReason = `业绩 + 押金不够玩娱乐（现在 ¥${Number(
+  const entertainmentBlockReason = `钱包业绩 + 押金不够玩娱乐（现在 ¥${Number(
     data?.availableFunds ?? 0,
   )}，娱乐 ¥${Number(data?.hourlyRate ?? 0)}/小时，${
     Number(data?.entertainmentThreshold ?? 0) > 0

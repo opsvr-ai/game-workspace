@@ -7,7 +7,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { roundToJiao } from '../common/money';
-import { computeEntertainmentFee, entertainmentBasisRevenue, loadEntertainmentRule, sumDepositPlayedToday } from '../common/entertainment-fee';
+import { computeEntertainmentFee, entertainmentBasisRevenue, loadEntertainmentRule, manualTodayBoosts, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { companionOrderRevenue } from '../common/order-revenue';
 
@@ -45,7 +45,8 @@ export class DashboardService {
     // Online/Total companions
     const allCompanions = await this.prisma.companion.findMany({
       where: studioWhere,
-      select: { id: true, status: true },
+      // 手工补录的今日业绩（老板 2026-10-11）：低业绩预警 / 娱乐费都要认，口径跟娱乐门槛一致。
+      select: { id: true, status: true, todayRevenueBoost: true, todayRevenueBoostDay: true },
     });
     const onlineCompanions = allCompanions.filter(
       c => ['AVAILABLE', 'BUSY', 'ENTERTAINMENT'].includes(c.status),
@@ -116,6 +117,10 @@ export class DashboardService {
       for (const cid of new Set([o.companionId, o.coCompanionId].filter(Boolean) as string[])) {
         revMap.set(cid, (revMap.get(cid) || 0) + companionOrderRevenue(o as any, cid));
       }
+    }
+    // 叠加手工补录（老板 2026-10-11）：补录只算补录的那个营业日，过了自动失效。
+    for (const [cid, boost] of manualTodayBoosts(allCompanions, now)) {
+      revMap.set(cid, (revMap.get(cid) || 0) + boost);
     }
     // 娱乐费：走全系统唯一口径（门槛 = 订单业绩 + 今天打掉的存单，达标免单，否则按配置时薪折算）
     // 老板 2026-10-04：「打存单也算在娱乐那个门槛里」——存单常加在老的续单上打，

@@ -12,7 +12,7 @@
 import { roundToJiao } from './money';
 import { resolveConfigsRaw } from './studio-config';
 import { companionOrderRevenue } from './order-revenue';
-import { currentBusinessDayRange } from './business-day';
+import { businessDayKey, currentBusinessDayRange } from './business-day';
 
 /** 没配置时的兜底费率（元/小时） */
 export const DEFAULT_ENTERTAINMENT_HOURLY_RATE = 60;
@@ -133,7 +133,9 @@ export function checkEntertainmentEligibility(params: {
   return {
     ok: false,
     minutesLeft,
-    reason: `业绩 + 押金不够玩娱乐（现在 ¥${funds}，娱乐 ¥${rate}/小时，${line}）—— 先充值或交押金，或者今天多打几单再进。`,
+    // 「钱包业绩 + 押金」= 能用来扣娱乐费的钱；「今天业绩」= 打单挣的（到免单线就免单）。
+    // 两个都叫业绩是老板 2026-10-11 统一的口径，这里加前缀区分，不然陪玩看不懂为什么说免单又扣钱。
+    reason: `钱包业绩 + 押金不够玩娱乐（现在 ¥${funds}，娱乐 ¥${rate}/小时，${line}）—— 先充值或交押金，或者今天多打几单再进。`,
   };
 }
 
@@ -244,6 +246,46 @@ export interface EntertainmentStanding {
 }
 
 /**
+ * 手工补录的「今日业绩」（老板 2026-10-11）。
+ *
+ * 娱乐门槛 / 接单解锁 / 陪玩端首页看的都是**今日业绩**，而这个数是当天打单算出来的、手改不了
+ * （「编辑财务 → 今日业绩」填了以前被服务端忽略）。现在老板 / 店长能在
+ * 「陪玩列表 → 编辑业绩 → 今日业绩」里补录（补线下漏记的单，或者临时让某个人能测娱乐）。
+ *
+ * 只认「补录那一个营业日」：过了那天自动不算 —— 不然补录一次，这个人从此天天免单。
+ * 存的是**补录差额**（数据字段见 schema.prisma 的 Companion.todayRevenueBoost），
+ * 所有算「今日业绩」的地方都要叠上它，否则会出现「门槛说免费、结算又收钱」。
+ */
+export function manualTodayBoost(
+  companion:
+    | { todayRevenueBoost?: number | null; todayRevenueBoostDay?: string | null }
+    | null
+    | undefined,
+  now: Date = new Date(),
+): number {
+  if (!companion) return 0;
+  const boost = Number(companion.todayRevenueBoost) || 0;
+  if (!boost) return 0;
+  return companion.todayRevenueBoostDay === businessDayKey(now) ? boost : 0;
+}
+
+/** 一批人的「手工补录今日业绩」→ Map<陪玩ID, 补录额>（没补录 / 不是今天的一律不出现）。 */
+export function manualTodayBoosts(
+  companions:
+    | Array<{ id: string; todayRevenueBoost?: number | null; todayRevenueBoostDay?: string | null }>
+    | null
+    | undefined,
+  now: Date = new Date(),
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const c of companions || []) {
+    const boost = manualTodayBoost(c, now);
+    if (boost) map.set(c.id, boost);
+  }
+  return map;
+}
+
+/**
  * 把「娱乐能不能玩 / 该收多少钱」需要的数一次查齐。
  *
  * 为什么抽成一个：**切状态**（能不能进娱乐）和**心跳兜底**（该不该踢回空闲）原来是各查各的，
@@ -260,7 +302,11 @@ export async function loadEntertainmentStanding(
   const wallet = await prisma.companion
     .findUnique({
       where: { id: companionId },
-      select: { balance: true, deposit: true, status: true, studioId: true },
+      select: {
+        balance: true, deposit: true, status: true, studioId: true,
+        // 手工补录的今日业绩（老板 2026-10-11）：只算补录那一个营业日
+        todayRevenueBoost: true, todayRevenueBoostDay: true,
+      },
     })
     .catch(() => null);
   if (!wallet) return null;
@@ -277,10 +323,11 @@ export async function loadEntertainmentStanding(
       select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
     })
     .catch(() => [] as any[]);
-  const todayRevenue = (dayOrders as any[]).reduce(
-    (acc: number, o: any) => acc + companionOrderRevenue(o, companionId),
-    0,
-  );
+  const todayRevenue =
+    (dayOrders as any[]).reduce(
+      (acc: number, o: any) => acc + companionOrderRevenue(o, companionId),
+      0,
+    ) + manualTodayBoost(wallet, now);
   const depositPlayed = await sumDepositPlayedToday(prisma, [companionId], { start: dayStart, end: dayEnd })
     .then((m) => m.get(companionId) || 0)
     .catch(() => 0);
@@ -297,4 +344,3 @@ export async function loadEntertainmentStanding(
     status: wallet.status ?? null,
   };
 }
-

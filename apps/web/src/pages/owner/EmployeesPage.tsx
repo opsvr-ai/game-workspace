@@ -706,8 +706,9 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
         destroyOnClose
       >
         <Form form={financeForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="todayRevenue" label="今日业绩">
-            <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
+          {/* 今日业绩 = 当天打单算出来的，改不了（老板 2026-10-11）：要手工改，走「陪玩列表 → 编辑业绩 → 今日业绩」。 */}
+          <Form.Item name="todayRevenue" label="今日业绩" extra="这一格只是给你看，改不了 —— 要手工改今日业绩，去「陪玩列表 → 编辑业绩」。" >
+            <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" disabled />
           </Form.Item>
           <Form.Item name="totalRevenue" label="总业绩">
             <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />

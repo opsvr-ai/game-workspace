@@ -8,6 +8,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { companionOrderRevenue } from '../common/order-revenue';
+import { manualTodayBoost } from '../common/entertainment-fee';
 import { computeWithdrawable } from '../common/withdrawable';
 import { roundToJiao } from '../common/money';
 import { resolveCompanionPctTiered, effectiveTenureMonths } from '../common/revenue-calculator';
@@ -206,14 +207,16 @@ export class SettlementService {
 
     const totalRevenue = sumRev(totalRows as any[]);
 
-    // Deposit
+    // Deposit（顺带取手工补录的今日业绩：财务总览那张「今日业绩」卡的口径要跟娱乐门槛一致）
     let deposit = 0;
+    let todayBoost = 0;
     if (companionId) {
       const comp = await this.prisma.companion.findUnique({
         where: { id: companionId },
-        select: { deposit: true },
+        select: { deposit: true, todayRevenueBoost: true, todayRevenueBoostDay: true },
       });
       deposit = comp?.deposit ?? 0;
+      todayBoost = manualTodayBoost(comp, new Date());
     } else {
       const depAgg = await this.prisma.companion.aggregate({
         where: { studioId },
@@ -273,7 +276,8 @@ export class SettlementService {
 
     return {
       summary: {
-        todayRevenue: sumRev(todayRows as any[]),
+        // 手工补录过的今日业绩也算进这张卡（老板 2026-10-11），跟娱乐门槛同一口径。
+        todayRevenue: roundToJiao(sumRev(todayRows as any[]) + todayBoost),
         monthRevenue,
         month: targetMonth,
         totalRevenue,
@@ -374,4 +378,3 @@ export class SettlementService {
     };
   }
 }
-

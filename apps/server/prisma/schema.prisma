@@ -95,6 +95,12 @@ model Companion {
   billingCode    String    @unique
   revenueShare   Float     @default(0.6)
   monthlyRevenue Float     @default(0)
+  // 手工补录的「今日业绩」（老板 2026-10-11）。
+  // 娱乐门槛 / 接单解锁 / 陪玩端首页看的都是「今日业绩」，但那个数是当天打单算出来的、手改不了
+  // （「编辑财务 → 今日业绩」以前填了被服务端忽略）。老板要能手工补录：线下打的单没进系统、
+  // 或者临时想让某个人能测娱乐。只算「补录那一个营业日」，过了这天自动失效（见 todayRevenueBoostDay）。
+  todayRevenueBoost    Float       @default(0)
+  todayRevenueBoostDay String? // 补录归属的营业日（businessDayKey 的值，如 2026-10-11）
   bonusScore     Int       @default(0)
   deposit        Float     @default(0)
   balance        Float     @default(0)

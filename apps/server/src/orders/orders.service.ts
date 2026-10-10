@@ -11,7 +11,7 @@ import { logger } from '../common/logger';
 import { maskCustomerWechat, maskPartnerContactView, stripPoolCustomerContact } from '../common/order-privacy';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { switchCompanionStatus } from '../common/companion-status-switch';
-import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
+import { computeEntertainmentFee, loadEntertainmentRule, manualTodayBoost } from '../common/entertainment-fee';
 import { companionOrderRevenue } from '../common/order-revenue';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
@@ -4233,7 +4233,8 @@ export class OrdersService implements OnModuleInit {
     let entertainmentFee: number | null = null;
     const partner = await this.prisma.companion.findUnique({
       where: { id: partnerId },
-      select: { status: true, studioId: true },
+      // 手工补录的今日业绩（老板 2026-10-11）：补录过的人这里也算上，别「门槛说免费、这里又收钱」。
+      select: { status: true, studioId: true, todayRevenueBoost: true, todayRevenueBoostDay: true },
     }).catch(() => null);
     if (partner?.status === 'ENTERTAINMENT') {
       const openLog = await this.prisma.companionTimeLog.findFirst({
@@ -4258,7 +4259,9 @@ export class OrdersService implements OnModuleInit {
           .catch(() => [] as any[]);
         entertainmentFee = computeEntertainmentFee({
           minutes: elapsed / 60,
-          todayRevenue: entDayOrders.reduce((acc: number, o: any) => acc + companionOrderRevenue(o, partnerId), 0),
+          todayRevenue:
+            entDayOrders.reduce((acc: number, o: any) => acc + companionOrderRevenue(o, partnerId), 0) +
+            manualTodayBoost(partner, new Date()),
           hourlyRate,
           freeThreshold,
         });
