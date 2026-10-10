@@ -9,7 +9,7 @@
   "httpPrefix": "/api",
   "stats": {
     "controllers": 28,
-    "endpoints": 405,
+    "endpoints": 409,
     "socketEmitters": 3,
     "socketInbound": 15,
     "socketOutbound": 19
@@ -35,6 +35,13 @@
       "controller": "ChatController",
       "handler": "removeReaction",
       "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companions/:id/money-records/wallet/:recordId",
+      "controller": "CompanionsController",
+      "handler": "removeWalletRecord",
+      "file": "apps/server/src/companions/companions.controller.ts"
     },
     {
       "method": "DELETE",
@@ -475,6 +482,13 @@
       "path": "/api/companions/:id",
       "controller": "CompanionsController",
       "handler": "findOne",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/:id/money-records",
+      "controller": "CompanionsController",
+      "handler": "getMoneyRecords",
       "file": "apps/server/src/companions/companions.controller.ts"
     },
     {
@@ -1400,6 +1414,20 @@
       "controller": "ChatController",
       "handler": "updateRoom",
       "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/companions/:id/money-records/orders/:orderId",
+      "controller": "CompanionsController",
+      "handler": "patchMoneyOrderRecord",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/companions/:id/money-records/wallet/:recordId",
+      "controller": "CompanionsController",
+      "handler": "patchWalletRecord",
+      "file": "apps/server/src/companions/companions.controller.ts"
     },
     {
       "method": "PATCH",

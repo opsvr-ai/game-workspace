@@ -4,6 +4,7 @@ import {
   Get,
   Put,
   Post,
+  Patch,
   Delete,
   Param,
   Body,
@@ -952,6 +953,58 @@ export class CompanionsController {
   ): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.updateFinance(id, dto, req.user.id);
     return { code: 200, message: '财务数据已更新', data };
+  }
+
+  // ── 他一条条业绩记录：看得见、改得动（老板 2026-10-11，店长 + 老板）────────────
+  // 老板：「我要改的是某个陪玩的流水，因为流水会以后差错 我要去修改」→「都能改」。
+  // 数字走 /finance，这里管一条条记录：他打的单（改业绩 / 作废 / 恢复）+ 钱包记录（改 / 删）。
+
+  @Get('companions/:id/money-records')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async getMoneyRecords(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.listMoneyRecords(id);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Patch('companions/:id/money-records/orders/:orderId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async patchMoneyOrderRecord(
+    @Param('id') id: string,
+    @Param('orderId') orderId: string,
+    @Body() dto: { amount?: number; voided?: boolean; note?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.updateOrderRevenueRecord(
+      id,
+      orderId,
+      dto,
+      req.user.username,
+    );
+    const msg = dto.voided === true ? '已作废（不计业绩）' : dto.voided === false ? '已恢复' : '业绩已更正';
+    return { code: 200, message: msg, data };
+  }
+
+  @Patch('companions/:id/money-records/wallet/:recordId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async patchWalletRecord(
+    @Param('id') id: string,
+    @Param('recordId') recordId: string,
+    @Body() dto: { amount?: number; createdAt?: string; note?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.updateWalletRecord(id, recordId, dto, req.user.username);
+    return { code: 200, message: '记录已更正', data };
+  }
+
+  @Delete('companions/:id/money-records/wallet/:recordId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async removeWalletRecord(
+    @Param('id') id: string,
+    @Param('recordId') recordId: string,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.deleteWalletRecord(id, recordId, req.user.username);
+    return { code: 200, message: '记录已删除', data };
   }
 
   @Put('companions/:id/senior-staff')

@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { extractErrorMessage } from '../utils/error-handler';
-import { Table, Tag, Typography, Button, Space, Popconfirm, Tooltip, Card, Input, InputNumber, Select, Image, Modal, Form } from 'antd';
+import { Table, Tag, Typography, Button, Space, Popconfirm, Tooltip, Card, Input, InputNumber, Select, Image, Modal, Form, DatePicker } from 'antd';
+import dayjs from 'dayjs';
 import { message } from '../utils/feedback';
 import { ReloadOutlined, DesktopOutlined, SearchOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
@@ -26,6 +27,15 @@ import {
 import { BRAND, TEXT, SEMANTIC, BORDER, BG } from '../styles/tokens';
 
 const { Text } = Typography;
+
+/** 钱包记录类型（跟服务端 WalletTransaction.type 对齐）。 */
+const WALLET_TYPE_LABELS: Record<string, string> = {
+  DEPOSIT: '押金',
+  WITHDRAW: '支取',
+  FREEZE: '冻结',
+  UNFREEZE: '解冻',
+  SETTLEMENT: '结算 / 业绩调整',
+};
 
 interface CompanionPC {
   currentMode: string;
@@ -132,6 +142,17 @@ const CompanionsPage: React.FC = () => {
   const [financeCompanion, setFinanceCompanion] = useState<Personnel | null>(null);
   const [financeSaving, setFinanceSaving] = useState(false);
   const [financeForm] = Form.useForm();
+  // 他一条条业绩记录（老板 2026-10-11）：他打的单 + 钱包记录，店长 / 老板能改能删。
+  const [moneyRecords, setMoneyRecords] = useState<any>({
+    orders: [],
+    wallet: [],
+    revenueFromOrders: 0,
+    storedRevenue: 0,
+  });
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordEdit, setRecordEdit] = useState<{ kind: 'order' | 'wallet'; row: any } | null>(null);
+  const [recordSaving, setRecordSaving] = useState(false);
+  const [recordForm] = Form.useForm();
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [gameFilter, setGameFilter] = useState<string | undefined>();
 
@@ -259,6 +280,7 @@ const CompanionsPage: React.FC = () => {
   const openFinance = (record: Personnel) => {
     setFinanceCompanion(record);
     financeForm.setFieldsValue({ revenue: Number(record.monthlyRevenue ?? 0), note: '' });
+    if (record.companionId) void loadMoneyRecords(record.companionId);
   };
 
   const saveFinance = async () => {
@@ -291,6 +313,95 @@ const CompanionsPage: React.FC = () => {
   useEffect(() => {
     fetchCompanions();
   }, [fetchCompanions]);
+
+  /** 读他一条条业绩记录（他打的单 + 钱包记录）。 */
+  const loadMoneyRecords = useCallback(async (companionId: string) => {
+    setRecordsLoading(true);
+    try {
+      const { data: res } = await companionsApi.moneyRecords(companionId);
+      setMoneyRecords({
+        orders: [],
+        wallet: [],
+        revenueFromOrders: 0,
+        storedRevenue: 0,
+        ...(res?.data || {}),
+      });
+    } catch {
+      setMoneyRecords({ orders: [], wallet: [], revenueFromOrders: 0, storedRevenue: 0 });
+    } finally {
+      setRecordsLoading(false);
+    }
+  }, []);
+
+  /** 点某一条的「改」：金额 / 日期 / 备注。 */
+  const openRecordEdit = (kind: 'order' | 'wallet', row: any) => {
+    setRecordEdit({ kind, row });
+    recordForm.setFieldsValue({
+      amount: Number(kind === 'order' ? row.myRevenue : row.amount) || 0,
+      createdAt: row.createdAt ? dayjs(row.createdAt) : null,
+      note: kind === 'wallet' ? row.note || '' : '',
+    });
+  };
+
+  const saveRecordEdit = async () => {
+    const companionId = financeCompanion?.companionId;
+    if (!recordEdit || !companionId) return;
+    const values = await recordForm.validateFields().catch(() => null);
+    if (!values) return;
+    setRecordSaving(true);
+    try {
+      if (recordEdit.kind === 'order') {
+        await companionsApi.updateMoneyOrderRecord(companionId, recordEdit.row.id, {
+          amount: Number(values.amount) || 0,
+          note: values.note?.trim() || '',
+        });
+        message.success('这一单的业绩已更正');
+      } else {
+        await companionsApi.updateMoneyWalletRecord(companionId, recordEdit.row.id, {
+          amount: Number(values.amount) || 0,
+          createdAt: values.createdAt ? values.createdAt.format('YYYY-MM-DD HH:mm:ss') : undefined,
+          note: values.note?.trim() || '',
+        });
+        message.success('这条记录已更正');
+      }
+      setRecordEdit(null);
+      recordForm.resetFields();
+      void loadMoneyRecords(companionId);
+      fetchCompanions();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '更正失败'));
+    } finally {
+      setRecordSaving(false);
+    }
+  };
+
+  /** 作废 / 恢复某一单（作废 = 这一单不计业绩，随时能恢复）。 */
+  const setOrderRecordVoided = async (row: any, voided: boolean) => {
+    const companionId = financeCompanion?.companionId;
+    if (!companionId) return;
+    try {
+      await companionsApi.updateMoneyOrderRecord(companionId, row.id, { voided });
+      message.success(voided ? '已作废：这一单不计业绩' : '已恢复这一单的业绩');
+      void loadMoneyRecords(companionId);
+      fetchCompanions();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '操作失败'));
+    }
+  };
+
+  /** 删掉一条钱包记录。 */
+  const removeWalletRecord = async (row: any) => {
+    const companionId = financeCompanion?.companionId;
+    if (!companionId) return;
+    try {
+      await companionsApi.deleteMoneyWalletRecord(companionId, row.id);
+      message.success('这条记录已删除');
+      void loadMoneyRecords(companionId);
+      fetchCompanions();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '删除失败'));
+    }
+  };
 
   useEffect(() => {
     loadEmployeeIdCards();
@@ -904,12 +1015,13 @@ const CompanionsPage: React.FC = () => {
         onCancel={() => {
           setFinanceCompanion(null);
           financeForm.resetFields();
+          setMoneyRecords({ orders: [], wallet: [], revenueFromOrders: 0, storedRevenue: 0 });
         }}
         confirmLoading={financeSaving}
         okText="保存"
         cancelText="取消"
         destroyOnClose
-        width={420}
+        width={760}
       >
         <Form form={financeForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
@@ -929,6 +1041,205 @@ const CompanionsPage: React.FC = () => {
           </Form.Item>
           <Form.Item name="note" label="调整备注">
             <Input placeholder="为什么改（比如：补录 10 月 3 日漏记的单）" />
+          </Form.Item>
+        </Form>
+
+        {/* 他一条条记录（老板 2026-10-11）：记错的那一条直接点「改」；不该算的点「作废」（随时能恢复）。 */}
+        <Space size={8} style={{ marginBottom: 6 }}>
+          <Text strong>他一条条记录</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            单子加起来 ¥{Number(moneyRecords.revenueFromOrders || 0).toFixed(1)} · 库里存的业绩 ¥
+            {Number(moneyRecords.storedRevenue || 0).toFixed(1)}
+          </Text>
+          {Number(moneyRecords.revenueFromOrders || 0) === Number(moneyRecords.storedRevenue || 0) ? (
+            <Tag color="green" style={{ margin: 0 }}>一致</Tag>
+          ) : (
+            <Tag color="orange" style={{ margin: 0 }}>对不上（改一条记录就会自动对上）</Tag>
+          )}
+        </Space>
+        <Table
+          rowKey="id"
+          size="small"
+          loading={recordsLoading}
+          dataSource={moneyRecords.orders}
+          scroll={{ x: 688 }}
+          pagination={{ pageSize: 5, size: 'small', hideOnSinglePage: true }}
+          locale={{ emptyText: '他还没有计入业绩的单' }}
+          columns={[
+            {
+              title: '时间',
+              dataIndex: 'createdAt',
+              width: 130,
+              render: (v: string) => (v ? dayjs(v).format('MM-DD HH:mm') : '-'),
+            },
+            {
+              title: '客户',
+              dataIndex: 'customerCode',
+              width: 100,
+              render: (v: string, r: any) => v || r.customerWechat || '-',
+            },
+            { title: '游戏', dataIndex: 'gameName', width: 90 },
+            {
+              title: '身份',
+              dataIndex: 'role',
+              width: 64,
+              render: (v: string) => (v === 'MAIN' ? '主陪' : '搭档'),
+            },
+            {
+              title: '这一单业绩',
+              dataIndex: 'myRevenue',
+              width: 96,
+              align: 'right' as const,
+              render: (v: number, r: any) =>
+                r.voided ? (
+                  <Text delete type="secondary">¥{Number(r.prevRevenue || 0).toFixed(1)}</Text>
+                ) : (
+                  <span>¥{Number(v || 0).toFixed(1)}</span>
+                ),
+            },
+            {
+              title: '状态',
+              width: 88,
+              render: (_: unknown, r: any) =>
+                r.voided ? (
+                  <Tag color="default">已作废</Tag>
+                ) : r.refunded ? (
+                  <Tag color="red">已退款</Tag>
+                ) : (
+                  <Tag color="green">已计入</Tag>
+                ),
+            },
+            {
+              title: '操作',
+              width: 120,
+              fixed: 'right' as const,
+              render: (_: unknown, r: any) => (
+                <Space size={0}>
+                  <Button type="link" size="small" onClick={() => openRecordEdit('order', r)}>
+                    改
+                  </Button>
+                  {r.voided ? (
+                    <Button type="link" size="small" onClick={() => setOrderRecordVoided(r, false)}>
+                      恢复
+                    </Button>
+                  ) : (
+                    <Popconfirm
+                      title="这一单不计业绩？"
+                      description="作废后这一单不算他的业绩（列表里的累计业绩会跟着减掉），随时能点「恢复」。"
+                      onConfirm={() => setOrderRecordVoided(r, true)}
+                      okText="作废"
+                      cancelText="取消"
+                    >
+                      <Button type="link" size="small" danger>作废</Button>
+                    </Popconfirm>
+                  )}
+                </Space>
+              ),
+            },
+          ]}
+        />
+
+        {moneyRecords.wallet.length > 0 && (
+          <>
+            <Text strong style={{ display: 'block', marginTop: 12 }}>
+              钱包记录（押金 / 支取 / 冻结 / 手动调整）
+            </Text>
+            <Table
+              rowKey="id"
+              size="small"
+              loading={recordsLoading}
+              dataSource={moneyRecords.wallet}
+              scroll={{ x: 620 }}
+              pagination={{ pageSize: 5, size: 'small', hideOnSinglePage: true }}
+              locale={{ emptyText: '暂无钱包记录' }}
+              columns={[
+                {
+                  title: '时间',
+                  dataIndex: 'createdAt',
+                  width: 130,
+                  render: (v: string) => (v ? dayjs(v).format('MM-DD HH:mm') : '-'),
+                },
+                {
+                  title: '类型',
+                  dataIndex: 'type',
+                  width: 110,
+                  render: (v: string) => WALLET_TYPE_LABELS[v] || v,
+                },
+                {
+                  title: '金额',
+                  dataIndex: 'amount',
+                  width: 96,
+                  align: 'right' as const,
+                  render: (v: number) => `¥${Number(v || 0).toFixed(1)}`,
+                },
+                {
+                  title: '备注',
+                  dataIndex: 'note',
+                  ellipsis: true,
+                  render: (v: string, r: any) => (
+                    <Tooltip title={v || ''}>
+                      <span>{v || '-'}</span>
+                      {r.operatorName ? <Text type="secondary" style={{ marginLeft: 6, fontSize: 11 }}>（{r.operatorName}）</Text> : null}
+                    </Tooltip>
+                  ),
+                },
+                {
+                  title: '操作',
+                  width: 100,
+                  fixed: 'right' as const,
+                  render: (_: unknown, r: any) => (
+                    <Space size={0}>
+                      <Button type="link" size="small" onClick={() => openRecordEdit('wallet', r)}>
+                        改
+                      </Button>
+                      <Popconfirm
+                        title="删掉这条记录？"
+                        description="删了就没了（支取类的删掉后「可支取」会跟着重算）。"
+                        onConfirm={() => removeWalletRecord(r)}
+                        okText="删除"
+                        cancelText="取消"
+                      >
+                        <Button type="link" size="small" danger>删</Button>
+                      </Popconfirm>
+                    </Space>
+                  ),
+                },
+              ]}
+            />
+          </>
+        )}
+      </Modal>
+
+      {/* 改某一条记录（金额 / 日期 / 备注）——不嵌套在上面的弹窗里，免得点一下关两层。 */}
+      <Modal
+        title={recordEdit?.kind === 'order' ? '改这一单的业绩' : '改这条钱包记录'}
+        open={!!recordEdit}
+        onOk={saveRecordEdit}
+        onCancel={() => {
+          setRecordEdit(null);
+          recordForm.resetFields();
+        }}
+        confirmLoading={recordSaving}
+        okText="保存"
+        cancelText="取消"
+        destroyOnClose
+        width={420}
+      >
+        <Form form={recordForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="amount"
+            label={recordEdit?.kind === 'order' ? '这一单算他多少业绩' : '金额'}
+            rules={[{ required: true, message: '请填金额' }]}
+          >
+            <InputNumber min={0} step={10} style={{ width: '100%' }} prefix="¥" />
+          </Form.Item>
+          {recordEdit?.kind === 'wallet' && recordEdit?.row?.type === 'WITHDRAW' && (
+            <Form.Item name="createdAt" label="日期（支取记录按月份算可支取，改日期会换月）">
+              <DatePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
+            </Form.Item>
+          )}
+          <Form.Item name="note" label="备注" extra="改完会在备注里留一句「原来多少 → 改成多少、谁改的」">
+            <Input placeholder="为什么改（比如：这单记错了）" />
           </Form.Item>
         </Form>
       </Modal>

@@ -107,6 +107,8 @@ export function createMockPrisma() {
       create: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
+      // 老板 2026-10-11：「他一条条记录里记错的要能点开删掉」→ deleteWalletRecord 走它
+      delete: vi.fn(),
       aggregate: vi.fn(),
       count: vi.fn(),
     },

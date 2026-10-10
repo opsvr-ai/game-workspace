@@ -21,6 +21,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { StudiosService } from '../studios/studios.service';
 import { presence } from '../common/presence';
 import { notResignedWhere } from '../common/offboarding';
+import { logger } from '../common/logger';
 
 /**
  * 在线判定的时间阈值（和前端 constants/companions.ts 保持一致）：
@@ -1704,6 +1705,277 @@ export class CompanionsService {
     }
 
     await Promise.all(logs);
+    return { success: true };
+  }
+
+  // ── 他一条条业绩记录：看得见、改得动（老板 2026-10-11）──────────────────────
+  //
+  // 老板原话：「我要改的是某个陪玩的流水，因为流水会以后差错 我要去修改」，
+  // 确认「数字和一条条记录都要能改」。数字（今日业绩 / 累计业绩 / 余额 / 押金）走
+  // 上面 `updateFinance` 那几格；这里管的是**他一条条记录**：
+  //   · 他打的单：这一单算他多少业绩 —— 可改、可作废（作废 = 不计业绩，能恢复）
+  //   · 钱包记录：押金 / 支取 / 冻结 / 手动调整 —— 可改金额·日期·备注，可删
+  //
+  // 为什么每改一条都要同步 `Companion.monthlyRevenue`：那个「累计业绩」是**存出来的数**
+  // （下单完成时 increment），跟「按单子加起来」的**会漂** —— 线上就漂着（例：某陪玩存的是
+  // 380、他的单子加起来 370）。只改单子不改那个数，列表里的业绩和记录永远对不上；
+  // 只改那个数不改单子，下次重算又漂回去。这里两边一起改，改完立刻一致。
+  /** 记录列表一次取多少条（单、钱包各自算）。 */
+  private readonly MONEY_RECORD_LIMIT = 100;
+
+  /** 这张单里「他的那一份」落在哪个字段：主陪 = amount，搭档 = coAmount。 */
+  private orderShareFieldOf(order: any, companionId: string): 'amount' | 'coAmount' | null {
+    if (order?.companionId === companionId) return 'amount';
+    if (order?.coCompanionId === companionId) return 'coAmount';
+    return null;
+  }
+
+  /** 这张单分给**别人**的份（跨工作室分成）；把「他的业绩」写回 amount 时要加回去。 */
+  private splitOutOf(order: any, companionId: string): number {
+    const splits: Array<{ companionId: string; amount: number }> =
+      (order?.customFields as any)?.splits || [];
+    return splits
+      .filter((s) => s && s.companionId && s.companionId !== companionId)
+      .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+  }
+
+  /** 作废标记（谁、什么时候、作废前算多少），恢复时照它还原。 */
+  private revenueVoidOf(order: any): { at?: string; byName?: string; prevAmount?: number } | null {
+    const v = (order?.customFields as any)?.revenueVoid;
+    return v && typeof v === 'object' ? v : null;
+  }
+
+  /**
+   * 读他一条条业绩记录（他打的单 + 钱包记录），顺手把
+   * 「按单算出来多少」和「库里存的累计业绩多少」一起摆出来对账。
+   */
+  async listMoneyRecords(companionId: string, limit = this.MONEY_RECORD_LIMIT) {
+    const companion = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: { id: true, monthlyRevenue: true },
+    });
+    if (!companion) throw new NotFoundException('陪玩不存在');
+
+    const [orders, wallet] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { status: 'DONE', OR: [{ companionId }, { coCompanionId: companionId }] },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        select: {
+          id: true,
+          orderCode: true,
+          createdAt: true,
+          gameName: true,
+          type: true,
+          serviceType: true,
+          dispatchType: true,
+          amount: true,
+          coAmount: true,
+          companionId: true,
+          coCompanionId: true,
+          customFields: true,
+          refundedAt: true,
+          customerId: true,
+        },
+      }),
+      this.prisma.walletTransaction.findMany({
+        where: { companionId },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      }),
+    ]);
+
+    const customerIds = Array.from(new Set(orders.map((o) => o.customerId).filter(Boolean)));
+    const customers = customerIds.length
+      ? await this.prisma.customer.findMany({
+          where: { id: { in: customerIds } },
+          select: { id: true, customerCode: true, wechatId: true },
+        })
+      : [];
+    const customerMap = new Map(customers.map((c) => [c.id, c]));
+
+    const operatorIds = Array.from(
+      new Set(wallet.map((w) => w.reviewedById).filter(Boolean) as string[]),
+    );
+    const operators = operatorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: operatorIds } },
+          select: { id: true, username: true, displayName: true },
+        })
+      : [];
+    const operatorMap = new Map(operators.map((u) => [u.id, u.displayName || u.username]));
+
+    const revenueFromOrders = roundToJiao(
+      orders.reduce((s, o) => s + companionOrderRevenue(o as any, companionId), 0),
+    );
+
+    return {
+      companionId,
+      storedRevenue: companion.monthlyRevenue,
+      revenueFromOrders,
+      orders: orders.map((o) => {
+        const c = customerMap.get(o.customerId);
+        const voided = this.revenueVoidOf(o);
+        return {
+          id: o.id,
+          orderCode: o.orderCode || '',
+          createdAt: o.createdAt,
+          gameName: o.gameName,
+          type: o.type,
+          serviceType: o.serviceType,
+          dispatchType: o.dispatchType,
+          role: o.companionId === companionId ? 'MAIN' : 'CO',
+          customerCode: c?.customerCode || '',
+          customerWechat: c?.wechatId || '',
+          myRevenue: companionOrderRevenue(o as any, companionId),
+          rawAmount: o.amount,
+          rawCoAmount: o.coAmount,
+          refunded: !!o.refundedAt,
+          voided: !!voided,
+          voidedAt: voided?.at || null,
+          voidedByName: voided?.byName || '',
+          voidedNote: (voided as any)?.note || '',
+          prevRevenue: voided?.prevAmount ?? null,
+        };
+      }),
+      wallet: wallet.map((w) => ({
+        id: w.id,
+        createdAt: w.createdAt,
+        type: w.type,
+        amount: w.amount,
+        note: w.note || '',
+        status: w.status,
+        operatorName: w.reviewedById ? operatorMap.get(w.reviewedById) || '' : '',
+      })),
+    };
+  }
+
+  /**
+   * 改「他这一单算多少业绩」/ 作废 / 恢复。
+   *
+   * 金额传的是**他的业绩**（不是订单原始 amount）：主陪有跨工作室分成时，
+   * 会按差值折算回 `amount`，保证列表里显示的数就是真正进他账的数。
+   */
+  async updateOrderRevenueRecord(
+    companionId: string,
+    orderId: string,
+    data: { amount?: number; voided?: boolean; note?: string },
+    operatorName: string,
+  ) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    const field = this.orderShareFieldOf(order, companionId);
+    if (!field) throw new ForbiddenException('这张单不是他的');
+
+    const before = roundToJiao(companionOrderRevenue(order as any, companionId));
+    const nextCustom: any = { ...((order.customFields as any) || {}) };
+    let after = before;
+
+    if (data.voided === true) {
+      if (this.revenueVoidOf(order)) return { success: true, myRevenue: before };
+      nextCustom.revenueVoid = {
+        at: new Date().toISOString(),
+        byName: operatorName,
+        prevAmount: before,
+        note: (data.note || '').trim(),
+      };
+      after = 0;
+    } else if (data.voided === false) {
+      const v = this.revenueVoidOf(order);
+      if (!v) return { success: true, myRevenue: before };
+      after = roundToJiao(Number(v.prevAmount) || 0);
+      delete nextCustom.revenueVoid;
+    } else if (data.amount !== undefined) {
+      const amount = Number(data.amount);
+      if (!Number.isFinite(amount) || amount < 0) throw new BadRequestException('业绩金额不能小于 0');
+      after = roundToJiao(amount);
+      // 手动填了新金额 → 那条「作废」自然就不作数了
+      delete nextCustom.revenueVoid;
+    } else {
+      throw new BadRequestException('没有要改的内容');
+    }
+
+    // 主陪写 amount（要把分给别人的份加回去，业绩才是 after）；搭档直接写 coAmount。
+    const fieldValue =
+      field === 'amount' ? roundToJiao(after + this.splitOutOf(order, companionId)) : after;
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { [field]: fieldValue, customFields: nextCustom } as any,
+    });
+
+    const delta = roundToJiao(after - before);
+    if (delta !== 0) {
+      await this.prisma.companion.update({
+        where: { id: companionId },
+        data: { monthlyRevenue: { increment: delta } },
+      });
+    }
+    logger.info('Companion revenue record updated', {
+      companionId,
+      orderId,
+      field,
+      before,
+      after,
+      delta,
+      voided: data.voided === true,
+      operatorName,
+    });
+    return { success: true, myRevenue: after, revenueDelta: delta };
+  }
+
+  /** 改一条钱包记录（押金 / 支取 / 冻结 / 手动调整）：金额、日期、备注，改动写进备注留痕。 */
+  async updateWalletRecord(
+    companionId: string,
+    recordId: string,
+    data: { amount?: number; createdAt?: string; note?: string },
+    operatorName: string,
+  ) {
+    const row = await this.prisma.walletTransaction.findFirst({ where: { id: recordId, companionId } });
+    if (!row) throw new NotFoundException('这条记录不存在');
+
+    const next: any = {};
+    const trail: string[] = [];
+
+    if (data.amount !== undefined) {
+      const amount = Number(data.amount);
+      if (!Number.isFinite(amount) || amount < 0) throw new BadRequestException('金额不能小于 0');
+      if (amount !== row.amount) {
+        next.amount = roundToJiao(amount);
+        trail.push(`金额 ¥${row.amount} → ¥${roundToJiao(amount)}`);
+      }
+    }
+    if (data.createdAt !== undefined && String(data.createdAt).trim()) {
+      const at = new Date(data.createdAt);
+      if (Number.isNaN(at.getTime())) throw new BadRequestException('日期不合法');
+      next.createdAt = at;
+      trail.push(`日期改为 ${data.createdAt}`);
+    }
+    const note = data.note !== undefined ? String(data.note).trim() : row.note || '';
+    if (note !== (row.note || '')) next.note = note;
+
+    if (Object.keys(next).length === 0) return { success: true };
+
+    if (trail.length) {
+      const stamp = `${operatorName || '管理员'} ${new Date().toLocaleString('zh-CN')} 更正`;
+      next.note = `${note}（${trail.join('、')}；${stamp}）`.trim();
+    }
+    const updated = await this.prisma.walletTransaction.update({ where: { id: recordId }, data: next });
+    logger.info('Companion wallet record updated', { companionId, recordId, changes: trail, operatorName });
+    return { success: true, record: updated };
+  }
+
+  /** 删掉一条钱包记录（记错的那笔直接去掉；支取类的删掉后「可支取」会跟着重算）。 */
+  async deleteWalletRecord(companionId: string, recordId: string, operatorName: string) {
+    const row = await this.prisma.walletTransaction.findFirst({ where: { id: recordId, companionId } });
+    if (!row) throw new NotFoundException('这条记录不存在');
+    await this.prisma.walletTransaction.delete({ where: { id: recordId } });
+    logger.info('Companion wallet record deleted', {
+      companionId,
+      recordId,
+      type: row.type,
+      amount: row.amount,
+      operatorName,
+    });
     return { success: true };
   }
 

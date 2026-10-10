@@ -11,6 +11,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **陪玩业绩能「一条条改」了（老板 2026-10-11，服务端 + 网页）。** 老板「我要改的是某个陪玩的流水，
+  因为流水会以后差错 我要去修改」「都能改」。以前「编辑业绩」弹窗只能改**总数**（今日业绩 / 累计业绩），
+  单子里记错了、钱包里记错了都没法逐条纠。现在弹窗下半部分把他**一条条记录**列出来直接改：
+  - **服务端**新增（全部 `ADMIN/OWNER`）：`GET companions/:id/money-records`、
+    `PATCH companions/:id/money-records/orders/:orderId`（改金额 / 作废 / 恢复，作废写
+    `customFields.revenueVoid={at,byName,prevAmount,note}` 并把金额置 0）、
+    `PATCH companions/:id/money-records/wallet/:recordId`（改金额 / 时间 / 备注）、
+    `DELETE companions/:id/money-records/wallet/:recordId`。每次改动按 `delta` 同步
+    `Companion.monthlyRevenue {increment}` —— 历史累计与逐单加总会漂（线上就漂着），这样能一次调平。
+  - **网页**「编辑业绩」弹窗加宽到 760：上面两格总数照旧能改，下面两张表（订单业绩记录 / 钱包记录）
+    带「改这一单 / 作废 / 恢复」「改这一条 / 删」；小标题显示 `单子加起来 ¥x · 库里存的业绩 ¥y` 并标一致/对不上。
+  - 新增 9 条用例（`companions.money-records.test.ts`，全绿）；`tsc --noEmit`、守门脚本全绿，网页 148 / 148。
+
 - **房间码单可以「进游戏对接」了（老板 2026-10-11，服务端 + 网页）。**
   老板：「刚刚胡程硕抢了一个订单，是个游戏的房间码，房间码的话不进游戏对接不了，进了游戏才能对接，这怎么办？」
   查实是真堵：本店「空闲」状态的黑名单里挂着三角洲（`CompanionStatusBlacklist`：AVAILABLE →

@@ -31,6 +31,21 @@ export const companionsApi = {
   requestWithdraw: (amount: number) => http.post('/companions/me/withdraw', { amount }),
   resign: (id: string) => http.post(`/companions/${id}/resign`),
   updateFinance: (id: string, data: { todayRevenue?: number; totalRevenue?: number; totalWithdrawn?: number; pendingWithdraw?: number; deposit?: number; note?: string }) => http.put(`/companions/${id}/finance`, data),
+  /** 他一条条业绩记录（老板 2026-10-11）：他打的单 + 钱包记录，店长 / 老板可改可删 */
+  moneyRecords: (id: string) => http.get(`/companions/${id}/money-records`),
+  /** 改他这一单算的业绩 / 作废 / 恢复（`voided` 传 true / false） */
+  updateMoneyOrderRecord: (
+    id: string,
+    orderId: string,
+    data: { amount?: number; voided?: boolean; note?: string },
+  ) => http.patch(`/companions/${id}/money-records/orders/${orderId}`, data),
+  updateMoneyWalletRecord: (
+    id: string,
+    recordId: string,
+    data: { amount?: number; createdAt?: string; note?: string },
+  ) => http.patch(`/companions/${id}/money-records/wallet/${recordId}`, data),
+  deleteMoneyWalletRecord: (id: string, recordId: string) =>
+    http.delete(`/companions/${id}/money-records/wallet/${recordId}`),
   setSeniorStaff: (id: string, isSeniorStaff: boolean) => http.put(`/companions/${id}/senior-staff`, { isSeniorStaff }),
   requestProofNoCustomer: (note: string) => http.post('/companions/me/proof-no-customer', { note }),
   // Status blacklist
