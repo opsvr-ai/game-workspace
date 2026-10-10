@@ -106,6 +106,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **订单管理筛选栏改成「每一个标签一个下拉」——筛选清单收进唯一一份文件（老板 2026-10-11，网页 `v1022`）。**
+  老板：「让系统里的每一个标签都能筛选，一步到位 免得天天让你改」。以前每个能筛的标签都得在 `OrdersPage.tsx`
+  里手写一个 `<Select>`，加一次改一次、还老漏。现在把「哪些标签能筛、文案与匹配口径」收进**唯一一份清单**
+  `apps/web/src/constants/orderFilters.ts`：
+  - `ORDER_FILTER_DIMENSIONS`：11 个静态维度 —— `type`（订单类型）/ `dispatchType`（派单方式）/
+    `serviceType`（服务类型）/ `deltaMission`（任务类型：机密 / 绝密）/ `deltaCount`（单·双陪）/
+    `urgency`（打单时间：立即打 / 预约）/ `contactStatus`（添加情况）/ `outcome`（报结果）/
+    `supplement`（补单申请）/ `transfer`（转让记录）/ `stuck`（是否无人接，走 `isOrderStuck`）；
+    每维度含 `{ key, placeholder, width, options, match }`。
+  - `buildOrderFilterDimensions(orders)`：在静态维度后再追加 `customerSource`（客户来源），
+    选项 = 固定平台 ∪ 数据里实际出现过的来源（`buildCustomerSourceOptions`）。
+  - `applyOrderTagFilters(orders, values, dimensions)` / `countActiveOrderFilters`。
+  - `OrdersPage.tsx`：删掉 `typeFilter / dispatchFilter / contactFilter / outcomeFilter / supplementFilter`
+    五个 state 与五段 `.filter(...)`，换成 `tagFilters` + `filterDimensions.map(...)` 渲染，
+    并新增「**重置筛选（N）**」链接（`resetOrderFilters`）。
+  - 新增回归用例 `apps/web/src/__tests__/order-filters.test.ts`（8 条，含「维度 key 顺序钉死 + 末尾是检查
+    `customerSource`」）。以后加新标签，只在这份清单加一行，界面自动多一个下拉。
+  只加筛选、不加字段、不用迁移；网页 **148 / 148**、`tsc --noEmit`、守门全绿。
+
 - **管理端审核页那颗「退单」也改成「补单申请」（老板 2026-10-11，网页）。**
   老板：「管理端审核页那颗『退单』要不要也改成『补单申请』」。补单审核弹窗（`SupplementReviewButton.tsx`）全部对齐：
   行首类型红标签「退单」→「**补单申请**」、状态标签「已同意退单」→「**已同意补单申请**」、记录页来源列「退单」→「**补单申请**」；

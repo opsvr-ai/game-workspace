@@ -35,8 +35,13 @@ import { isRowClickIgnored } from '../utils/rowClick';
 import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
 import { orderMatchesSearch } from '../utils/orderPool';
 import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
-import { orderStatusConfig, dispatchTypeOptions, contactStatusConfig, contactStatusOrder } from '../constants';
-import { ORDER_FIELD_LABELS, ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
+import { orderStatusConfig } from '../constants';
+import { ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
+import {
+  applyOrderTagFilters,
+  buildOrderFilterDimensions,
+  countActiveOrderFilters,
+} from '../constants/orderFilters';
 import PageHeader from '../components/PageHeader';
 import SupplementReviewButton from '../components/SupplementReviewButton';
 import TableSkeleton from '../components/TableSkeleton';
@@ -116,19 +121,12 @@ const OrdersPage: React.FC = () => {
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [preFill, setPreFill] = useState<any>(null);
   const [dateFilter, setDateFilter] = useState<any>(null);
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  // 「派单方式」筛选（指定 / 入池）：老板 2026-10-07「怎么看不到订单类型比如指定单」——
-  // 它和上面的「订单类型」（首单 / 续单 / 复购 / 打赏）是两回事，所以单独一个下拉。
-  const [dispatchFilter, setDispatchFilter] = useState<string>('');
-  // 「添加情况」筛选（老板 2026-10-11：「这些添加失败的客户能筛出来么」）——
-  // 按 `Order.contactStatus` 筛，五个词跟客服那一列「添加情况」一模一样（唯一一份在 constants/orders.ts）。
-  const [contactFilter, setContactFilter] = useState<string>('');
-  // 「报结果」筛选（老板 2026-10-11）：待反馈 / 成功 / 不成功 —— 「客户当时不打」这类没打成的单
-  // 就是「不成功」那批（原因写在备注里，搜索框也搜得到）。
-  const [outcomeFilter, setOutcomeFilter] = useState<string>('');
-  // 「补单申请」筛选（老板 2026-10-11）：陪玩点过「添加失败」或「申请补单」的单，按审核状态筛
-  // ——数据由服务端挂在每一行的 `supplementRequests` 上（含两种申请：补单 + 退单）。
-  const [supplementFilter, setSupplementFilter] = useState<string>('');
+  // 「让系统里的每一个标签都能筛选，一步到位 免得天天让你改」（老板 2026-10-11）——
+  // 订单表里出现的**每一种标签**各占一个下拉：订单类型 / 派单方式 / 服务类型 / 任务类型 /
+  // 单双陪 / 打单时间 / 添加情况 / 报结果 / 补单申请 / 转让记录 / 无人接 / 客户来源。
+  // 维度、选项、判定全在 constants/orderFilters.ts 那一份清单里：**加一个新标签只改那里**，
+  // 工具条与筛选自动跟着走，不用再回来加 state / 加 filter。
+  const [tagFilters, setTagFilters] = useState<Record<string, string>>({});
   // 客服端默认只看自己发布/认领的单，需要时可切到全店（服务端 scope 参数）
   const [csScope, setCsScope] = useState<'mine' | 'all'>('mine');
   // 陪玩端的三个口径（服务端 scope 参数），老板 2026-10-03：
@@ -1273,7 +1271,21 @@ const OrdersPage: React.FC = () => {
     );
   };
 
-  const sorted = [...orders]
+  // 这一批数据对应的全部筛选维度（客户来源跟着数据走，所以按 orders 重建）。
+  const filterDimensions = useMemo(() => buildOrderFilterDimensions(orders), [orders]);
+  const activeFilterCount = countActiveOrderFilters(tagFilters);
+  const resetOrderFilters = () => {
+    setTagFilters({});
+    setStatusFilter('');
+    setCompanionFilter('');
+    setCsFilter('');
+    setDateFilter(null);
+    setOrderSearch('');
+  };
+  // 「每一个标签」先在这里筛一遍（都满足才留下）—— 维度 / 选项 / 判定见 constants/orderFilters.ts。
+  const tagFiltered = applyOrderTagFilters(orders, tagFilters, filterDimensions);
+
+  const sorted = [...tagFiltered]
     .sort((a: any, b: any) => {
       const aUnread = unreadMap[a.id] || 0;
       const bUnread = unreadMap[b.id] || 0;
@@ -1284,30 +1296,6 @@ const OrdersPage: React.FC = () => {
     .filter((o: any) => {
       if (!dateFilter) return true;
       return new Date(o.grabbedAt || o.createdAt).toDateString() === dateFilter.toDate().toDateString();
-    })
-    .filter((o: any) => {
-      if (!typeFilter) return true;
-      return o.type === typeFilter;
-    })
-    .filter((o: any) => {
-      if (!dispatchFilter) return true;
-      return o.dispatchType === dispatchFilter;
-    })
-    .filter((o: any) => {
-      if (!outcomeFilter) return true;
-      if (outcomeFilter === 'NONE') return !o.outcome;
-      return o.outcome === outcomeFilter;
-    })
-    .filter((o: any) => {
-      if (!supplementFilter) return true;
-      const reqs: any[] = Array.isArray(o.supplementRequests) ? o.supplementRequests : [];
-      if (supplementFilter === 'ANY') return reqs.length > 0;
-      return reqs.some((r: any) => r?.status === supplementFilter);
-    })
-    .filter((o: any) => {
-      if (!contactFilter) return true;
-      if (contactFilter === 'NONE') return !o.contactStatus;
-      return o.contactStatus === contactFilter;
     })
     .filter((o: any) => {
       if (!orderSearch) return true;
@@ -1405,68 +1393,21 @@ const OrdersPage: React.FC = () => {
             style={{ width: 300 }}
             size="small"
           />
-          <Select
-            placeholder={ORDER_FIELD_LABELS.orderType}
-            allowClear
-            value={typeFilter || undefined}
-            onChange={(v) => setTypeFilter(v || '')}
-            style={{ width: 100 }}
-            size="small"
-          >
-            <Option value="NEW">首单</Option>
-            <Option value="RENEW">续费</Option>
-            <Option value="REPURCHASE">复购</Option>
-            <Option value="TIP">打赏</Option>
-          </Select>
-          <Select
-            placeholder={ORDER_FIELD_LABELS.dispatchType}
-            allowClear
-            value={dispatchFilter || undefined}
-            onChange={(v) => setDispatchFilter(v || '')}
-            style={{ width: 100 }}
-            size="small"
-            options={dispatchTypeOptions}
-          />
-          <Select
-            placeholder="添加情况"
-            allowClear
-            value={contactFilter || undefined}
-            onChange={(v) => setContactFilter(v || '')}
-            style={{ width: 110 }}
-            size="small"
-          >
-            {contactStatusOrder.map((k) => (
-              <Option key={k} value={k}>
-                {contactStatusConfig[k].label}
-              </Option>
-            ))}
-            <Option value="NONE">还没记</Option>
-          </Select>
-          <Select
-            placeholder="报结果"
-            allowClear
-            value={outcomeFilter || undefined}
-            onChange={(v) => setOutcomeFilter(v || '')}
-            style={{ width: 100 }}
-            size="small"
-          >
-            <Option value="NONE">待反馈</Option>
-            <Option value="SUCCESS">成功</Option>
-            <Option value="FAILED">不成功</Option>
-          </Select>
-          <Select
-            placeholder="补单申请"
-            allowClear
-            value={supplementFilter || undefined}
-            onChange={(v) => setSupplementFilter(v || '')}
-            style={{ width: 110 }}
-            size="small"
-          >
-            <Option value="ANY">有申请</Option>
-            <Option value="PENDING">待审核</Option>
-            <Option value="APPROVED">已同意</Option>
-            <Option value="REJECTED">已驳回</Option>
-          </Select>
+          {/* 每一个标签一个下拉，全部由 constants/orderFilters.ts 那一份清单生成 ——
+              老板 2026-10-11：「让系统里的每一个标签都能筛选，一步到位 免得天天让你改」。
+              以后加新标签只改那份清单，这里一个字都不用动。 */}
+          {filterDimensions.map((d) => (
+            <Select
+              key={d.key}
+              placeholder={d.placeholder}
+              allowClear
+              value={tagFilters[d.key] || undefined}
+              onChange={(v) => setTagFilters((prev) => ({ ...prev, [d.key]: v || '' }))}
+              style={{ width: d.width }}
+              size="small"
+              options={d.options}
+            />
+          ))}
           <Select
             placeholder="员工筛选"
             allowClear
@@ -1519,10 +1460,15 @@ const OrdersPage: React.FC = () => {
               ]}
             />
           )}
-          {(orderSearch || typeFilter || dispatchFilter || contactFilter || outcomeFilter || supplementFilter || companionFilter || csFilter || dateFilter) && (
-            <Text type="secondary" style={{ fontSize: 12, lineHeight: '24px' }}>
-              筛选结果: {sorted.length}/{orders.length}
-            </Text>
+          {(orderSearch || activeFilterCount > 0 || companionFilter || csFilter || dateFilter) && (
+            <>
+              <Text type="secondary" style={{ fontSize: 12, lineHeight: '24px' }}>
+                筛选结果: {sorted.length}/{orders.length}
+              </Text>
+              <Button size="small" type="link" style={{ padding: 0 }} onClick={resetOrderFilters}>
+                重置筛选{activeFilterCount > 0 ? `（${activeFilterCount}）` : ''}
+              </Button>
+            </>
           )}
         </div>
         {/* 今日单量：一行灰字（原来三个彩色标签块，视觉噪音太大，老板 2026-09-28） */}
