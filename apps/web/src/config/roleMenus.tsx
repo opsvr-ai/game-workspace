@@ -85,6 +85,54 @@ const group = (
   extra?: Partial<MenuItemDef>,
 ): MenuItemDef => ({ key, label, type: 'group', children, ...extra });
 
+/** 一个分组里第一个「能点的页面」的 key —— 分组标题点了就跳它。 */
+const firstPageKeyOf = (node: any): string | null => {
+  if (typeof node?.key === 'string' && node.key.startsWith('/')) return node.key;
+  for (const kid of node?.children || []) {
+    const found = firstPageKeyOf(kid);
+    if (found) return found;
+  }
+  return null;
+};
+
+/**
+ * 把分组标题（`type: 'group'`）做成**可点**：点它直接进里面第一个页面。
+ *
+ * 老板 2026-10-10：「陪玩工资 70% 点不开？」—— 分组标题本来只是视觉分段（点了不跳转），
+ * 但在左侧栏里它跟能点的菜单项长得一样，**看着像个菜单却点不动**比长一点更别扭。
+ * 第三级不做折叠菜单这条规矩不变（老板 2026-10-08），只是给它一个「点一下就能进去」的出口。
+ *
+ * onClick 里先 stopPropagation：别顺带触发父级 Menu 的 onClick（那会按 key 再跳一次）。
+ */
+const makeGroupsClickable = (
+  items: any[],
+  onJump: (key: string) => void,
+): any[] =>
+  items.map((node) => {
+    const kids = Array.isArray(node?.children)
+      ? makeGroupsClickable(node.children, onJump)
+      : undefined;
+    if (node?.type !== 'group' || !kids?.length) return kids ? { ...node, children: kids } : node;
+    const jump = firstPageKeyOf(node);
+    if (!jump) return { ...node, children: kids };
+    return {
+      ...node,
+      children: kids,
+      label: (
+        <span
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation();
+            onJump(jump);
+          }}
+          title="点这里进去"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+        >
+          {node.label}
+        </span>
+      ),
+    };
+  });
+
 const roleMenus: Record<UserRole, MenuItemDef[]> = {
   [UserRole.OWNER]: [
     // 待处理工作台（老板 2026-10-06）：上班第一件事就点这一页。
@@ -468,5 +516,5 @@ const ROLE_PAGES: Record<string, Record<string, string>> = {
 const rolePage = (role: string | undefined, module: string): string => ROLE_PAGES[role || '']?.[module] || '';
 
 // AppLayout 真正要用的就这几样（图标只导出它在别处直接渲染的那三个）。
-export { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, rolePage, IconLogout, IconFold, IconUnfold };
+export { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, makeGroupsClickable, rolePage, IconLogout, IconFold, IconUnfold };
 export type { MenuItemDef };

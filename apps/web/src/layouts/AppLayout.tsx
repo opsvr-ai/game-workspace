@@ -41,7 +41,7 @@ import {
   publishVoiceCallState,
   setVoiceOwner,
 } from '../utils/voiceCallWindow';
-import { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, rolePage, IconLogout, IconFold, IconUnfold } from '../config/roleMenus';
+import { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, makeGroupsClickable, rolePage, IconLogout, IconFold, IconUnfold } from '../config/roleMenus';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
 // Badge pulse animation
@@ -1877,11 +1877,16 @@ const AppLayout: React.FC = () => {
     // 上面「徽标那一段」是拿 label 字符串比对的，所以这层装饰必须放在它之后。
     const finalItems = withNoticeBadges(flattened).items;
     // 「待处理」那一项挂真实待办条数（不是未读），鼠标停上去写清是哪几类有几条。
-    return finalItems.map((it: any) =>
+    const withTodosBadge = finalItems.map((it: any) =>
       it.key === '/todos' && todosBadge > 0
         ? { ...it, label: menuBadgeLabel(it.label, todosBadge, todosHint || undefined) }
         : it,
     );
+    // 最后一步：分组标题（type: 'group'，如「陪玩工资 70%」）本来只做视觉分段、点了不跳（老板
+    // 2026-10-08 的「最多两级」规矩），但它长得跟能点的菜单项一模一样 —— 老板 2026-10-10 直接问
+    // 「陪玩工资 70% 点不开？」。所以把它包成可点：点一下进里面第一个页面，不折叠这条规矩不变。
+    // 必须放在徽标 / 流水比例之后：那些是按 label 字符串比对的，先换成节点就比不中了。
+    return makeGroupsClickable(withTodosBadge, (key) => navigate(key));
   }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, reviewBadge, outcomeReviewBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey, rememberCleared, navigate, markSeen, markBridgeSeen, markBillingSeen, markReviewSeen, markContactSeen, markPendingStartSeen, todosBadge, todosHint]);
 
   const selectedKeys = useMemo(() => {

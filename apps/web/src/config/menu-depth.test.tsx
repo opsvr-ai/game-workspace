@@ -5,11 +5,11 @@
  * 确认画出来也没有「折叠子菜单里还套折叠子菜单」—— 第三级全是不折叠的分组标题。
  * 于是「菜单又变深了」或「分组标题根本没渲染出来」这两类问题都会立刻红，不用等人肉点。
  */
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import { Menu } from 'antd';
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@chunlv/shared';
-import { roleMenus } from './roleMenus';
+import { makeGroupsClickable, roleMenus } from './roleMenus';
 
 /** 渲染完再等一拍：rc-menu 挂载后有异步的展开动画状态更新，不等它 Rest 会报 act(...) 警告。 */
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
@@ -49,5 +49,21 @@ describe('左侧导航渲染（最多两级）', () => {
     // 店长端没有「店长管理」（老板 2026-10-10），考勤 / 工资规则跟着客服走
     getByText('考勤管理');
     getByText('工资规则');
+  });
+
+  it('分组标题可点：点「陪玩工资」直接进它里面第一个页面（老板 2026-10-10「点不开？」）', async () => {
+    const jumps: string[] = [];
+    const items = makeGroupsClickable(roleMenus[UserRole.ADMIN] as any[], (key) => jumps.push(key));
+    const { container, getByText } = render(
+      <Menu mode="inline" items={items} openKeys={openKeysOf(items)} />,
+    );
+    await settle();
+    // 分组标题本身还是个不折叠的分组（「最多两级」规矩不变），只是文字被包成了可点节点。
+    expect(container.querySelectorAll('.ant-menu-item-group-title span').length).toBeGreaterThan(0);
+    fireEvent.click(getByText('陪玩工资'));
+    expect(jumps).toEqual(['/admin/finance/expenses']);
+    // 「客服提成」里第一个页面是「今日看板」。
+    fireEvent.click(getByText('客服提成'));
+    expect(jumps).toEqual(['/admin/finance/expenses', '/admin/finance/commission-today']);
   });
 });
