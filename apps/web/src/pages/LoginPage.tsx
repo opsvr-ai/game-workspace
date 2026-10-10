@@ -161,7 +161,6 @@ const LoginPage: React.FC = () => {
   const [registerStudioId, setRegisterStudioId] = useState('');
   const [registerAddress, setRegisterAddress] = useState('');
   const [leaseContract, setLeaseContract] = useState<File | null>(null);
-  const [skipPhotos, setSkipPhotos] = useState(false);
   const isCompanionRole = registerRole.includes('COMPANION');
   const isAdminRole = registerRole.includes('ADMIN');
   const isOfflineAdmin = registerRole === 'OFFLINE_ADMIN';
@@ -289,7 +288,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleRegister = async (allowNoPhotos = false) => {
+  const handleRegister = async () => {
     if (!password || !realName || !idNumber || !phone) {
       message.warning('请填写所有必填字段');
       return;
@@ -302,8 +301,10 @@ const LoginPage: React.FC = () => {
       message.warning('线下工作室店长需要填写地址');
       return;
     }
-    if (!allowNoPhotos && (!idCardFront || !idCardBack)) {
-      message.warning('注册需要上传身份证正反面照片');
+    // 身份证正反面是硬门槛（老板 2026-10-10：「没有就注册不了」）——
+    // 以前这儿点一下就跳过、让店长稍后补传，实际没人补，实名审核那栏一直是空的。
+    if (!idCardFront || !idCardBack) {
+      message.warning('注册需要上传身份证正反面照片，缺一张都不行');
       return;
     }
     // Role mapping: OFFLINE_/ONLINE_ prefix → UserRole
@@ -316,12 +317,12 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     let photoKb = 0;
     try {
-      console.log('注册提交', { realName, phone, apiRole, registerRole, registerStudioId, registerAddress, allowNoPhotos });
+      console.log('注册提交', { realName, phone, apiRole, registerRole, registerStudioId, registerAddress });
 
       // 手机拍的身份证照片动辄 4~8MB，两张十几兆：弱网上传慢，还容易被安全软件的上网保护
       // 掐断（表现就是「请求根本没到服务器」的 Network Error）。上传前统一压缩到长边 1600。
-      let frontFile: File | null = allowNoPhotos ? null : idCardFront;
-      let backFile: File | null = allowNoPhotos ? null : idCardBack;
+      let frontFile: File | null = idCardFront;
+      let backFile: File | null = idCardBack;
       if (frontFile && backFile) {
         try {
           [frontFile, backFile] = await Promise.all([compressImage(frontFile), compressImage(backFile)]);
@@ -368,7 +369,7 @@ const LoginPage: React.FC = () => {
         res = await http.post('/auth/register', buildForm());
       } catch (err: any) {
         // 没有 response = 请求根本没到服务器（断网 / 安全软件拦截 / 路由器掐断），先自动重试一次
-        if (err?.response || allowNoPhotos) throw err;
+        if (err?.response) throw err;
         reportClientError({
           phase: 'register-network-retry',
           url: '/auth/register',
@@ -394,7 +395,7 @@ const LoginPage: React.FC = () => {
       if (networkLevel) {
         diagnosis = await diagnoseUploadPath();
         reportClientError({
-          phase: allowNoPhotos ? 'register-failed-nophoto' : 'register-failed',
+          phase: 'register-failed',
           url: '/auth/register',
           status: null,
           message: msg,
@@ -416,10 +417,6 @@ const LoginPage: React.FC = () => {
           networkLevel
             ? React.createElement('div', { style: { marginTop: 10, fontSize: 13, color: TEXT.heading } },
                 '自检里「纯文字请求」通了、带照片那条失败：多半是杀毒软件的上网保护在拦上传 —— 把 1.117.229.36 加进信任，或临时关掉「上网保护」再试一次。照片已经自动压缩过，正常网络下重试一般就能过。')
-            : null,
-          networkLevel && !allowNoPhotos
-            ? React.createElement('div', { style: { marginTop: 10, fontSize: 13, color: TEXT.heading } },
-                '照片一直传不上去：可以点下面的「先不带照片提交」，让店长之后在人员资料里补传照片。')
             : null,
         ),
       });
@@ -764,19 +761,6 @@ const LoginPage: React.FC = () => {
                   </Upload>
                 </PasteImageBox>
               </div>
-              {!skipPhotos && (
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={() => {
-                    setSkipPhotos(true);
-                    void handleRegister(true);
-                  }}
-                  style={{ color: TEXT.tertiary, fontSize: 12, padding: 0, height: 20 }}
-                >
-                  照片一直传不上去？先不带照片提交（店长稍后补传）
-                </Button>
-              )}
               <Button
                 type="primary"
                 size="large"

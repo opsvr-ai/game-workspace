@@ -87,6 +87,22 @@ export class RegisterController {
       return { code: 400, message: '请选择工作室', data: null };
     }
 
+    // 身份证正反面必须上传（老板 2026-10-10：「没有就注册不了」）。
+    // 以前留过「先不带照片提交、店长稍后补传」的口子，结果实名审核那一栏一直是空的，
+    // 要核的人核不了、要补的人也不会补回来。现在前端那个入口已经拿掉，
+    // 服务端也必须拦一道 —— 否则直接调接口就能绕过，等于没拦。
+    // 放在「必填字段」之后执行：上传链路自检（api/diagnostics.ts）靠必填字段这一关返回 400，
+    // 不写库；这里排在它后面就不会影响自检。
+    const idCardFrontFile = files?.idCardFront?.[0];
+    const idCardBackFile = files?.idCardBack?.[0];
+    if (!idCardFrontFile || !idCardBackFile) {
+      // 只传了一张的情况：把已经收下的那张也删掉，别在磁盘上留半份材料
+      for (const f of [idCardFrontFile, idCardBackFile].filter(Boolean) as Express.Multer.File[]) {
+        try { unlinkSync(f.path); } catch { /* 清理失败不影响返回 */ }
+      }
+      return { code: 400, message: '注册需要上传身份证正反面照片', data: null };
+    }
+
     // 检查身份证号唯一（User表 + Companion表）—— 实名可重名，身份证不可重复
     if (body.idNumber) {
       const dupUser = await this.prisma.user.findFirst({ where: { idNumber: body.idNumber } });
