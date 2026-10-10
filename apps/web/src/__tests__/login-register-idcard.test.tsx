@@ -98,3 +98,47 @@ describe('注册必须带身份证正反面（老板 2026-10-10）', () => {
     expect(http.post).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * 邀请链接开通工作室（店长自助开通）也一样要传身份证正反面（老板 2026-10-10：「做」）。
+ * 这条链路以前连照片字段都没有，开出来的店长在「实名审核」里一片空白。
+ */
+describe('邀请链接开通工作室必须带店长身份证正反面（老板 2026-10-10）', () => {
+  beforeEach(() => {
+    msg.warning.mockReset();
+    msg.error.mockReset();
+    msg.success.mockReset();
+    http.get.mockReset();
+    http.post.mockReset();
+    http.get.mockImplementation(async () => ({ data: { data: null } }));
+    http.post.mockResolvedValue({ data: { code: 200, data: { username: '店长A' } } });
+  });
+
+  function renderInviteForm() {
+    return render(
+      <MemoryRouter initialEntries={['/login?invite=tok-1']}>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+  }
+
+  it('开通页有身份证正反面上传框', () => {
+    renderInviteForm();
+    // PasteImageBox 外层也是个可点区域，同一个标签会命中多个节点，这里只要求「在」
+    expect(screen.getAllByText(/身份证正面/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/身份证反面/).length).toBeGreaterThan(0);
+  });
+
+  it('没传身份证就点开通：当场拦住、一条请求都不发', async () => {
+    renderInviteForm();
+    fireEvent.change(screen.getByPlaceholderText('工作室名称 *'), { target: { value: '测试工作室' } });
+    fireEvent.change(screen.getByPlaceholderText('登录账号（店长姓名）*'), { target: { value: '店长A' } });
+    fireEvent.change(screen.getByPlaceholderText('密码（至少6位）*'), { target: { value: 'abc123' } });
+
+    fireEvent.click(screen.getByRole('button', { name: '开通并登录' }));
+
+    await waitFor(() => expect(msg.warning).toHaveBeenCalled());
+    expect(String(msg.warning.mock.calls[0][0])).toContain('身份证正反面');
+    expect(http.post).not.toHaveBeenCalled();
+  });
+});

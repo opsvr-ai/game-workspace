@@ -1,9 +1,9 @@
 // craftsman-ignore: TS001,TS003
-import { Controller, Get, Post, Put, Delete, Body, Query, Param, Req, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Get, Post, Put, Delete, Body, Query, Param, Req, UseGuards, UseInterceptors, UploadedFile, UploadedFiles } from '@nestjs/common';
+import { FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { RolesGuard, Roles } from '../auth/roles.guard';
@@ -35,6 +35,26 @@ export class StudiosController {
   // 邀请注册（公开）：合作伙伴/租客通过邀请链接填写工作室信息自助开通
   @Throttle({ short: { limit: 3, ttl: 60000 } })
   @Post('studios/register-invite')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'idCardFront', maxCount: 1 },
+        { name: 'idCardBack', maxCount: 1 },
+      ],
+      {
+        storage: diskStorage({
+          destination: (_req, _file, cb) => {
+            const dir = join(process.cwd(), '../../uploads/idcards');
+            if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+            cb(null, dir);
+          },
+          filename: (_req, file, cb) =>
+            cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + extname(file.originalname)),
+        }),
+        limits: { fileSize: 10 * 1024 * 1024 },
+      },
+    ),
+  )
   async registerInvite(
     @Body()
     body: {
@@ -45,9 +65,34 @@ export class StudiosController {
       displayName?: string;
       address?: string;
     },
+    @UploadedFiles()
+    files?: { idCardFront?: Express.Multer.File[]; idCardBack?: Express.Multer.File[] },
   ): Promise<ApiResponse<unknown>> {
     if (!body?.token || !body?.studioName?.trim() || !body?.username?.trim() || !body?.password || body.password.length < 6) {
       return { code: 400, message: '请填写完整信息（密码至少6位）', data: null };
+    }
+    // 店长的身份证正反面也是硬门槛（老板 2026-10-10：「没有就注册不了」，开工作室这边一起收严）。
+    // 这条链路以前连照片字段都没有，开出来的店长账号在「实名审核」里是一片空白。
+    const front = files?.idCardFront?.[0];
+    const back = files?.idCardBack?.[0];
+    if (!front || !back) {
+      for (const f of [front, back].filter(Boolean) as Express.Multer.File[]) {
+        try { unlinkSync(f.path); } catch { /* 清理失败不影响返回 */ }
+      }
+      return { code: 400, message: '开通工作室需要上传店长的身份证正反面照片，缺一张都不行', data: null };
+    }
+    // 格式校验口径同注册接口：不在 multer 的 fileFilter 里拒（那会变成「Network Error」），先收完再说人话
+    const allowedImage = /^image\/(jpeg|png|webp)$/;
+    const badImage = [front, back].find((f) => !allowedImage.test(f.mimetype));
+    if (badImage) {
+      for (const f of [front, back]) {
+        try { unlinkSync(f.path); } catch { /* 清理失败不影响返回 */ }
+      }
+      return {
+        code: 400,
+        message: `照片格式不支持（${badImage.originalname}），请用 JPG / PNG / WEBP 图片重新上传`,
+        data: null,
+      };
     }
     try {
       const data = await this.studiosService.registerViaInvite(
@@ -57,6 +102,8 @@ export class StudiosController {
         body.password,
         body.displayName,
         body.address,
+        front.filename,
+        back.filename,
       );
       return { code: 200, message: '开通成功，请登录', data };
     } catch (err: any) {

@@ -62,6 +62,8 @@ export class StudiosService {
     managerPassword: string,
     managerDisplayName?: string,
     address?: string,
+    managerIdCardFront?: string | null,
+    managerIdCardBack?: string | null,
   ) {
     const inviteCfg = await this.prisma.systemConfig.findUnique({ where: { key: `invite.${token}` } });
     if (!inviteCfg) throw new ForbiddenException('邀请链接无效');
@@ -81,6 +83,10 @@ export class StudiosService {
           studioId: studio.id,
           isAuthorized: true,
           displayName: managerDisplayName?.trim() || null,
+          // 店长的身份证正反面（老板 2026-10-10：开工作室也要传，缺一张进不来）。
+          // 以前这里连字段都没有，自助开出来的店长在「实名审核」里是一片空白。
+          idCardFront: managerIdCardFront ?? null,
+          idCardBack: managerIdCardBack ?? null,
         },
       });
       return { studio, manager };

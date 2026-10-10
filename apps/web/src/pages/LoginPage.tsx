@@ -62,6 +62,9 @@ const LoginPage: React.FC = () => {
   const [invitePassword, setInvitePassword] = useState('');
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [showInviteLogin, setShowInviteLogin] = useState(false);
+  // 店长的身份证正反面（老板 2026-10-10：开工作室也要传，缺一张都开不了）
+  const [inviteIdCardFront, setInviteIdCardFront] = useState<File | null>(null);
+  const [inviteIdCardBack, setInviteIdCardBack] = useState<File | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   // 默认勾上：客户端是「一人一台机器」的接单工具，登录一次就该一直记住；
@@ -434,14 +437,39 @@ const LoginPage: React.FC = () => {
       message.warning('密码至少6位');
       return;
     }
+    // 身份证正反面是硬门槛（老板 2026-10-10）：开工作室这条链路以前连照片都不用传
+    if (!inviteIdCardFront || !inviteIdCardBack) {
+      message.warning('开通工作室需要上传店长的身份证正反面照片，缺一张都不行');
+      return;
+    }
     setInviteSubmitting(true);
     try {
-      const res = await http.post('/studios/register-invite', {
-        token: inviteToken,
-        studioName: inviteStudioName.trim(),
-        username: inviteUsername.trim(),
-        password: invitePassword,
-      });
+      // 手机拍的两张照片先压到长边 1600，再跟注册那条一样走 multipart
+      let frontFile: File | null = inviteIdCardFront;
+      let backFile: File | null = inviteIdCardBack;
+      try {
+        [frontFile, backFile] = await Promise.all([compressImage(frontFile), compressImage(backFile)]);
+      } catch (err: any) {
+        Modal.error({
+          title: '照片读取失败',
+          content: React.createElement(
+            'div',
+            null,
+            React.createElement('div', null, String(err?.message || '身份证照片读取失败')),
+            React.createElement('div', { style: { marginTop: 8 } }, '常见原因：① 照片是 iPhone 的 HEIC 等格式，请先转成 JPG 再上传；② 照片是从手机 / 网盘 / 微信临时目录里选的，原文件已经不在了，请先另存到【本机桌面】再选。'),
+          ),
+        });
+        setInviteSubmitting(false);
+        return;
+      }
+      const formData = new FormData();
+      formData.append('token', inviteToken);
+      formData.append('studioName', inviteStudioName.trim());
+      formData.append('username', inviteUsername.trim());
+      formData.append('password', invitePassword);
+      formData.append('idCardFront', frontFile);
+      formData.append('idCardBack', backFile);
+      const res = await http.post('/studios/register-invite', formData);
       if (res.data?.code === 200) {
         // 开通成功后直接登录，不再让用户停在“下一步怎么登录”的疑惑里
         setInviteSubmitting(false);
@@ -568,6 +596,38 @@ const LoginPage: React.FC = () => {
                   value={invitePassword}
                   onChange={(e) => setInvitePassword(e.target.value)}
                 />
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <PasteImageBox
+                    onFile={(f) => setInviteIdCardFront(f)}
+                    style={{ flex: 1, minWidth: 168 }}
+                    hint="也可以 Ctrl+V 粘贴"
+                  >
+                    <Upload
+                      beforeUpload={(f) => { setInviteIdCardFront(f); return false; }}
+                      maxCount={1}
+                      accept="image/*"
+                    >
+                      <Button icon={React.createElement(UploadOutlined)}>
+                        {inviteIdCardFront ? '✓ 正面已选' : '身份证正面 *'}
+                      </Button>
+                    </Upload>
+                  </PasteImageBox>
+                  <PasteImageBox
+                    onFile={(f) => setInviteIdCardBack(f)}
+                    style={{ flex: 1, minWidth: 168 }}
+                    hint="也可以 Ctrl+V 粘贴"
+                  >
+                    <Upload
+                      beforeUpload={(f) => { setInviteIdCardBack(f); return false; }}
+                      maxCount={1}
+                      accept="image/*"
+                    >
+                      <Button icon={React.createElement(UploadOutlined)}>
+                        {inviteIdCardBack ? '✓ 反面已选' : '身份证反面 *'}
+                      </Button>
+                    </Upload>
+                  </PasteImageBox>
+                </div>
                 <Button
                   type="primary"
                   size="large"
