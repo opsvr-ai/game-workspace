@@ -204,7 +204,7 @@ export class SettingsController {
     // 写到哪里看身份（老板拍板：店跟店相互独立，默认全部归分店）：
     // - 老板 → 全局默认（SystemConfig），所有店跟着变；
     // - 店长 → 本店覆盖（StudioConfig），只影响自己店；
-    //   混进来的「老板专属键」（AI 密钥、客户端版本、流水号…）不报错也不静默，
+    //   混进来的「老板专属键」（AI 密钥、客户端版本、单据编号…）不报错也不静默，
     //   跳过并列在 `data.skipped` 里，界面照着提示「这些要找老板改」。
     const result = await saveConfigsByRole(this.prisma, req?.user ?? {}, body);
     // 「本店黑名单是否生效」开关（或「按人特批」表）一改就当场重推名单

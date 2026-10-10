@@ -351,7 +351,7 @@ export const OWNER_ONLY_KEYS = [
   'service.stale_session_hours',// 服务中会话自动清理：服务器级兜底
   // ── 服务器自己写的状态（不是给人填的） ──
   'excellence.low_tier_streak', // 末位淘汰连续天数：由服务端每天累加，全局只有一份
-  'counter.global_code',        // 全局流水号
+  'counter.global_code',        // 全局单据编号（客户 / 订单编码共用一个自增号）
   'watchdog.latest_build',      // 云端看门狗构建号：发布脚本写，客户端据此判断要不要换看门狗
   // ── 店长的考勤：只有老板能改（老板 2026-10-10） ──
   // 这三个键直接决定店长工资里的「迟到扣款 / 缺勤扣款」（PayrollService.generate 按它算）。
@@ -376,7 +376,7 @@ export const OWNER_ONLY_PREFIXES = [
   'turn.',
   'agent.latest_',
   'cs.latest_',
-  'counter.',            // 全局流水号：必须全站唯一，各店各算会撞号
+  'counter.',            // 全局单据编号：必须全站唯一，各店各算会撞号
   'invite.',             // 邀请码：老板发出去的入店凭据
   'cs.client.version.',  // 客服端各人的版本上报（服务器级状态，不是给人填的）
   'watchdog.',           // 看门狗版本这类服务器级状态，不是给人填的

@@ -423,7 +423,7 @@ model Customer {
   scheduledAt         DateTime?
   status              String    @default("PENDING_DEVELOPMENT") // ACTIVE | FOLLOW_UP | LOST | PENDING_DEVELOPMENT
   // 封存（老板 2026-10-04）：「客户小红书也不回，那只能把这个客户信息封存起来了，
-  // 找合适的时候再找别的陪玩加加试试」—— 不是删除：档案、订单、流水全留着，
+  // 找合适的时候再找别的陪玩加加试试」—— 不是删除：档案、订单、业绩全留着，
   // 只是从活跃列表里收起来，等以后再解封换人加。
   archivedAt          DateTime?
   archivedReason      String?
@@ -1067,7 +1067,7 @@ model CommissionLedger {
   ruleId       String
   userId       String // 客服/店长 User id
   month        String // YYYY-MM 营业月
-  basisValue   Float // 计提基数（流水元或单量）
+  basisValue   Float // 计提基数（业绩元或单量）
   amount       Int // 提成金额（分）
   ruleSnapshot Json // 规则快照
   status       String   @default("DRAFT") // DRAFT | CONFIRMED
@@ -1503,7 +1503,7 @@ model XhsSystemEvent {
   @@index([type])
 }
 
-/// 陪玩「每日抢单名额」流水台账（老板 2026-10-04：「点开也可以看到每天消耗多少 增加多少」）。
+/// 陪玩「每日抢单名额」台账（老板 2026-10-04：「点开也可以看到每天消耗多少 增加多少」）。
 /// 一行 = 一次名额变动：GRANT 每日发放 / GRAB 抢单扣减 / SUPPLEMENT 补单返还 / REFUND 抢失败退回 / ADJUST 人工调整。
 model CompanionQuotaLog {
   id          String   @id @default(uuid())
