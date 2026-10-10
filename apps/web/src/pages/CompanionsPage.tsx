@@ -579,7 +579,8 @@ const CompanionsPage: React.FC = () => {
         // 304 = 「标记老员工 编辑业绩 工作记录 身份证 离职处理」排一行要的宽度。
         // 原来是 248（四个按钮，老板 2026-09-28 定：写 240 时最后一个字会被切）；
         // 老板 2026-10-10 加了「编辑业绩」这一个，按同样的按钮规格算下来要宽 56px。
-        width: 304,
+        // 老板 2026-10-11 又加了「结束会话」（只在对方卡在「接单中」时出现），再 +56。
+        width: 360,
         fixed: 'right' as const,
         className: ACTIONS_CELL_CLASS,
         render: (_: unknown, record: Personnel) => (
@@ -604,6 +605,27 @@ const CompanionsPage: React.FC = () => {
                 <Button type="link" size="small" onClick={() => openFinance(record)}>
                   编辑业绩
                 </Button>
+                {record.status === 'BUSY' && (
+                  <Popconfirm
+                    title="把 TA 放回空闲？"
+                    description="TA 卡在「接单中」时点这里：把在跑的会话收尾、状态放回空闲（电脑不在线就是离线）。只改状态，不动钱 —— 金额和业绩还是走「订单管理」那条路。"
+                    onConfirm={async () => {
+                      try {
+                        const res: any = await companionsApi.releaseSession(record.companionId!);
+                        message.success(res?.data?.message || '已放回');
+                        fetchCompanions();
+                      } catch (e: any) {
+                        message.error(e?.response?.data?.message || '操作失败');
+                      }
+                    }}
+                    okText="确认"
+                    cancelText="取消"
+                  >
+                    <Button type="link" size="small">
+                      结束会话
+                    </Button>
+                  </Popconfirm>
+                )}
                 <Button type="link" size="small" onClick={() => { setWrCompanion(record); }}>
                   工作记录
                 </Button>

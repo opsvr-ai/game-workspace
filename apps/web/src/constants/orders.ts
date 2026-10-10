@@ -65,12 +65,12 @@ export const dispatchTypeOptions = dispatchTypeOrder.map((value) => ({
  * 老板 2026-10-11：「这些添加失败的…能筛出来么」—— 以前这套词只长在表格那一格里，
  * 筛选栏里没有对应的口子，只能一页页翻。五个值都在（老数据可能是空的 = 还没记）。
  */
-export const contactStatusOrder = ['pending', 'added', 'agreed', 'not_accepted', 'dispatched'] as const;
+export const contactStatusOrder = ['pending', 'added', 'not_accepted', 'dispatched'] as const;
 
 export const contactStatusConfig: Record<string, { color: string; label: string }> = {
   pending: { color: 'orange', label: '待添加' },
-  added: { color: 'green', label: '已添加' },
-  agreed: { color: 'cyan', label: '客户已同意' },
+  added: { color: 'green', label: '添加成功' },
+  agreed: { color: 'green', label: '添加成功' },
   not_accepted: { color: 'red', label: '添加失败' },
   dispatched: { color: 'blue', label: '已派单' },
 };

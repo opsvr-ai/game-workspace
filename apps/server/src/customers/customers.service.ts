@@ -67,7 +67,7 @@ export class CustomersService {
       orderBy = { createdAt: 'desc' };
     }
 
-    return this.prisma.customer.findMany({
+    const list = await this.prisma.customer.findMany({
       where,
       include: {
         companion: {
@@ -103,6 +103,58 @@ export class CustomersService {
       },
       orderBy,
     });
+
+    // 老板 2026-10-11：光看「最近 5 单」会漏掉正在打的单 —— 老单（比如 10-06 抢的、
+    // 10-10 才点开始服务）排在 5 单之外时，客户管理里根本看不到那段「服务中」，
+    // 陪玩也就**没有任何入口点结束**，只能一直挂在「接单中」干等 24 小时兜底
+    // （线上真事：胡程硕卡了一整天）。这里把「带着没结束的会话」的单无条件补进列表，
+    // 不管它多老 —— 只要人在打，界面就必须给得出「结束服务」。
+    const customerIds = list.map((c) => c.id);
+    if (customerIds.length > 0) {
+      const runningOrders = (await this.prisma.order.findMany({
+        where: {
+          customerId: { in: customerIds },
+          sessions: { some: { status: 'ACTIVE', startedAt: { not: null } } },
+        },
+        select: {
+          id: true,
+          customerId: true,
+          csUserId: true,
+          csUser: { select: { username: true, displayName: true, avatar: true } },
+          status: true,
+          gameName: true,
+          type: true,
+          amount: true,
+          duration: true,
+          createdAt: true,
+          customFields: true,
+          sessions: {
+            orderBy: { seq: 'desc' },
+            take: 1,
+            select: { id: true, startedAt: true, endedAt: true, status: true, pausedAt: true, totalPausedSec: true, coCompanionId: true, coAmount: true, claimedMode: true, claimedPrice: true, duration: true, paidByDeposit: true },
+          },
+        },
+      })) || [];
+      const byCustomer = new Map<string, typeof runningOrders>();
+      for (const o of runningOrders) {
+        const arr = byCustomer.get((o as any).customerId) || [];
+        arr.push(o);
+        byCustomer.set((o as any).customerId, arr);
+      }
+      for (const c of list) {
+        const extra = byCustomer.get(c.id);
+        if (!extra || extra.length === 0) continue;
+        const seen = new Set((c.orders || []).map((o: any) => o.id));
+        for (const o of extra) {
+          if (!seen.has(o.id)) {
+            (c.orders as any[]).push(o);
+            seen.add(o.id);
+          }
+        }
+      }
+    }
+
+    return list;
   }
 
   /**

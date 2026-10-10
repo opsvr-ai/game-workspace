@@ -13,6 +13,8 @@ export const companionsApi = {
   sendCommand: (id: string, command: string, params?: unknown) =>
     http.post(`/companions/${id}/command`, { command, params }),
   kick: (id: string) => http.post(`/companions/${id}/kick`),
+  /** 店长 / 老板：人卡在「接单中」时，把在跑的会话收尾、放回空闲（不碰钱，老板 2026-10-11） */
+  releaseSession: (id: string) => http.post(`/companions/${id}/release-session`),
   workbench: () => http.get('/companions/me/workbench'),
   todaySessions: (params?: { day?: string }) =>
     http.get('/companions/me/today-sessions', { params }),

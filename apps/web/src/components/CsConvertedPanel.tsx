@@ -154,15 +154,20 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
     [filtered, now],
   );
 
-  /** 添加情况：待添加 / 已添加 / 客户已同意 / 添加失败 / 已派单（跟客服有关的那几步，没有「无人接单」） */
+  /**
+   * 添加情况：待添加 / 添加成功 / 添加失败 / 已派单（跟客服有关的那几步，没有「无人接单」）。
+   * 老板 2026-10-11：「点添加成功就显示添加成功，为什么还存在已同意？不乱么」——
+   * 老数据里的 `agreed`（客户已同意）跟 `added`（已添加）本来就是同一步，
+   * 现在统一显示成「添加成功」，界面上不再出现「客户已同意」这个说法。
+   */
   const stageOf = (r: any): { text: string; color: string } => {
     switch (r.contactStatus) {
       case 'dispatched':
         return { text: '已派单', color: BRAND.primary };
       case 'agreed':
-        return { text: '客户已同意', color: SEMANTIC.successDeep };
+        return { text: '添加成功', color: SEMANTIC.successDeep };
       case 'added':
-        return { text: '已添加', color: SEMANTIC.successDeep };
+        return { text: '添加成功', color: SEMANTIC.successDeep };
       case 'not_accepted':
         return { text: '添加失败', color: SEMANTIC.warningDeep };
       case 'pending':

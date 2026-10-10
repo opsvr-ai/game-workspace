@@ -9,7 +9,7 @@
   "httpPrefix": "/api",
   "stats": {
     "controllers": 28,
-    "endpoints": 403,
+    "endpoints": 404,
     "socketEmitters": 3,
     "socketInbound": 15,
     "socketOutbound": 19
@@ -1749,6 +1749,13 @@
       "path": "/api/companions/:id/kick",
       "controller": "CompanionsController",
       "handler": "kickCompanion",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/:id/release-session",
+      "controller": "CompanionsController",
+      "handler": "releaseStuckSessions",
       "file": "apps/server/src/companions/companions.controller.ts"
     },
     {

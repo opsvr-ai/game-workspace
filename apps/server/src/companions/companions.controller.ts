@@ -777,6 +777,92 @@ export class CompanionsController {
     return { code: 200, message: '已踢出陪玩', data: { companionId: id, status: 'OFFLINE' } };
   }
 
+  /**
+   * 店长 / 老板：把卡在「接单中」的陪玩放回空闲（老板 2026-10-11）。
+   *
+   * 为什么会卡：陪玩点完「结束服务」、客户端却没把那段会话收尾（断网 / 客户端被关 /
+   * 老单在客户管理里翻不到、界面上压根没有「结束服务」按钮），他就一直挂在「接单中」；
+   * 急单只推给空闲的人，他从此再也抢不到单。管理端以前没有任何口子能救 ——
+   * 只能干等 24 小时兜底（StaleSessionSweepService 每小时扫一次）。
+   *
+   * 这条只解决「人卡住」：把他在跑的段收尾（status=DONE、endedAt=now），
+   * **不碰钱**（不写审核金额、不改订单金额 / 业绩），订单状态也照旧；
+   * 钱的事仍旧走「订单管理 → 报结果 / 补单」那条路。
+   */
+  @Post('companions/:id/release-session')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async releaseStuckSessions(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const now = new Date();
+    // ① 他自己当主陪的段：整段收尾（他才是卡住的那个人）
+    const asMain = await this.prisma.orderSession.findMany({
+      where: { companionId: id, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    for (const s of asMain) {
+      await this.prisma.orderSession
+        .update({ where: { id: s.id }, data: { status: 'DONE', endedAt: now } })
+        .catch(() => {});
+    }
+    // ② 他只是别人的搭档：把人从这一段摘掉就行，主陪照常打
+    const asCo = await this.prisma.orderSession.findMany({
+      where: { coCompanionId: id, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    for (const s of asCo) {
+      await this.prisma.orderSession
+        .update({ where: { id: s.id }, data: { coCompanionId: null } })
+        .catch(() => {});
+    }
+    const ended = asMain.length + asCo.length;
+
+    // ③ 他还有别的段真在跑（双开），就别动状态 —— 那不是在卡，是真在接单
+    const stillActive = await this.prisma.orderSession.count({
+      where: {
+        status: 'ACTIVE',
+        startedAt: { not: null },
+        OR: [{ companionId: id }, { coCompanionId: id }],
+      },
+    });
+    if (stillActive > 0) {
+      return {
+        code: 200,
+        message: '这个人还有进行中的服务，只收掉了卡住的那段，状态没动',
+        data: { ended, status: null },
+      };
+    }
+
+    // ④ 电脑 3 分钟内有心跳 = 人还在 → 放回空闲；否则就是离线（跟兜底清理同一套判断）
+    const companion = await this.prisma.companion.findUnique({
+      where: { id },
+      select: { status: true, pc: { select: { lastHeartbeat: true } } },
+    });
+    if (!companion) return { code: 404, message: '陪玩不存在', data: null };
+    if (companion.status !== 'BUSY') {
+      return { code: 200, message: '已收掉卡住的会话（他本来就不在接单中，状态没动）', data: { ended, status: companion.status } };
+    }
+    const recent = !!companion.pc?.lastHeartbeat && companion.pc.lastHeartbeat >= new Date(Date.now() - 3 * 60 * 1000);
+    const nextStatus = recent ? 'AVAILABLE' : 'OFFLINE';
+    await switchCompanionStatus(this.prisma, id, nextStatus);
+    if (req.user?.studioId) {
+      this.wsGateway.broadcastToStudio(req.user.studioId, 'status:broadcast', {
+        companionId: id,
+        status: nextStatus,
+        reason: 'released',
+      });
+    }
+    logger.warn('Admin released stuck sessions', {
+      companionId: id,
+      ended,
+      nextStatus,
+      by: req.user?.username || req.user?.id,
+    });
+    return {
+      code: 200,
+      message: nextStatus === 'AVAILABLE' ? '已放回空闲' : '已放回（电脑不在线，标了离线）',
+      data: { ended, status: nextStatus },
+    };
+  }
+
   // 聊天通知：陪玩端发送消息时通知客服
   @Post('companions/chat-notify')
   @Roles(UserRole.COMPANION, UserRole.CS, UserRole.ADMIN, UserRole.OWNER)

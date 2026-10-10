@@ -90,7 +90,7 @@ const OrdersPage: React.FC = () => {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'OWNER';
   const navigate = useNavigate();
 
-  // 陪玩点「添加成功 / 客户已同意」后，直接进入客户管理接着打首单；
+  // 陪玩点「添加成功」后，直接进入客户管理接着打首单（老板 2026-10-11：「客户已同意」并进「添加成功」）；
   // 客服/店长一次要处理一批单，保持原地刷新，不跳走。
   const gotoCustomersAfterAdd = () => {
     if (isCompanion) navigate('/companion/customers');
@@ -670,14 +670,14 @@ const OrdersPage: React.FC = () => {
               onClick={async () => {
                 try {
                   await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                  message.success('已标记为客户同意');
+                  message.success('已标记添加成功');
                   fetch();
                 } catch (e: any) {
                   message.error(extractErrorMessage(e, '操作失败'));
                 }
               }}
             >
-              客户已同意
+              添加成功
             </Button>
           </>
         )}
@@ -841,7 +841,7 @@ const OrdersPage: React.FC = () => {
     const hasContactRow = !!chatTarget || contactState !== 'none';
     if (!hasOrderRow && !hasContactRow) return null;
 
-    // 操作列：一行按顺序排 —— 沟通 → 添加成功 / 已同意 / 已添加 → 添加失败 → 修改 → 补单
+    // 操作列：一行按顺序排 —— 沟通 → 添加成功 → 添加失败 → 修改 → 补单
     // （老板 2026-09-28：「修改 退款 显示在 添加失败后边」；2026-10-08 老板要求把「退款」整条删掉、那一格改成「补单」）。
     // 每个动作占一个固定宽度的格子，
     // 这一行没有这个动作就留空，所以同一个按钮在哪一行都是同一个位置；一行放得下就不用换行，
@@ -928,7 +928,7 @@ const OrdersPage: React.FC = () => {
         <span style={actionSlot(60)}>
           {contactState === 'added' ? (
             <Tag color="green" style={{ margin: 0 }}>
-              已添加
+              添加成功
             </Tag>
           ) : contactState === 'not_accepted' ? (
             <Button
@@ -938,7 +938,7 @@ const OrdersPage: React.FC = () => {
               onClick={async () => {
                 try {
                   await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                  message.success('已标记为客户同意');
+                  message.success('已标记添加成功');
                   fetch();
                   gotoCustomersAfterAdd();
                 } catch (e: any) {
@@ -946,7 +946,7 @@ const OrdersPage: React.FC = () => {
                 }
               }}
             >
-              已同意
+              添加成功
             </Button>
           ) : contactState === 'pending' ? (
             <Button

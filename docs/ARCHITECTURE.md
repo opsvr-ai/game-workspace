@@ -779,6 +779,13 @@ sequenceDiagram
     AGENT-->>AGENT: 断开连接并退出进程
     GW->>DB: UPDATE companion.status=OFFLINE
 
+    Note over AGENT,BROWSER: 卡住的会话 (release-session, 2026-10-11)
+    BROWSER->>GW: POST /companions/:id/release-session (ADMIN/OWNER)
+    GW->>DB: UPDATE order_session SET status=DONE, endedAt=now (companionId=id)
+    GW->>DB: UPDATE order_session SET coCompanionId=null (他只是搭档的段)
+    GW->>DB: UPDATE companion.status=AVAILABLE|OFFLINE (按PC心跳, 只收会话不动钱)
+    GW-->>BROWSER: status:broadcast
+
     Note over AGENT,GW: 断开
     AGENT-->>GW: disconnect
     GW->>DB: UPDATE companion.status=OFFLINE

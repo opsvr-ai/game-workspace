@@ -205,18 +205,30 @@ export class OrderWorkflowService {
     if (statusUpdated.count === 0) throw new ForbiddenException('订单状态已变更，请刷新');
 
     // Step 2: Revenue updates (only after status is safely set)
-    if (order.companionId && order.amount) {
+    // 老板 2026-10-11：「童祥瑞点复购开单，打了一个多小时、单价填 50，结束服务后业绩只加了 50」——
+    // 业绩一直按**下单那一刻预填的** `Order.amount`（时长 × 单价，时长默认 1）算，真正打了多久
+    // 只写进了 `Order.auditAmountCents`，从来没进过业绩。这里改成「逐段真实时长 × 该段单价」，
+    // 并把订单金额一起回写 —— 订单管理那一列跟业绩永远是同一个数。
+    const actualCharge = await this.revenueByActualHours(order).catch(() => null);
+    let revenueOrder: any = order;
+    if (actualCharge && actualCharge.amount > 0) {
+      const patch: any = { amount: actualCharge.amount };
+      if (actualCharge.coAmount != null) patch.coAmount = actualCharge.coAmount;
+      await this.prisma.order.update({ where: { id: orderId }, data: patch }).catch(() => {});
+      revenueOrder = { ...order, ...patch };
+    }
+    if (revenueOrder.companionId && revenueOrder.amount) {
       try {
-        const primaryRevenue = companionOrderRevenue(order, order.companionId);
+        const primaryRevenue = companionOrderRevenue(revenueOrder, revenueOrder.companionId);
         await this.prisma.companion.update({
-          where: { id: order.companionId },
+          where: { id: revenueOrder.companionId },
           data: { monthlyRevenue: { increment: primaryRevenue } },
         });
-        if (order.coCompanionId) {
-          const coRevenue = companionOrderRevenue(order, order.coCompanionId);
+        if (revenueOrder.coCompanionId) {
+          const coRevenue = companionOrderRevenue(revenueOrder, revenueOrder.coCompanionId);
           if (coRevenue > 0) {
             await this.prisma.companion
-              .update({ where: { id: order.coCompanionId }, data: { monthlyRevenue: { increment: coRevenue } } })
+              .update({ where: { id: revenueOrder.coCompanionId }, data: { monthlyRevenue: { increment: coRevenue } } })
               .catch(() => {});
           }
         }
@@ -242,6 +254,74 @@ export class OrderWorkflowService {
     if (order.coCompanionId) await this.refreshCompanionAvailable(order.coCompanionId);
     if (updated) this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
+  }
+
+  /**
+   * 按「每段真实时长 × 该段单价」算这张单的真实服务费（老板 2026-10-11）。
+   *
+   * 为什么要有它：业绩原来 = `Order.amount`（陪玩点「复购 / 续单」时预填的 时长 × 单价，
+   * 时长默认就是 1），跟他真正打了多久没关系 —— 打 1 小时是 +50，打 3 分钟也是 +50，
+   * 打 7 小时还是 +50。真实时长其实一直在库里（会话的 startedAt / endedAt / 暂停秒数），
+   * 单价也在（claimedPrice；搭档看 coAmount ÷ 计划时长）—— 这里把它俩乘起来。
+   *
+   * 口径：
+   *   · 主陪：该段 `claimedPrice`（没填就退回 订单金额 ÷ 计划时长）
+   *   · 搭档：该段 `coAmount` ÷ 该段计划时长
+   *   · 只算已经落库结束（status=DONE、endedAt 有值）的段；还在打的段不算
+   *   · 一段都算不出来（客服直接改状态完成、压根没有会话）→ 返回 null，调用方退回老口径
+   */
+  private async revenueByActualHours(
+    order: { id: string; companionId?: string | null; coCompanionId?: string | null },
+  ): Promise<{ amount: number; coAmount: number | null } | null> {
+    const sessions = await this.prisma.orderSession.findMany({
+      where: { parentOrderId: order.id, status: 'DONE', startedAt: { not: null } },
+      select: {
+        companionId: true,
+        coCompanionId: true,
+        startedAt: true,
+        endedAt: true,
+        totalPausedSec: true,
+        amount: true,
+        coAmount: true,
+        duration: true,
+        claimedPrice: true,
+      },
+    });
+    const list = sessions || [];
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const hoursOf = (s: (typeof list)[number]): number => {
+      if (!s.endedAt || !s.startedAt) return 0;
+      const sec =
+        (new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 1000 -
+        (s.totalPausedSec || 0);
+      return Math.max(0, sec) / 3600;
+    };
+    let primary = 0;
+    let co = 0;
+    let primaryMatched = false;
+    let coMatched = false;
+    for (const s of list) {
+      const h = hoursOf(s);
+      if (h <= 0) continue;
+      const planned = Number(s.duration) || 0;
+      if (order.companionId && s.companionId === order.companionId) {
+        const unit =
+          Number(s.claimedPrice) || (planned > 0 ? Number(s.amount) / planned : Number(s.amount) || 0);
+        if (unit > 0) {
+          primary += h * unit;
+          primaryMatched = true;
+        }
+      }
+      if (order.coCompanionId && s.coCompanionId === order.coCompanionId) {
+        const unit = planned > 0 ? (Number(s.coAmount) || 0) / planned : Number(s.coAmount) || 0;
+        if (unit > 0) {
+          co += h * unit;
+          coMatched = true;
+        }
+      }
+    }
+    if (!primaryMatched && !coMatched) return null;
+    return { amount: round2(primary), coAmount: coMatched ? round2(co) : null };
   }
 
   async cancel(orderId: string, userStudioId?: string, companionId?: string, role?: string, reason?: string) {
