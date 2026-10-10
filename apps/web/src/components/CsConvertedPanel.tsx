@@ -427,7 +427,9 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
 
   /**
    * 操作按钮分两套（同一张表里的两种行）：
-   *  - 还没派出去的（跟进中）：添加成功 / 添加失败 / 客户已同意 / 直接派单 / 处理完成 + 记跟进；
+   *  - 还没派出去的（跟进中）：添加成功 / 添加失败 / 直接派单 / 处理完成 + 记跟进；
+   *    （老板 2026-10-11：「点添加成功就显示添加成功，为什么还存在已同意？不乱么」——
+   *     「客户已同意」那一步已经并进「添加成功」，不再单独出现）
    *  - 已经派出去被陪玩接的：补「添加成功 / 添加失败」+ 记跟进 / 记业绩。
    */
   const renderActions = (r: any) => {
@@ -448,11 +450,6 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         );
       } else if (st === 'added') {
         buttons.push(
-          <Button key="agree" size="small" onClick={() => mark(r, 'agreed', undefined, '已标记：客户同意打了')}>
-            客户已同意
-          </Button>,
-        );
-        buttons.push(
           <Button key="dispatch" size="small" type="primary" onClick={() => onDispatch?.(r)}>
             直接派单
           </Button>,
@@ -467,11 +464,6 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
             onClick={() => mark(r, 'added', 'passed', '已标记添加成功')}
           >
             加上了
-          </Button>,
-        );
-        buttons.push(
-          <Button key="agree" size="small" onClick={() => mark(r, 'agreed', undefined, '已标记：客户同意打了')}>
-            客户已同意
           </Button>,
         );
       } else {
@@ -501,7 +493,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
           style={{ background: SEMANTIC.success, borderColor: SEMANTIC.success }}
           onClick={() => markContact(r, 'added')}
         >
-          客户已同意
+          添加成功
         </Button>,
       );
     } else if ((r.status === 'GRABBED' || r.status === 'CONFIRMED') && st !== 'added') {

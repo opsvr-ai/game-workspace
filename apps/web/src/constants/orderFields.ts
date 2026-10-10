@@ -170,7 +170,7 @@ export const orderTypeLabel = (o: any): string => orderTypeConfig[o?.type]?.labe
  * 更不是没人接，怎么就成了无人接」—— 「无人接」是**抢单池**的结论（单子放出去了、没人接）。
  * 只要客服已经接手这张单，它就不再是「没人接」，状态按订单自己的状态走（PENDING → 待派单）：
  *  - `directAdd`：「管理端直添客户」登记进来的单，从来没进过抢单池；
- *  - `contactStatus`：客服在跟进台账 / 订单管理里记过添加情况（待添加 / 已添加 / 客户已同意 /
+ *  - `contactStatus`：客服在跟进台账 / 订单管理里记过添加情况（待添加 / 添加成功 /
  *    添加失败 / 已派单）—— 客服那一列「添加情况」照旧单独显示走到哪一步，两个格互不打架。
  */
 export const isOrderStuck = (o: any): boolean => {
