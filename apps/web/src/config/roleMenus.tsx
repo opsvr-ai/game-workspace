@@ -130,6 +130,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           { key: '/admin/companion-wallet-calendar', label: '报账与支取日历' },
           { key: '/admin/finance/risk', label: '打私单风险' },
         ], { ratioKey: 'companion' }),
+        // 价格规则（老板 2026-10-10）：按「谁的功能去谁的菜单」归到陪玩这边 —— 定的是陪玩接单的单价。
+        { key: '/admin/finance/price-rules', label: '价格规则' },
       ],
     },
     {
@@ -159,7 +161,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'owner-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/admin/profit-calendar', label: '财务中心' },
-        { key: '/admin/finance/price-rules', label: '价格规则' },
       ],
     },
     {
@@ -225,6 +226,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           { key: '/admin/companion-wallet-calendar', label: '报账与支取日历' },
           { key: '/admin/finance/risk', label: '打私单风险' },
         ], { ratioKey: 'companion' }),
+        // 价格规则（老板 2026-10-10）：定的是陪玩接单的单价，归陪玩管理。
+        { key: '/admin/finance/price-rules', label: '价格规则' },
       ],
     },
     {
@@ -240,20 +243,16 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         ], { ratioKey: 'cs' }),
         { key: '/admin/cs-wechat-flow', label: '客服微信收款明细' },
         { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
-      ],
-    },
-    {
-      key: 'admin-admins', icon: IconAdmins, label: '店长管理',
-      children: [
-        { key: '/admin/payroll', label: '工资规则', ratioKey: 'admin' },
+        // 店长端没有「店长管理」（老板 2026-10-10：店长不用管店长）——
+        // 店长每天干的就是给客服登记考勤、定客服的工资，所以这两项跟着客服走。
         { key: '/admin/attendance', label: '考勤管理' },
+        { key: '/admin/payroll', label: '工资规则', ratioKey: 'admin' },
       ],
     },
     {
       key: 'admin-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/admin/profit-calendar', label: '财务中心' },
-        { key: '/admin/finance/price-rules', label: '价格规则' },
       ],
     },
     {

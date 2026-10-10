@@ -30,7 +30,7 @@ describe('左侧导航渲染（最多两级）', () => {
     });
   }
 
-  it('店长端：一级按「人」分（陪玩 / 客服 / 店长管理），里面的分组标题不再是折叠项', async () => {
+  it('店长端：一级按「人」分（陪玩 / 客服管理），里面的分组标题不再是折叠项', async () => {
     const items = roleMenus[UserRole.ADMIN] as any[];
     const { container, getByText } = render(
       <Menu mode="inline" items={items} openKeys={openKeysOf(items)} />,
@@ -44,8 +44,10 @@ describe('左侧导航渲染（最多两级）', () => {
     expect(container.querySelectorAll('.ant-menu-item-group .ant-menu-submenu').length).toBe(0);
     getByText('陪玩管理');
     getByText('客服管理');
-    getByText('店长管理');
     getByText('陪玩列表');
     getByText('客服列表');
+    // 店长端没有「店长管理」（老板 2026-10-10），考勤 / 工资规则跟着客服走
+    getByText('考勤管理');
+    getByText('工资规则');
   });
 });
