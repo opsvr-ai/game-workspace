@@ -71,6 +71,16 @@ export function buildOrderSearchText(order: any): string {
     order?.companion?.user?.username,
     order?.companion?.user?.displayName,
     order?.coCompanion?.user?.username,
+    // 备注 / 失败原因 / 报结果原因 / 补单申请原因（老板 2026-10-11）：
+    // 「客户说不打」「当时不打」这些原因都是**自己填的文字**，没有固定选项可筛，
+    // 所以搜索框必须能搜到 —— 打「不打」就把这批单捞出来。
+    order?.notes,
+    order?.refundReason,
+    order?.outcomeReason,
+    cf.csContactFailReason,
+    ...(Array.isArray(order?.supplementRequests)
+      ? order.supplementRequests.map((r: any) => r?.reason)
+      : []),
   ]
     .filter((v) => v != null && v !== '')
     .map((v) => String(v))

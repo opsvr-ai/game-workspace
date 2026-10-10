@@ -884,12 +884,48 @@ export class OrdersService implements OnModuleInit {
     // 补单是管理端的事（陪玩看不到这个动作），所以只给客服 / 店长 / 老板查这一下。
     const supplementPendingMap = new Map<string, any>();
     const supplementApprovedSet = new Set<string>();
-    if (user.role !== 'COMPANION' && orders.length) {
+    // 「陪玩申请补单的单」也要能在订单列表里筛出来（老板 2026-10-11：
+    // 「这些添加失败的 / 当时不打的 / 陪玩申请补单的，管理端能筛出来么」），
+    // 所以这里把**两种申请一起**查回来挂到行上（`supplementRequests`）：
+    //   SUPPLEMENT = 陪玩点「添加失败」自动要名额的那条；
+    //   REFUND     = 陪玩点「申请补单」（原「退单」）的那条。
+    // 下面那两个 flag 的口径一个字没改，仍然是「补单（SUPPLEMENT）」那一条 —— 订单行那颗
+    // 「补单」按钮靠它判断（陪玩端本来就不看这个动作，照旧不下发这两个 flag）。
+    const supplementReqMap = new Map<string, any[]>();
+    // 陪玩没挂档案（异常账号）时直接跳过这次查询 —— 否则 `companionId: undefined` 会被
+    // Prisma 当成「没有条件」，等于把全站的补单申请漏给他。
+    const supplementQueryable = user.role !== 'COMPANION' || !!user.companionId;
+    if (orders.length && supplementQueryable) {
       const reqs = await this.prisma.supplementRequest.findMany({
-        where: { orderId: { in: orders.map((o) => o.id) }, type: SUPPLEMENT_TYPE },
-        select: { id: true, orderId: true, status: true, reason: true, evidenceUrl: true },
+        where: {
+          orderId: { in: orders.map((o) => o.id) },
+          // 陪玩只看自己提的那些申请（「我服务的单」那一栏里主陪提的申请不下发给他）
+          ...(user.role === 'COMPANION' ? { companionId: user.companionId } : {}),
+        },
+        select: {
+          id: true,
+          orderId: true,
+          type: true,
+          status: true,
+          reason: true,
+          evidenceUrl: true,
+          createdAt: true,
+          decidedAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
       });
       for (const r of reqs) {
+        const list = supplementReqMap.get(r.orderId) ?? [];
+        list.push({
+          id: r.id,
+          type: r.type,
+          status: r.status,
+          reason: r.reason,
+          createdAt: r.createdAt,
+          decidedAt: r.decidedAt,
+        });
+        supplementReqMap.set(r.orderId, list);
+        if (user.role === 'COMPANION' || r.type !== SUPPLEMENT_TYPE) continue;
         if (r.status === 'PENDING') {
           supplementPendingMap.set(r.orderId, {
             id: r.id,
@@ -910,6 +946,7 @@ export class OrdersService implements OnModuleInit {
           supplementPending: supplementPendingMap.has(o.id),
           supplementPendingRequest: supplementPendingMap.get(o.id) || null,
           supplementApproved: supplementApprovedSet.has(o.id) || !!cf.supplementApproved,
+          supplementRequests: supplementReqMap.get(o.id) || [],
         },
         user,
       );

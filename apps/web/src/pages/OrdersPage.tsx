@@ -35,7 +35,7 @@ import { isRowClickIgnored } from '../utils/rowClick';
 import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
 import { orderMatchesSearch } from '../utils/orderPool';
 import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
-import { orderStatusConfig, dispatchTypeOptions } from '../constants';
+import { orderStatusConfig, dispatchTypeOptions, contactStatusConfig, contactStatusOrder } from '../constants';
 import { ORDER_FIELD_LABELS, ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
 import PageHeader from '../components/PageHeader';
 import SupplementReviewButton from '../components/SupplementReviewButton';
@@ -120,6 +120,15 @@ const OrdersPage: React.FC = () => {
   // 「派单方式」筛选（指定 / 入池）：老板 2026-10-07「怎么看不到订单类型比如指定单」——
   // 它和上面的「订单类型」（首单 / 续单 / 复购 / 打赏）是两回事，所以单独一个下拉。
   const [dispatchFilter, setDispatchFilter] = useState<string>('');
+  // 「添加情况」筛选（老板 2026-10-11：「这些添加失败的客户能筛出来么」）——
+  // 按 `Order.contactStatus` 筛，五个词跟客服那一列「添加情况」一模一样（唯一一份在 constants/orders.ts）。
+  const [contactFilter, setContactFilter] = useState<string>('');
+  // 「报结果」筛选（老板 2026-10-11）：待反馈 / 成功 / 不成功 —— 「客户当时不打」这类没打成的单
+  // 就是「不成功」那批（原因写在备注里，搜索框也搜得到）。
+  const [outcomeFilter, setOutcomeFilter] = useState<string>('');
+  // 「补单申请」筛选（老板 2026-10-11）：陪玩点过「添加失败」或「申请补单」的单，按审核状态筛
+  // ——数据由服务端挂在每一行的 `supplementRequests` 上（含两种申请：补单 + 退单）。
+  const [supplementFilter, setSupplementFilter] = useState<string>('');
   // 客服端默认只看自己发布/认领的单，需要时可切到全店（服务端 scope 参数）
   const [csScope, setCsScope] = useState<'mine' | 'all'>('mine');
   // 陪玩端的三个口径（服务端 scope 参数），老板 2026-10-03：
@@ -1251,6 +1260,22 @@ const OrdersPage: React.FC = () => {
       return o.dispatchType === dispatchFilter;
     })
     .filter((o: any) => {
+      if (!outcomeFilter) return true;
+      if (outcomeFilter === 'NONE') return !o.outcome;
+      return o.outcome === outcomeFilter;
+    })
+    .filter((o: any) => {
+      if (!supplementFilter) return true;
+      const reqs: any[] = Array.isArray(o.supplementRequests) ? o.supplementRequests : [];
+      if (supplementFilter === 'ANY') return reqs.length > 0;
+      return reqs.some((r: any) => r?.status === supplementFilter);
+    })
+    .filter((o: any) => {
+      if (!contactFilter) return true;
+      if (contactFilter === 'NONE') return !o.contactStatus;
+      return o.contactStatus === contactFilter;
+    })
+    .filter((o: any) => {
       if (!orderSearch) return true;
       return orderMatchesSearch(o, orderSearch);
     })
@@ -1369,6 +1394,46 @@ const OrdersPage: React.FC = () => {
             options={dispatchTypeOptions}
           />
           <Select
+            placeholder="添加情况"
+            allowClear
+            value={contactFilter || undefined}
+            onChange={(v) => setContactFilter(v || '')}
+            style={{ width: 110 }}
+            size="small"
+          >
+            {contactStatusOrder.map((k) => (
+              <Option key={k} value={k}>
+                {contactStatusConfig[k].label}
+              </Option>
+            ))}
+            <Option value="NONE">还没记</Option>
+          </Select>
+          <Select
+            placeholder="报结果"
+            allowClear
+            value={outcomeFilter || undefined}
+            onChange={(v) => setOutcomeFilter(v || '')}
+            style={{ width: 100 }}
+            size="small"
+          >
+            <Option value="NONE">待反馈</Option>
+            <Option value="SUCCESS">成功</Option>
+            <Option value="FAILED">不成功</Option>
+          </Select>
+          <Select
+            placeholder="补单申请"
+            allowClear
+            value={supplementFilter || undefined}
+            onChange={(v) => setSupplementFilter(v || '')}
+            style={{ width: 110 }}
+            size="small"
+          >
+            <Option value="ANY">有申请</Option>
+            <Option value="PENDING">待审核</Option>
+            <Option value="APPROVED">已同意</Option>
+            <Option value="REJECTED">已驳回</Option>
+          </Select>
+          <Select
             placeholder="员工筛选"
             allowClear
             value={companionFilter || undefined}
@@ -1420,7 +1485,7 @@ const OrdersPage: React.FC = () => {
               ]}
             />
           )}
-          {(orderSearch || typeFilter || dispatchFilter || companionFilter || csFilter || dateFilter) && (
+          {(orderSearch || typeFilter || dispatchFilter || contactFilter || outcomeFilter || supplementFilter || companionFilter || csFilter || dateFilter) && (
             <Text type="secondary" style={{ fontSize: 12, lineHeight: '24px' }}>
               筛选结果: {sorted.length}/{orders.length}
             </Text>
