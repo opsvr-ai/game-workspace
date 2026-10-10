@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { extractErrorMessage } from '../utils/error-handler';
-import { Table, Tag, Typography, Button, Space, Popconfirm, Tooltip, Card, Input, Select, Image, Modal } from 'antd';
+import { Table, Tag, Typography, Button, Space, Popconfirm, Tooltip, Card, Input, InputNumber, Select, Image, Modal, Form } from 'antd';
 import { message } from '../utils/feedback';
 import { ReloadOutlined, DesktopOutlined, SearchOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
@@ -127,6 +127,11 @@ const CompanionsPage: React.FC = () => {
   const [wrFocusSession, setWrFocusSession] = useState<string | null>(null);
   const [detailEmployee, setDetailEmployee] = useState<Personnel | null>(null);
   const [idCardMap, setIdCardMap] = useState<Record<string, Personnel>>({});
+  // 编辑业绩（老板 2026-10-10）：店长 / 老板在「陪玩列表」直接改某个陪玩的业绩，
+  // 不用再绕「员工管理 → 员工列表 → 编辑财务」那一圈（店长原来根本点不到那个入口）。
+  const [financeCompanion, setFinanceCompanion] = useState<Personnel | null>(null);
+  const [financeSaving, setFinanceSaving] = useState(false);
+  const [financeForm] = Form.useForm();
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [gameFilter, setGameFilter] = useState<string | undefined>();
 
@@ -238,6 +243,42 @@ const CompanionsPage: React.FC = () => {
         : prev);
     } catch {
       // 单次详情获取失败时，保留已经显示的基础信息
+    }
+  };
+
+  /**
+   * 编辑业绩（老板 2026-10-10）。
+   *
+   * 老板原话：「陪玩的业绩我在哪里输入修改，只能店长才有权限」→ 确认「店长 + 老板都能改」。
+   * 入口就放在「陪玩列表」每行（比单独开一页顺手）：店长 / 老板看得到这个按钮，
+   * 客服 / 陪玩看不到 —— 后端 `PUT /companions/:id/finance` 同样只放行 店长 + 老板。
+   *
+   * 「业绩」= 列表里的「月收入」= 财务弹窗里的「总流水」= `Companion.monthlyRevenue`，一份数据三处叫法。
+   */
+  const openFinance = (record: Personnel) => {
+    setFinanceCompanion(record);
+    financeForm.setFieldsValue({ revenue: Number(record.monthlyRevenue ?? 0), note: '' });
+  };
+
+  const saveFinance = async () => {
+    const companionId = financeCompanion?.companionId;
+    if (!companionId) return;
+    const values = await financeForm.validateFields().catch(() => null);
+    if (!values) return; // 校验没过：红字提示由 antd 出，不发请求
+    setFinanceSaving(true);
+    try {
+      await companionsApi.updateFinance(companionId, {
+        totalRevenue: Number(values.revenue) || 0,
+        note: values.note?.trim() || '店长手动调整业绩',
+      });
+      message.success(`${financeCompanion?.username || '该陪玩'} 的业绩已更新`);
+      setFinanceCompanion(null);
+      financeForm.resetFields();
+      fetchCompanions();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '更新业绩失败'));
+    } finally {
+      setFinanceSaving(false);
     }
   };
 
@@ -529,8 +570,10 @@ const CompanionsPage: React.FC = () => {
       cols.push({
         title: '操作',
         key: 'actions',
-        // 248 = 「标记老员工 工作记录 身份证 离职处理」排一行要的宽度（老板 2026-09-28：写 240 时最后一个字被切）
-        width: 248,
+        // 304 = 「标记老员工 编辑业绩 工作记录 身份证 离职处理」排一行要的宽度。
+        // 原来是 248（四个按钮，老板 2026-09-28 定：写 240 时最后一个字会被切）；
+        // 老板 2026-10-10 加了「编辑业绩」这一个，按同样的按钮规格算下来要宽 56px。
+        width: 304,
         fixed: 'right' as const,
         className: ACTIONS_CELL_CLASS,
         render: (_: unknown, record: Personnel) => (
@@ -551,6 +594,9 @@ const CompanionsPage: React.FC = () => {
                   }}
                 >
                   {record.isSeniorStaff ? '取消老员工' : '标记老员工'}
+                </Button>
+                <Button type="link" size="small" onClick={() => openFinance(record)}>
+                  编辑业绩
                 </Button>
                 <Button type="link" size="small" onClick={() => { setWrCompanion(record); }}>
                   工作记录
@@ -819,6 +865,37 @@ const CompanionsPage: React.FC = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* 编辑业绩（老板 2026-10-10）：店长 / 老板在「陪玩列表」直接改这个陪玩的业绩；
+          客服 / 陪玩看不到这个入口（后端 `PUT /companions/:id/finance` 也只放行店长 + 老板）。 */}
+      <Modal
+        title={`编辑业绩 — ${financeCompanion?.username ?? ''}`}
+        open={!!financeCompanion}
+        onOk={saveFinance}
+        onCancel={() => {
+          setFinanceCompanion(null);
+          financeForm.resetFields();
+        }}
+        confirmLoading={financeSaving}
+        okText="保存"
+        cancelText="取消"
+        destroyOnClose
+        width={420}
+      >
+        <Form form={financeForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="revenue"
+            label="业绩金额"
+            extra="就是列表里那个「月收入」（财务弹窗里叫「总流水」），改的是同一份数据。"
+            rules={[{ required: true, message: '请填业绩金额' }]}
+          >
+            <InputNumber min={0} step={100} style={{ width: '100%' }} prefix="¥" />
+          </Form.Item>
+          <Form.Item name="note" label="调整备注">
+            <Input placeholder="为什么改（比如：补录 10 月 3 日漏记的单）" />
+          </Form.Item>
+        </Form>
       </Modal>
 
       <WorkRecordsDrawer
