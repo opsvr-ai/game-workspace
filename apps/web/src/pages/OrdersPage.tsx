@@ -236,9 +236,12 @@ const OrdersPage: React.FC = () => {
       setContactFailSaving(false);
     }
   };
-  // 陪玩「退单」（老板 2026-10-08）：客户同意了但没打成（客户没转钱 / 转钱了最后不打）→
-  // 提交退单申请（写清原因 + 粘贴截图）→ 客服先核对、无异议转店长，店长拍板；
-  // 同意后这张单按退款处理（不计利润与提成）+ 抢单次数 +1。跟「添加失败」同一个审核入口。
+  // 陪玩「申请补单」（老板 2026-10-08 先叫「退单」，2026-10-11 改名）。
+  // 场景：客户同意了但没打成（客户没转钱 / 转钱了最后不打）→ 陪玩提交补单申请
+  // （写清原因 + 粘贴截图）→ 客服先核对、无异议转店长，店长拍板；
+  // 批下来这张单按退款处理（不计利润与提成）+ 抢单次数 +1。跟「添加失败」同一个审核入口。
+  // 名字的由来（老板 2026-10-11）：「陪玩端 客户订单管理后边的那个退单 改成申请补单」——
+  // 陪玩这边干的事就是「把这一单的名额补回来」，退不退是店长那边的说法。
   const [refundReqOrder, setRefundReqOrder] = useState<any>(null);
   const [refundReqNote, setRefundReqNote] = useState('');
   const [refundReqEvidence, setRefundReqEvidence] = useState<string[]>([]);
@@ -253,7 +256,7 @@ const OrdersPage: React.FC = () => {
     setRefundReqEvidence([]);
   };
 
-  /** 退单截图：一次收多张（Ctrl+V / 拖进来 / 多选），最多留 3 张 —— 跟「添加失败」同一套。 */
+  /** 补单申请截图：一次收多张（Ctrl+V / 拖进来 / 多选），最多留 3 张 —— 跟「添加失败」同一套。 */
   const uploadRefundReqFiles = async (files: File[]) => {
     const list = (files || []).filter(Boolean).slice(0, 3);
     if (!list.length) return;
@@ -287,12 +290,12 @@ const OrdersPage: React.FC = () => {
     setRefundReqSaving(true);
     try {
       await ordersApi.requestRefund(refundReqOrder.id, note, refundReqEvidence[0]);
-      message.success('退单申请已提交：客服先核对，无异议就到店长拍板；同意后这单会退掉、你的抢单次数 +1');
+      message.success('补单申请已提交：客服先核对，无异议就到店长拍板；批下来这单会退掉、你的抢单次数 +1');
       setRefundSubmitted((prev) => ({ ...prev, [refundReqOrder.id]: true }));
       setRefundReqOrder(null);
       fetch();
     } catch (e: any) {
-      message.error(extractErrorMessage(e, '退单申请提交失败'));
+      message.error(extractErrorMessage(e, '补单申请提交失败'));
     } finally {
       setRefundReqSaving(false);
     }
@@ -345,7 +348,7 @@ const OrdersPage: React.FC = () => {
   };
 
   /**
-   * 陪玩能不能给这张单点「退单」（老板 2026-10-08）。
+   * 陪玩能不能给这张单点「申请补单」（老板 2026-10-08 叫「退单」，2026-10-11 改名）。
    *  - 只有当前持有人（副陪 / 已经转出去的单不给点）；
    *  - 已经退过 / 已取消 / 已完成的不给点；
    *  - 已经点过「开始首单」的不给点 —— 那种单没打成要走「报结果」（成交核对那套流程）。
@@ -1038,7 +1041,8 @@ const OrdersPage: React.FC = () => {
             </Button>
           ) : null}
         </span>
-        <span style={actionSlot(36)}>
+        {/* 最后一格：管理端是「补单 / 拒绝」（36px 就够），陪玩是「申请补单」（4 个字，要 58px）。 */}
+        <span style={actionSlot(isCompanion ? 58 : 36)}>
           {incomingTransfer ? (
             // 「拒绝」占的是陪玩行本来就空着的「退款」那一格（退款只有客服 / 店长有）。
             <Button
@@ -1086,17 +1090,18 @@ const OrdersPage: React.FC = () => {
           ) : canRequestRefund(r) ? (
             // 陪玩这一格本来空着（第 5 格原来是「退款」，只有客服 / 店长有）。
             // 老板 2026-10-08：「陪玩端要退款也没用……你在陪玩端＋个按钮『退单』」——
-            // 所以这里给陪玩的是「退单」：他只能**申请**，钱的事由客服核对、店长拍板。
+            // 老板 2026-10-11：「陪玩端 客户订单管理后边的那个退单 改成申请补单」——
+            // 所以这里给陪玩的是「申请补单」：他只能**申请**，钱的事由客服核对、店长拍板。
             refundSubmitted[r.id] ? (
-              <Tooltip title="退单申请已提交：客服先核对，无异议就到店长拍板；同意后这张单会退掉、你的抢单次数 +1">
+              <Tooltip title="补单申请已提交：客服先核对，无异议就到店长拍板；批下来这张单会退掉、你的抢单次数 +1">
                 <Tag color="orange" style={{ margin: 0, padding: '0 3px', fontSize: 11 }}>
                   待审
                 </Tag>
               </Tooltip>
             ) : (
-              <Tooltip title="客户同意了但没打成（客户没转钱 / 转钱了最后不打…）就点这里：写清原因 + 粘贴截图，客服先核对、店长拍板。同意后这张单退掉（不计利润与提成），你的抢单次数 +1">
-                <Button size="small" danger style={{ width: 36 }} onClick={() => openRefundRequest(r)}>
-                  退单
+              <Tooltip title="客户同意了但没打成（客户没转钱 / 转钱了最后不打…）就点这里申请补单：写清原因 + 粘贴截图，客服先核对、店长拍板。批下来这张单会退掉（不计利润与提成），你的抢单次数 +1">
+                <Button size="small" danger style={{ width: 58 }} onClick={() => openRefundRequest(r)}>
+                  申请补单
                 </Button>
               </Tooltip>
             )
@@ -1703,14 +1708,14 @@ const OrdersPage: React.FC = () => {
           />
         </div>
       </Modal>
-      {/* 陪玩点「退单」的弹窗（老板 2026-10-08）：「客户同意了但是没打成」——
-          写清原因 + 粘贴截图，客服先核对、无异议转店长，店长拍板 */}
+      {/* 陪玩点「申请补单」的弹窗（老板 2026-10-08 叫「退单」，2026-10-11 改名）：
+          「客户同意了但是没打成」—— 写清原因 + 粘贴截图，客服先核对、无异议转店长，店长拍板 */}
       <Modal
-        title="退单申请"
+        title="申请补单"
         open={!!refundReqOrder}
         onOk={submitRefundRequest}
         onCancel={() => setRefundReqOrder(null)}
-        okText="提交退单申请"
+        okText="提交补单申请"
         cancelText="取消"
         okButtonProps={{ danger: true }}
         confirmLoading={refundReqSaving}
@@ -1718,8 +1723,8 @@ const OrdersPage: React.FC = () => {
       >
         <Text type="secondary" style={{ fontSize: 12 }}>
           订单 <Text strong>{refundReqOrder?.orderCode || refundReqOrder?.gameName}</Text> 没打成
-          （客户没转钱 / 转钱了最后不打…）就提交退单：**客服先核对，无异议到店长拍板**，
-          跟「添加失败」一样在「🧾 补单审核」里处理。同意后这张单会退掉（不计利润与提成），
+          （客户没转钱 / 转钱了最后不打…）就提交补单申请：**客服先核对，无异议到店长拍板**，
+          跟「添加失败」一样在「🧾 补单审核」里处理。批下来这张单会退掉（不计利润与提成），
           你的抢单次数 +1。
         </Text>
         <div style={{ marginTop: 14 }}>
@@ -1737,7 +1742,7 @@ const OrdersPage: React.FC = () => {
               >
                 <img
                   src={url}
-                  alt="退单凭据"
+                  alt="补单申请凭据"
                   style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.base}`, cursor: 'pointer' }}
                   onClick={() => window.open(url, '_blank')}
                 />
