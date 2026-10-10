@@ -83,8 +83,8 @@ function setup(opts: {
   monthlyRevenue?: Record<string, number>;
   /** 最近 30 天这个陪玩标了「添加成功」的**客户数**（首单成功率的分母；按客户去重） */
   added?: Record<string, number>;
-  /** 直接给「添加成功」的明细（重复的 customerId 用来验分母去重） */
-  addedList?: Array<{ companionId: string; customerId: string }>;
+  /** 直接给「添加成功」的明细（重复的 customerId 用来验分母去重；refundedAt 非空 = 这单已退款） */
+  addedList?: Array<{ companionId: string; customerId: string; refundedAt?: Date | null }>;
   // 2026-10-05：不再有「点了开始首单就算成交」的口径 —— 分子一律取自 doneOrders（父单 DONE）。
   /** 「点了续单但那段还没打完」（会话还是 ACTIVE）的段数：key = `${companionId}|${customerId}` → 不算续单 */
   openSegments?: Record<string, number>;
@@ -129,13 +129,20 @@ function setup(opts: {
       findMany: vi.fn((args: any) => {
         const where = args?.where ?? {};
         if (where.contactStatus === 'added') {
-          if (opts.addedList) return Promise.resolve(opts.addedList);
-          const rows: any[] = [];
-          for (const [companionId, n] of Object.entries(opts.added ?? {})) {
-            for (let i = 0; i < Number(n); i++) {
-              rows.push({ companionId, customerId: `${companionId}-added${i}` });
-            }
-          }
+          const base: any[] = opts.addedList
+            ? [...opts.addedList]
+            : (() => {
+                const rows: any[] = [];
+                for (const [companionId, n] of Object.entries(opts.added ?? {})) {
+                  for (let i = 0; i < Number(n); i++) {
+                    rows.push({ companionId, customerId: `${companionId}-added${i}` });
+                  }
+                }
+                return rows;
+              })();
+          // 服务端查询带 refundedAt: null 时，退了款的「添加成功」单要排掉
+          // （老板 2026-10-11：退款单不参与 KPI，不该再拉低首单成功率）
+          const rows = where.refundedAt === null ? base.filter((r) => !r.refundedAt) : base;
           return Promise.resolve(rows);
         }
         if (where.status === 'DONE') return Promise.resolve(windowRows);
@@ -341,6 +348,21 @@ describe('回头客口径：按客户算 + 最近 30 天 + 12 点营业日', () 
     const svc = setup({ doneOrders: { c1: [{ cust: 'a', count: 1 }] }, monthlyRevenue: { c1: 6000 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
     expect(r.newRate).toBe(0);
+  });
+
+  // 老板 2026-10-11：陪玩「申请补单」批下来 = 这张单官方作废（退款），**不参与 KPI** ——
+  // 它不该再占「首单成功率」的分母。加微信的客户里只要有一张是退款的，那个客户就不进分母。
+  it('退款单不进「首单成功率」的分母（老板 2026-10-11：退款单不参与 KPI）', async () => {
+    const svc = setup({
+      doneOrders: { c1: [{ cust: 'a', count: 1 }] },
+      monthlyRevenue: { c1: 6000 },
+      addedList: [
+        { companionId: 'c1', customerId: 'c1-a' },
+        { companionId: 'c1', customerId: 'c1-refunded', refundedAt: new Date(2026, 9, 5) },
+      ],
+    });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.newRate).toBe(100); // 分母只剩那个真成交的客户（退款那个不算）
   });
 
   it('一单都没成交的人也有结果（战绩图加分不再被吞掉）', async () => {

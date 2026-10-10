@@ -491,11 +491,14 @@ export class ExcellenceService implements OnModuleInit {
     //          （老板 2026-10-05：「我什么时候说过，不打完怎么算？」）；
     //   分母 = 「添加成功」的**客户数** —— 同一个客户重复抢单只算一个，免得分母被重复单抬高；
     //          加了微信却没打成的也一样进分母（这才是成功率的意义）。
+    // 退款单（陪玩「申请补单」批下来的单）**不参与 KPI**（老板 2026-10-11）：
+    // 这张单官方作废了，就不该再拉低他的首单成功率 —— 跟「续单率 / 复购率 / 业绩」只认 DONE 一个道理。
     const addedOrders = await this.prisma.order.findMany({
       where: {
         companionId: { in: ids },
         type: 'NEW',
         contactStatus: 'added',
+        refundedAt: null,
         createdAt: { gte: rateWindowStart },
       },
       select: { companionId: true, customerId: true },

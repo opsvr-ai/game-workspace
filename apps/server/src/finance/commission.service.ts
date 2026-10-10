@@ -644,6 +644,9 @@ export class CommissionService {
         state: decision.state,
         stateReason: decision.reason,
         commissionYuan,
+        // 退款单（陪玩「申请补单」批下来的）：明细里照样列出来（让人看得见这张单去哪了），
+        // 但标着「已退款」+ 提成「—」—— 合计一分钱都不算它（老板 2026-10-11）。
+        refunded: !!o.refundedAt,
         createdAt: o.createdAt,
       };
     });

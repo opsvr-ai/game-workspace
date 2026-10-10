@@ -62,7 +62,17 @@ const SalaryDetailModal: React.FC<Props> = ({ open, onClose, salary }) => (
                   <td style={{ padding: 6, border: `1px solid ${BORDER.base}` }}>{t.orderCode || t.orderId?.slice(0, 8)}</td>
                   <td style={{ padding: 6, border: `1px solid ${BORDER.base}` }}>{t.type}</td>
                   <td style={{ padding: 6, border: `1px solid ${BORDER.base}` }}>
-                    {t.status === 'DONE' ? '✅ 已打首单' : t.status === 'CONFIRMED' ? '进行中' : t.status === 'GRABBED' ? '已抢单' : t.status || '-'}
+                    {t.refunded
+                      ? '已退款'
+                      : t.status === 'DONE'
+                        ? '✅ 已打首单'
+                        : t.status === 'CONFIRMED'
+                          ? '进行中'
+                          : t.status === 'GRABBED'
+                            ? '已抢单'
+                            : t.status === 'CANCELLED'
+                              ? '已取消'
+                              : t.status || '-'}
                   </td>
                   <td style={{ padding: 6, border: `1px solid ${BORDER.base}` }}>
                     {t.contactStatus === 'added' ? '✅ 添加成功' : t.contactStatus === 'not_accepted' ? '❌ 添加失败' : t.contactStatus === 'pending' ? '待添加' : '-'}
@@ -71,13 +81,16 @@ const SalaryDetailModal: React.FC<Props> = ({ open, onClose, salary }) => (
                   <td style={{ padding: 6, border: `1px solid ${BORDER.base}` }}>{t.units === 2 ? '双陪' : '单陪'}</td>
                   <td style={{ padding: 6, border: `1px solid ${BORDER.base}` }}>{t.kind === 'offline' ? '线下' : t.kind === 'bridge' ? '桥接' : '线上'}</td>
                   <td style={{ padding: 6, border: `1px solid ${BORDER.base}` }}>
-                    {t.counted ? `+¥${Number(t.commissionYuan).toFixed(2)}` : '—'}
+                    {t.refunded ? <Text type="secondary">不计提成</Text> : t.counted ? `+¥${Number(t.commissionYuan).toFixed(2)}` : '—'}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+          标「已退款」的单是陪玩申请补单批下来的（客户没打成、官方作废）：提成不计，也不参与 KPI。
+        </Text>
       </div>
     ) : (
       <Text type="secondary">暂无工资数据</Text>

@@ -1529,7 +1529,7 @@ model CompanionQuotaLog {
 ///    （客户没转钱 / 转钱了最后不打了）→ 生成一条 PENDING，跟「添加失败」走**同一个审核入口**；
 ///    审核是两段式，跟「成交核对」一个路子：**客服先核对、无异议 → 店长拍板**
 ///    （`csReviewedAt` / `csReviewedByUserId` / `csReviewNote` 记客服这一段的结论）。
-///    店长同意 = 这张单按「退款」处理（`refundedAt` → 不计利润与提成）+ 陪玩抢单次数 +1，
+///    店长同意 = 这张单按「退款」处理（`refundedAt` → 不计利润与提成、不参与 KPI 计算）+ 陪玩抢单次数 +1，
 ///    跟「添加失败」的补偿一致。
 model SupplementRequest {
   id                 String    @id @default(uuid())

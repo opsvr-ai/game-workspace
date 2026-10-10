@@ -1352,7 +1352,7 @@ export class OrdersService implements OnModuleInit {
 
     // 「退单」是两段式（老板 2026-10-08：「客服端审核 无异议到店长这里」，跟「成交核对」一个路子）：
     //   客服这一段：无异议 → 只是把这条**转给店长**（客服点不了「同意退单」）；有异议 → 直接驳回。
-    //   店长 / 老板：拍板 —— 同意 = 这张单作废（按退款处理，不计利润与提成）+ 陪玩名额 +1；驳回 = 只留痕。
+    //   店长 / 老板：拍板 —— 同意 = 这张单作废（按退款处理，不计利润与提成、不参与 KPI 计算）+ 陪玩名额 +1；驳回 = 只留痕。
     //   （老板自己是最高权限，哪一段都能直接拍板，不用等客服先点一遍。）
     if (isRefund && user?.role === 'CS' && act !== 'REJECT') {
       const csPassed = await this.prisma.supplementRequest.update({
@@ -1385,7 +1385,7 @@ export class OrdersService implements OnModuleInit {
       },
     });
     if (approve && isRefund) {
-      // 同意退单 = 这张单没打成：按「退款」处理（refundedAt → 不计利润与提成），
+      // 同意退单 = 这张单没打成：按「退款」处理（refundedAt → 不计利润与提成、不参与 KPI 计算），
       // 并把陪玩的名额还回去（跟「添加失败」的补偿一致 —— 名额被这张单占掉了，老板 2026-10-08）。
       await this.markRefund(req.orderId, undefined, req.reason || '陪玩申请退单', '退单').catch(() => null);
       if (!alreadyReturned) {
@@ -1433,7 +1433,7 @@ export class OrdersService implements OnModuleInit {
         note: (note || '').trim() || null,
         message: isRefund
           ? approve
-            ? `管理端已同意退单：这张单已退掉（不计利润与提成）${alreadyReturned ? '' : '，你的抢单次数 +1'}`
+            ? `管理端已同意退单：这张单已退掉（不计利润与提成、不参与 KPI 计算）${alreadyReturned ? '' : '，你的抢单次数 +1'}`
             : '管理端驳回了退单申请，这张单照旧'
           : approve
             ? `管理端已同意补单${alreadyReturned ? '' : '，你的抢单次数 +1'}`
@@ -1565,7 +1565,7 @@ export class OrdersService implements OnModuleInit {
    * 也就是「客户同意了但是没打成」。陪玩点「退单」+ 写清原因 + 传截图 → 生成一条 REFUND 申请，
    * **跟「添加失败」走同一个审核入口**（「订单管理 → 🧾 补单审核 / 退单审核」）：
    * 客服先核对（无异议 → 转店长；有异议 → 直接驳回），店长 / 老板拍板。
-   * 同意 = 这张单按退款处理（不计利润与提成）+ 陪玩的抢单次数 +1。
+   * 同意 = 这张单按退款处理（不计利润与提成、不参与 KPI 计算）+ 陪玩的抢单次数 +1。
    *
    * 为什么陪玩不能自己直接退：钱的事得有人核 —— 截图 + 原因摆在审核列表里，客服店长一眼能判断。
    */

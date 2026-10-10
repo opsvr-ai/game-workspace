@@ -83,7 +83,7 @@ describe('一张单只返还一次名额', () => {
 
     await service.decideSupplement('sr-refund', 'APPROVE', '同意', ADMIN);
 
-    // 这张单还是按退款处理掉了（不计利润与提成）
+    // 这张单还是按退款处理掉了（不计利润与提成、不参与 KPI 计算）
     expect(prisma.order.update.mock.calls[0][0].data.status).toBe('CANCELLED');
     // 但名额一个没多给
     expect(quota.credit).not.toHaveBeenCalled();

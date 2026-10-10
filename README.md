@@ -204,7 +204,7 @@
   （`SUPPLEMENT` 补单 / `REFUND` 退单），一张单可以各留一条（唯一键从 `orderId` 变成 `orderId + type`）。
   **陪玩只能「申请」**，客服这一关只有「无异议，转店长」和「驳回」（点不了同意），只有店长 / 老板能拍板 ——
   照抄「成交核对」（`CS_CONFIRMING → CS_CONFIRMED`）那套两段式，不会出现客服顺手把钱退了。
-  店长同意 = 这张单按**退款**处理（`refundedAt`，不计利润与提成）+ 陪玩**抢单次数 +1**（跟「添加失败」的补偿一致，写进名额台账）。
+  店长同意 = 这张单按**退款**处理（`refundedAt`，不计利润与提成、不参与 KPI 计算）+ 陪玩**抢单次数 +1**（跟「添加失败」的补偿一致，写进名额台账）。
   只有**自己抢到的、还没点过「开始首单」**的单才长这颗按钮（已经开打的没打成要走「报结果」）；提交后本页按钮变「待审」。
   **陪玩端原来那颗红字「退款」当时一个字没动**（老板以前定的：客服那一格还是「退款」）—— 本轮只加、不删。（**2026-10-08 晚已整条改成「补单」，管理端再没有直接退款的口子，见最上面那条；陪玩的「退单」不受影响。**）
   审核弹窗里退单一眼能认出来：订单列挂红字「退单」标签、状态列写「待客服核对 / 待店长拍板」、来源列写「退单」。
@@ -1685,7 +1685,7 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/orders/supplements` | JWT | OWNER, ADMIN, CS | 补单申请列表。Query: `?scope=pending`（待审）\| `due`（到期要核查客户后来通过没）\| `records`（已同意过的补单记录，按 `decidedAt` 倒序，带 `byAdmin` / `decidedByName`）\| 不传=全部。 |
 | `GET` | `/api/orders/supplements/summary` | JWT | OWNER, ADMIN, CS | 管理端红点 / 今日补单数 `{ pending, due, approvedToday }`（`approvedToday` = 本营业日已同意的补单数，订单管理页「今日补单」用它）。 |
 | `POST` | `/api/orders/:id/supplement` | JWT | OWNER, ADMIN | 管理端「补单」（订单管理操作列的「补单」；2026-10-08 起把原来的直接「退款」整条删掉、一律改成它）：给这张单的陪玩名额 +1（写 `CompanionQuotaLog`，理由 `SUPPLEMENT`），落一条 APPROVED 补单记录并推 `order:supplement` 通知陪玩本人。**若这张单已有陪玩提交的待审补单申请，点一下就顺带把那条申请批掉**（陪玩写的 `reason` / `evidenceUrl` 保留、结论记「核对无异议，同意补单」），此时 `reason` 可省。Body: `{ reason? }`。同一张单只补一次。 |
-| `POST` | `/api/orders/:id/refund-request` | JWT | COMPANION | 陪玩「退单」申请（客户同意了但没打成：客户没转钱 / 转钱了最后不打…）：写进 `SupplementRequest`（`type=REFUND`，唯一键 `orderId + type`），状态 `PENDING`（客服核对）→「无异议，转店长」后 `CS_CONFIRMING`（待店长拍板）→ 店长同意则这张单按退款处理（`refundedAt`，不计利润与提成）+ 陪玩名额 +1。Body: `{ reason }`（必填）、`{ evidenceUrl? }`。只有接单本人、还没点过「开始首单」的单能申请（**后台接口也按这条拦**：`status=DONE` 或已有 `startedAt` 会话的单直接拒绝，绕过界面也退不掉，老板 2026-10-08）。 |
+| `POST` | `/api/orders/:id/refund-request` | JWT | COMPANION | 陪玩「退单」申请（客户同意了但没打成：客户没转钱 / 转钱了最后不打…）：写进 `SupplementRequest`（`type=REFUND`，唯一键 `orderId + type`），状态 `PENDING`（客服核对）→「无异议，转店长」后 `CS_CONFIRMING`（待店长拍板）→ 店长同意则这张单按退款处理（`refundedAt`，不计利润与提成、不参与 KPI 计算）+ 陪玩名额 +1。Body: `{ reason }`（必填）、`{ evidenceUrl? }`。只有接单本人、还没点过「开始首单」的单能申请（**后台接口也按这条拦**：`status=DONE` 或已有 `startedAt` 会话的单直接拒绝，绕过界面也退不掉，老板 2026-10-08）。 |
 | `POST` | `/api/orders/supplements/:id/decide` | JWT | OWNER, ADMIN, CS | 审核补单 / 退单。Body: `{ decision: 'APPROVE'\|'REJECT'\|'CS_PASS', note? }`；**补单**：同意 = 陪玩次数 +1（写 `CompanionQuotaLog`）并排 24 小时后的核查；**退单**（`type=REFUND`）：客服只能 `CS_PASS`（「无异议，转店长」，写 `csReviewed*` 后推给店长）或 `REJECT`，**只有店长 / 老板的 `APPROVE` 才真退**（`refundedAt` + 名额 +1）。同意 / 驳回都会推 `order:supplement` 通知陪玩本人（payload 带 `type`）。 |
 | `POST` | `/api/orders/supplements/:id/review` | JWT | OWNER, ADMIN, CS | 到期核查。Body: `{ result: 'ACCEPTED'\|'STILL_NOT' }`；`ACCEPTED` = 系统把这张单改成「已添加」并把客户归到该陪玩名下；`STILL_NOT` 3 天后再提醒。 |
 

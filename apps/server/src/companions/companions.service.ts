@@ -1224,7 +1224,9 @@ export class CompanionsService {
     // 微信添加成功率 = 已添加 ÷ (抢单数+补单数) = added / monthlyAll
     // 转化率 = 添加完成数量 ÷ 开始服务数量 = (added+DONE) / (CONFIRMED+DONE)
     const [addedCount, convertedCount, startedCount, monthlyAll] = await Promise.all([
-      this.prisma.order.count({ where: { companionId, contactStatus: 'added' } }),
+      // 退款单（陪玩「申请补单」批下来、官方作废的单）不计进「微信添加成功率」的分子（老板 2026-10-11：
+      // 退款单不参与 KPI）。分母 monthlyAll 本来就把 CANCELLED 排掉了，这里跟着排，避免出现「添加率 > 100%」。
+      this.prisma.order.count({ where: { companionId, contactStatus: 'added', refundedAt: null } }),
       this.prisma.order.count({ where: { companionId, contactStatus: 'added', status: 'DONE' } }),
       this.prisma.order.count({ where: { companionId, status: { in: ['CONFIRMED', 'DONE'] } } }),
       this.prisma.order.count({
