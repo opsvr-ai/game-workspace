@@ -1090,7 +1090,7 @@ const CustomersPage: React.FC = () => {
                 ]}
               />
               <Input.Search
-                placeholder={!isCompanion ? '搜索微信号/编号/昵称/来源' : '搜索客户编号/微信号'}
+                placeholder={!isCompanion ? '搜索微信号/编号/昵称/来源' : '搜索编号/微信号/昵称/房间码'}
                 value={searchCode}
                 onChange={(e) => setSearchCode(e.target.value)}
                 style={{ width: 200 }}
@@ -1154,9 +1154,16 @@ const CustomersPage: React.FC = () => {
                             if (!searchCode) return true;
                             const q = searchCode.toLowerCase();
                             if (isCompanion) {
+                              // 老板 2026-10-11：「订单管理点了添加成功，在客户管理找不到这个客户」——
+                              // 陪玩端的搜索原来只认 客户编号 / 微信号，输昵称或房间码一律搜不到。
+                              // 昵称 / 客户账号ID / 房间码 都在那单的 customFields 里，一起算进来。
+                              const cf0 = c.orders?.[0]?.customFields || {};
                               return (
                                 (c.customerCode || '').toLowerCase().includes(q) ||
-                                (c.wechatId || '').toLowerCase().includes(q)
+                                (c.wechatId || '').toLowerCase().includes(q) ||
+                                String(cf0.customerNickname || '').toLowerCase().includes(q) ||
+                                String(cf0.customerAccountId || '').toLowerCase().includes(q) ||
+                                String(cf0.customerRoomCode || '').toLowerCase().includes(q)
                               );
                             }
                             const cf = c.orders?.[0]?.customFields || {};

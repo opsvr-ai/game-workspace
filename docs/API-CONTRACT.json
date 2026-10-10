@@ -9,7 +9,7 @@
   "httpPrefix": "/api",
   "stats": {
     "controllers": 28,
-    "endpoints": 404,
+    "endpoints": 405,
     "socketEmitters": 3,
     "socketInbound": 15,
     "socketOutbound": 19
@@ -2190,6 +2190,13 @@
       "path": "/api/orders/:id/review-reject",
       "controller": "OrdersController",
       "handler": "rejectOrderOutcome",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/room-join",
+      "controller": "OrdersController",
+      "handler": "joinRoom",
       "file": "apps/server/src/orders/orders.controller.ts"
     },
     {

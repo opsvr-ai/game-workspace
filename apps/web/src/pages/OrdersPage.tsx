@@ -614,26 +614,41 @@ const OrdersPage: React.FC = () => {
         </Badge>
         {(r.status === 'GRABBED' || r.status === 'CONFIRMED') && !r.contactStatus && (
           <>
-            <Tooltip title={contactDisabled ? '请先在"工作微信"列选择微信' : undefined}>
+            <Tooltip
+              title={
+                r.customFields?.customerRoomCode
+                  ? '房间码单：点一下 = 记「添加成功」+ 把你切成「接单中」（空闲时三角洲会被看门狗杀掉，切了才进得去游戏）'
+                  : contactDisabled
+                    ? '请先在"工作微信"列选择微信'
+                    : undefined
+              }
+            >
               <Button
                 type="primary"
                 size="small"
-                disabled={contactDisabled}
+                disabled={contactDisabled && !r.customFields?.customerRoomCode}
                 style={{
                   background: contactDisabled ? undefined : SEMANTIC.success,
                   borderColor: contactDisabled ? undefined : SEMANTIC.success,
                 }}
                 onClick={async () => {
                   try {
-                    await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                    message.success('已添加成功，正在进入客户管理');
+                    if (r.customFields?.customerRoomCode) {
+                      // 房间码单（老板 2026-10-11）：点一下 = 记「添加成功」+ 切成「接单中」，
+                      // 空闲时三角洲会被看门狗杀掉，切了才进得去游戏对接客户。
+                      await http.post(`/orders/${r.id}/room-join`);
+                      message.success('已进游戏对接：状态切到「接单中」，游戏不会被关，正在进入客户管理');
+                    } else {
+                      await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+                      message.success('已添加成功，正在进入客户管理');
+                    }
                     window.location.href = '/companion/customers';
                   } catch (e: any) {
                     message.error(extractErrorMessage(e, '操作失败'));
                   }
                 }}
               >
-                ✅ 添加成功
+                {r.customFields?.customerRoomCode ? '🏠 进游戏对接' : '✅ 添加成功'}
               </Button>
             </Tooltip>
             <Tooltip title={contactDisabled ? '请先在"工作微信"列选择微信' : undefined}>
@@ -926,7 +941,26 @@ const OrdersPage: React.FC = () => {
           </span>
         )}
         <span style={actionSlot(60)}>
-          {contactState === 'added' ? (
+          {isCompanion && r.customFields?.customerRoomCode && (r.status === 'GRABBED' || r.status === 'CONFIRMED') ? (
+            <Tooltip title="房间码单：点一下 = 记「添加成功」+ 把你切成「接单中」。空闲时看门狗会把三角洲杀掉，切成接单中才进得去游戏对接客户；对接完回来点「开始首单」正常计时">
+              <Button
+                size="small"
+                type="primary"
+                style={{ width: 60, background: SEMANTIC.success, borderColor: SEMANTIC.success }}
+                onClick={async () => {
+                  try {
+                    await http.post(`/orders/${r.id}/room-join`);
+                    message.success('已切成「接单中」，游戏不会被关，可以进游戏对接了');
+                    fetch();
+                  } catch (e: any) {
+                    message.error(extractErrorMessage(e, '操作失败'));
+                  }
+                }}
+              >
+                进游戏
+              </Button>
+            </Tooltip>
+          ) : contactState === 'added' ? (
             <Tag color="green" style={{ margin: 0 }}>
               添加成功
             </Tag>

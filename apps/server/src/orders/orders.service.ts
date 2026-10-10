@@ -1033,6 +1033,71 @@ export class OrdersService implements OnModuleInit {
   }
 
   /** 管理端能看到的工作室范围；老板不限（返回 null = 不过滤）。 */
+  /**
+   * 「进游戏对接」——房间码单专用（老板 2026-10-11）。
+   *
+   * 老板原话：「刚刚胡程硕抢了一个订单，是个游戏的房间码，房间码的话不进游戏对接不了，
+   * 进了游戏才能对接，这怎么办？」查实：本店「空闲」状态的黑名单里挂着三角洲
+   * （CompanionStatusBlacklist：AVAILABLE → DeltaForceClient-Win64-Shipping）—— 他抢完单
+   * 还是「空闲」，一开游戏就被看门狗杀掉，根本进不去房间。而「接单中」只有点「开始首单」
+   * （开始计时）时才会自动切，可开始计时的前提又是先点「添加成功」…… 房间码单压根没有
+   * 微信可加，于是整条流程卡死。
+   *
+   * 这条路一次办两件事：
+   *   ① 记 contactStatus='added' —— 客户立刻进他的「客户管理」，跟点「添加成功」一个效果；
+   *   ② 把他切成「接单中」—— 空闲黑名单不再生效，游戏不会被杀，他才能进房间对接客户。
+   * 对接完照旧点「开始首单」正常计时；不打了就切回「空闲」（或让店长点「结束会话」）。
+   */
+  async joinRoom(orderId: string, user: any) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        status: true,
+        studioId: true,
+        companionId: true,
+        customerId: true,
+        customFields: true,
+        customer: { select: { id: true, companionId: true } },
+      },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (order.status !== 'GRABBED' && order.status !== 'CONFIRMED') {
+      throw new ForbiddenException('只能对已抢单 / 已确认的订单做「进游戏对接」');
+    }
+    if (user?.role === 'COMPANION' && order.companionId !== user.companionId) {
+      throw new ForbiddenException('这不是你的订单');
+    }
+    const cf = (order.customFields as any) || {};
+    if (!cf.customerRoomCode) {
+      throw new BadRequestException('这张单没填房间码，直接用「添加成功」就行');
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { contactStatus: 'added' },
+      include: { customer: true },
+    });
+    // 客户归属：跟 updateContact 一个口径（已经挂在别人名下的不抢，空着的才归他）
+    await this.prisma.customer
+      .updateMany({ where: { id: order.customerId, companionId: null }, data: { companionId: order.companionId } })
+      .catch(() => null);
+
+    // 切成「接单中」：空闲黑名单（本店挂着三角洲）立刻撤掉，他才能开着游戏进房间对接。
+    if (order.companionId) {
+      await switchCompanionStatus(this.prisma, order.companionId, 'BUSY');
+      await this.wsGateway.refreshCompanionBlacklist(order.companionId).catch(() => null);
+      this.wsGateway.broadcastToBridgedStudios(order.studioId, 'status:broadcast', {
+        companionId: order.companionId,
+        status: 'BUSY',
+        reason: 'room-join',
+      });
+    }
+    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
+    return updated;
+  }
+
+  /** 管理端能看到的工作室范围；老板不限（返回 null = 不过滤）。 */
   private async supplementScopeIds(user: any): Promise<string[] | null> {
     if (user?.role === 'OWNER' || !user?.studioId) return null;
     return this.bridgeService.getVisibleStudioIds(user.studioId);

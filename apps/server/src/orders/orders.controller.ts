@@ -235,6 +235,17 @@ export class OrdersController {
     return { code: 200, message: '已更新', data };
   }
 
+  /**
+   * 「进游戏对接」：房间码单专用（老板 2026-10-11）—— 记添加成功 + 把陪玩切成「接单中」，
+   * 空闲黑名单不再杀游戏，他才能进房间对接客户。
+   */
+  @Post('orders/:id/room-join')
+  @Roles(UserRole.COMPANION)
+  async joinRoom(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.joinRoom(id, req.user);
+    return { code: 200, message: '已进游戏对接', data };
+  }
+
   /** 补单申请：scope=pending 待审 / due 到期要核查；不传看全部（客服 / 店长 / 老板）。 */
   @Get('orders/supplements')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
