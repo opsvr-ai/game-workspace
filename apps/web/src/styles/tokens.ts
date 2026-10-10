@@ -224,6 +224,11 @@ export const MODULE_TINTS: Record<string, string> = {
   shop: '#EC4899',
   settings: '#7C8DA6',
   'battle-screenshots': '#F97316',
+  // 按「人」分的三个一级菜单（老板 2026-10-10）：谁的功能就去谁的菜单下找。
+  // 与下面 ROLE_TINT 用的是同一套身份色，只是这边按「菜单模块」命名。
+  companions: '#2563EB',
+  cs: '#0891B2',
+  admins: '#EA580C',
 };
 
 /**

@@ -17,7 +17,6 @@ import {
   DashboardOutlined,
   DollarOutlined,
   TeamOutlined,
-  UserOutlined,
   ShopOutlined,
   KeyOutlined,
   SendOutlined,
@@ -25,6 +24,9 @@ import {
   FileTextOutlined,
   FundOutlined,
   PictureOutlined,
+  TrophyOutlined,
+  CustomerServiceOutlined,
+  SolutionOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -37,7 +39,6 @@ import { BRAND, MODULE_TINTS } from '../styles/tokens';
 const IconDashboard = React.createElement(DashboardOutlined);
 const IconRevenue = React.createElement(DollarOutlined);
 const IconCustomers = React.createElement(TeamOutlined);
-const IconEmployees = React.createElement(UserOutlined);
 const IconStudios = React.createElement(ShopOutlined);
 const IconAuth = React.createElement(KeyOutlined);
 const IconDispatch = React.createElement(SendOutlined);
@@ -55,6 +56,10 @@ const IconLogout = React.createElement(LogoutOutlined);
 const IconTraffic = React.createElement(FundOutlined);
 const IconFold = React.createElement(MenuFoldOutlined);
 const IconUnfold = React.createElement(MenuUnfoldOutlined);
+// 按「人」分的三个一级菜单（老板 2026-10-10）：谁的功能就去谁的菜单下找。
+const IconCompanions = React.createElement(TrophyOutlined);
+const IconCs = React.createElement(CustomerServiceOutlined);
+const IconAdmins = React.createElement(SolutionOutlined);
 
 interface MenuItemDef {
   key: string;
@@ -113,23 +118,40 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       ],
     },
     {
-      key: 'owner-employees', icon: IconEmployees, label: '员工管理',
+      key: 'owner-companions', icon: IconCompanions, label: '陪玩管理',
       children: [
-        group('owner-group-admin', '店长', [
-          { key: '/owner/employees?role=ADMIN', label: '店长列表' },
-        ]),
-        group('owner-group-companion', '陪玩', [
-          { key: '/admin/companions?role=COMPANION', label: '陪玩列表' },
-          { key: '/owner/work-wechats?type=COMPANION', label: '陪玩工作微信' },
-          { key: '/admin/battle-screenshots', label: '战绩图审核' },
-        ]),
-        group('owner-group-cs', '客服', [
-          { key: '/owner/employees?role=CS', label: '客服列表' },
-          { key: '/owner/work-wechats?type=STUDIO', label: '客服工作微信' },
-          { key: '/admin/traffic-accounts', label: '工作室账号管理' },
-          { key: '/content-check', label: '内容查重风控' },
-        ]),
+        { key: '/admin/companions?role=COMPANION', label: '陪玩列表' },
+        { key: '/owner/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+        { key: '/admin/battle-screenshots', label: '战绩图审核' },
         { key: '/owner/review', label: '实名审核' },
+        group('owner-group-companion-salary', '陪玩工资', [
+          { key: '/admin/finance/expenses', label: '陪玩审核 + 支取' },
+          { key: '/admin/finance/reconciliation', label: '应报 vs 实报' },
+          { key: '/admin/companion-wallet-calendar', label: '报账与支取日历' },
+          { key: '/admin/finance/risk', label: '打私单风险' },
+        ], { ratioKey: 'companion' }),
+      ],
+    },
+    {
+      key: 'owner-cs', icon: IconCs, label: '客服管理',
+      children: [
+        { key: '/owner/employees?role=CS', label: '客服列表' },
+        { key: '/owner/work-wechats?type=STUDIO', label: '客服工作微信' },
+        { key: '/admin/traffic-accounts', label: '工作室账号管理' },
+        { key: '/content-check', label: '内容查重风控' },
+        group('owner-group-cs-commission', '客服提成', [
+          { key: '/admin/finance/commission-today', label: '今日看板' },
+          { key: '/admin/finance/commission', label: '月度结算' },
+        ], { ratioKey: 'cs' }),
+        { key: '/admin/cs-wechat-flow', label: '客服微信收款明细' },
+        { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
+      ],
+    },
+    {
+      key: 'owner-admins', icon: IconAdmins, label: '店长管理',
+      children: [
+        { key: '/owner/employees?role=ADMIN', label: '店长列表' },
+        { key: '/admin/payroll', label: '工资规则', ratioKey: 'admin' },
         { key: '/admin/attendance', label: '考勤管理' },
       ],
     },
@@ -137,17 +159,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'owner-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/admin/profit-calendar', label: '财务中心' },
-        group('owner-group-companion-salary', '陪玩工资', [
-          { key: '/admin/finance/expenses', label: '陪玩审核 + 支取' },
-          { key: '/admin/finance/reconciliation', label: '应报 vs 实报' },
-          { key: '/admin/companion-wallet-calendar', label: '报账与支取日历' },
-          { key: '/admin/finance/risk', label: '打私单风险' },
-        ], { ratioKey: 'companion' }),
-        group('owner-group-cs-commission', '客服提成', [
-          { key: '/admin/finance/commission-today', label: '今日看板' },
-          { key: '/admin/finance/commission', label: '月度结算' },
-        ], { ratioKey: 'cs' }),
-        { key: '/admin/cs-wechat-flow', label: '客服微信收款明细' },
+        { key: '/admin/finance/price-rules', label: '价格规则' },
       ],
     },
     {
@@ -161,12 +173,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     {
       key: 'owner-settings', icon: IconAuth, label: '设置中心',
       children: [
-        group('owner-group-rules', '系统与规则', [
-          { key: '/owner/settings', label: '系统配置' },
-          { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
-          { key: '/admin/payroll', label: '工资规则', ratioKey: 'admin' },
-          { key: '/admin/finance/price-rules', label: '价格规则' },
-        ]),
+        { key: '/owner/settings', label: '系统配置' },
         // 老板 2026-10-07：6 个功能分三步并成一页，左侧菜单只剩这一条「客户端管理」
         // （原「客户端与设备 / 进程管控」两页现在是它里面的页签）。
         { key: '/admin/client-management', label: '客户端管理' },
@@ -206,20 +213,39 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       ],
     },
     {
-      key: 'admin-employees', icon: IconEmployees, label: '员工管理',
+      key: 'admin-companions', icon: IconCompanions, label: '陪玩管理',
       children: [
-        group('admin-group-companion', '陪玩', [
-          { key: '/admin/companions?role=COMPANION', label: '陪玩列表' },
-          { key: '/admin/work-wechats?type=COMPANION', label: '陪玩工作微信' },
-          { key: '/admin/battle-screenshots', label: '战绩图审核' },
-        ]),
-        group('admin-group-cs', '客服', [
-          { key: '/admin/employees?role=CS', label: '客服列表' },
-          { key: '/admin/work-wechats?type=STUDIO', label: '客服工作微信' },
-          { key: '/admin/traffic-accounts', label: '工作室账号管理' },
-          { key: '/content-check', label: '内容查重风控' },
-        ]),
+        { key: '/admin/companions?role=COMPANION', label: '陪玩列表' },
+        { key: '/admin/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+        { key: '/admin/battle-screenshots', label: '战绩图审核' },
         { key: '/admin/review', label: '实名审核' },
+        group('admin-group-companion-salary', '陪玩工资', [
+          { key: '/admin/finance/expenses', label: '陪玩审核 + 支取' },
+          { key: '/admin/finance/reconciliation', label: '应报 vs 实报' },
+          { key: '/admin/companion-wallet-calendar', label: '报账与支取日历' },
+          { key: '/admin/finance/risk', label: '打私单风险' },
+        ], { ratioKey: 'companion' }),
+      ],
+    },
+    {
+      key: 'admin-cs', icon: IconCs, label: '客服管理',
+      children: [
+        { key: '/admin/employees?role=CS', label: '客服列表' },
+        { key: '/admin/work-wechats?type=STUDIO', label: '客服工作微信' },
+        { key: '/admin/traffic-accounts', label: '工作室账号管理' },
+        { key: '/content-check', label: '内容查重风控' },
+        group('admin-group-cs-commission', '客服提成', [
+          { key: '/admin/finance/commission-today', label: '今日看板' },
+          { key: '/admin/finance/commission', label: '月度结算' },
+        ], { ratioKey: 'cs' }),
+        { key: '/admin/cs-wechat-flow', label: '客服微信收款明细' },
+        { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
+      ],
+    },
+    {
+      key: 'admin-admins', icon: IconAdmins, label: '店长管理',
+      children: [
+        { key: '/admin/payroll', label: '工资规则', ratioKey: 'admin' },
         { key: '/admin/attendance', label: '考勤管理' },
       ],
     },
@@ -227,29 +253,14 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'admin-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/admin/profit-calendar', label: '财务中心' },
-        group('admin-group-companion-salary', '陪玩工资', [
-          { key: '/admin/finance/expenses', label: '陪玩审核 + 支取' },
-          { key: '/admin/finance/reconciliation', label: '应报 vs 实报' },
-          { key: '/admin/companion-wallet-calendar', label: '报账与支取日历' },
-          { key: '/admin/finance/risk', label: '打私单风险' },
-        ], { ratioKey: 'companion' }),
-        group('admin-group-cs-commission', '客服提成', [
-          { key: '/admin/finance/commission-today', label: '今日看板' },
-          { key: '/admin/finance/commission', label: '月度结算' },
-        ], { ratioKey: 'cs' }),
-        { key: '/admin/cs-wechat-flow', label: '客服微信收款明细' },
+        { key: '/admin/finance/price-rules', label: '价格规则' },
       ],
     },
     {
       key: 'admin-settings', icon: IconAuth, label: '设置中心',
       children: [
-        group('admin-group-rules', '系统与规则', [
-          { key: '/admin/settings', label: '系统配置' },
-          { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
-          { key: '/admin/payroll', label: '工资规则', ratioKey: 'admin' },
-          { key: '/admin/finance/price-rules', label: '价格规则' },
-          { key: '/owner/bridges', label: '工作室桥接' },
-        ]),
+        { key: '/admin/settings', label: '系统配置' },
+        { key: '/owner/bridges', label: '工作室桥接' },
         // 老板 2026-10-07：6 个功能分三步并成一页，左侧菜单只剩这一条「客户端管理」
         // （原「客户端与设备 / 进程管控」两页现在是它里面的页签）。
         { key: '/admin/client-management', label: '客户端管理' },
@@ -289,18 +300,19 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       ],
     },
     {
-      key: 'cs-employees', icon: IconEmployees, label: '员工管理',
+      key: 'cs-companions', icon: IconCompanions, label: '陪玩管理',
       children: [
-        group('cs-group-companion', '陪玩', [
-          { key: '/cs/employees', label: '人员管理' },
-          { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
-          { key: '/admin/battle-screenshots', label: '战绩图审核' },
-        ]),
-        group('cs-group-cs', '客服', [
-          { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },
-          { key: '/cs/traffic-accounts', label: '工作室账号管理' },
-          { key: '/content-check', label: '内容查重风控' },
-        ]),
+        { key: '/cs/employees', label: '人员管理' },
+        { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+        { key: '/admin/battle-screenshots', label: '战绩图审核' },
+      ],
+    },
+    {
+      key: 'cs-cs', icon: IconCs, label: '客服管理',
+      children: [
+        { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },
+        { key: '/cs/traffic-accounts', label: '工作室账号管理' },
+        { key: '/content-check', label: '内容查重风控' },
       ],
     },
     {

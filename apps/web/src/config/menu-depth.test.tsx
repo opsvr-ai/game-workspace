@@ -30,7 +30,7 @@ describe('左侧导航渲染（最多两级）', () => {
     });
   }
 
-  it('店长端：第三级画成了分组标题（陪玩 / 客服 / 陪玩工资），不再是折叠项', async () => {
+  it('店长端：一级按「人」分（陪玩 / 客服 / 店长管理），里面的分组标题不再是折叠项', async () => {
     const items = roleMenus[UserRole.ADMIN] as any[];
     const { container, getByText } = render(
       <Menu mode="inline" items={items} openKeys={openKeysOf(items)} />,
@@ -39,10 +39,12 @@ describe('左侧导航渲染（最多两级）', () => {
     const titles = Array.from(container.querySelectorAll('.ant-menu-item-group-title')).map(
       (el) => el.textContent || '',
     );
-    expect(titles).toContain('陪玩');
-    expect(titles).toContain('客服');
     expect(titles).toContain('陪玩工资');
+    expect(titles).toContain('客服提成');
     expect(container.querySelectorAll('.ant-menu-item-group .ant-menu-submenu').length).toBe(0);
+    getByText('陪玩管理');
+    getByText('客服管理');
+    getByText('店长管理');
     getByText('陪玩列表');
     getByText('客服列表');
   });
