@@ -98,7 +98,7 @@ const EmployeesPage: React.FC = () => {
   const pageLabel = useMemo(() => {
     const typeLabel = urlStudioType === 'RENTAL' ? '线上俱乐部' : urlStudioType === 'DIRECT' ? '线下工作室' : '';
     const roleLabel: Record<string, string> = { ADMIN: '店长', CS: '客服', COMPANION: '陪玩' };
-    return [typeLabel, urlRole ? roleLabel[urlRole] || '' : ''].filter(Boolean).join(' → ') || '员工管理';
+    return [typeLabel, urlRole ? roleLabel[urlRole] || '' : ''].filter(Boolean).join(' → ') || '人员管理';
   }, [urlStudioType, urlRole]);
 
   const [employees, setEmployees] = useState<Employee[]>([]);

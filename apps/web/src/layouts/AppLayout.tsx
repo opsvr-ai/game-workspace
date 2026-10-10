@@ -1575,7 +1575,7 @@ const AppLayout: React.FC = () => {
       const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
       if (isMgmt) {
         setReviewBadge((p) => p + 1);
-        const text = `工作抽查：${data.companionName} 存在异常（${data.reason || data.level || '异常'}），请到陪玩管理工作记录核查`;
+        const text = `工作抽查：${data.companionName} 存在异常（${data.reason || data.level || '异常'}），请到「陪玩管理 → 陪玩列表」核查他的工作记录`;
         message.warning({ content: text, duration: 10 });
         // 「查看」直接落到这个人的工作记录，并把异常那一条高亮出来（老板 2026-10-05：
         // 以前只跳到陪玩列表 / 实名审核，什么都没标出来，根本找不到是哪一条）。
