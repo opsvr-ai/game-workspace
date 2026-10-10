@@ -40,7 +40,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   —— 以前同一个页面挂在两个菜单下的重复入口没有了。
   一级菜单按身份配色（陪玩蓝 / 客服青 / 店长橙，与四角色身份色同一套，`styles/tokens.ts` 的 `MODULE_TINTS`）。
   未读聊天角标（原来挂在「员工管理」上）跟着挪到 陪玩管理 / 客服管理。陪玩端（COMPANION）菜单不变。
-  验证：菜单契约测试 + 渲染守卫测试同步更新，网页 **128 / 128** 通过、`tsc --noEmit` 通过、守门脚本全绿。
+  验证：菜单契约测试 + 渲染守卫测试同步更新（含「店长管理只在老板端」「价格规则在陪玩管理」两条新断言），
+  网页 **132 / 132** 通过、`tsc --noEmit` 通过、守门脚本全绿。
+  **已上线（2026-10-10）**：网页 `v1008`（`_deploy_web_cloud.py` + `_set_web_version.py v1008`），
+  服务端随同一批改动一起 `_deploy_server_cloud.py` 重启；线上回读 `web.frontend_version = v1008`、`/api/health` 200、
+  自己的 `index.html` 指向新包 `index-CwGdGYiE.js`、重启后无 error 日志。
 
 ### Fixed
 
