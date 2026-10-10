@@ -991,7 +991,7 @@ const CustomersPage: React.FC = () => {
               setDeleteScreenshot('');
             }}
           >
-            删除
+            申请删除
           </Button>
           </Space>
         );
@@ -1557,15 +1557,15 @@ const CustomersPage: React.FC = () => {
           </div>
         </Modal>
         <Modal
-          title="删除客户"
+          title="申请删除客户"
           open={!!deleteCustomer}
           onOk={async () => {
             if (!deleteReason.trim()) {
-              message.warning('请填写删除原因');
+              message.warning('请填写申请删除的原因');
               return Promise.reject();
             }
             if (!deleteScreenshot) {
-              message.warning('请上传删除截图');
+              message.warning('请上传证据截图');
               return Promise.reject();
             }
             setDeleteSubmitting(true);
@@ -1575,7 +1575,7 @@ const CustomersPage: React.FC = () => {
                 reason: deleteReason.trim(),
                 evidenceUrl: deleteScreenshot,
               });
-              message.success('删除申请已提交，等待管理端审核');
+              message.success('申请已提交，等客服 / 店长通过或驳回');
               setDeleteCustomer(null);
               fetchCustomers();
             } catch (e: any) {
@@ -1593,11 +1593,11 @@ const CustomersPage: React.FC = () => {
         >
           <div style={{ marginTop: 12 }}>
             <Text>
-              确认删除客户 <Text strong>{deleteCustomer?.wechatId || deleteCustomer?.customerCode}</Text> ？删除需填写原因并上传截图，提交后管理端审核。
+              申请删除客户 <Text strong>{deleteCustomer?.wechatId || deleteCustomer?.customerCode}</Text> ？需填写原因并上传截图，提交后由客服 / 店长 / 老板审核，通过才会删。
             </Text>
           </div>
           <div style={{ marginTop: 12 }}>
-            <Text>删除原因（必填）：</Text>
+            <Text>申请删除原因（必填）：</Text>
             <Input.TextArea
               rows={3}
               value={deleteReason}
@@ -1606,7 +1606,7 @@ const CustomersPage: React.FC = () => {
             />
           </div>
           <div style={{ marginTop: 12 }}>
-            <Text>删除截图（必传）：</Text>
+            <Text>证据截图（必传）：</Text>
             <PasteImageBox onFile={uploadDeleteScreenshot} style={{ marginTop: 8 }}>
               <Upload
                 showUploadList={false}

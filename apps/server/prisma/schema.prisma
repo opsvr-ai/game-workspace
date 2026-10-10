@@ -36,7 +36,7 @@ model User {
   csOrders          Order[]            @relation("CSUser")
     claimedOrders     Order[]            @relation("ClaimedCS")
     commissionLedgers CommissionLedger[]
-    reviewedDeleteRequests CustomerDeleteRequest[] @relation("Reviewer")
+    reviewedDeletionRequests DeletionRequest[] @relation("Reviewer")
     trafficAccounts   TrafficAccount[]
     reviewedBattleScreenshots BattleScreenshot[] @relation("BattleScreenshotReviewer")
   
@@ -79,7 +79,7 @@ model Studio {
   configs                 StudioConfig[]
   customerContacts        CustomerContact[]
   customerTracks          CustomerTrack[]
-  customerDeleteRequests  CustomerDeleteRequest[]
+  deletionRequests        DeletionRequest[]
   xhsAutomationAccounts   XhsAutomationAccount[]
   xhsAutomationTasks      XhsAutomationTask[]
   xhsTargetUsers          XhsTargetUser[]
@@ -154,7 +154,7 @@ model Companion {
   processKillLogs     ProcessKillLog[]
   customerContacts        CustomerContact[]
   customerTracks          CustomerTrack[]
-  customerDeleteRequests  CustomerDeleteRequest[]
+  deletionRequests        DeletionRequest[]
   deposits                CustomerDeposit[]
   // 陪玩自己提交的工作微信申请（管理端审核，老板 2026-10-02）
   wechatRequests          WorkWechatRequest[]
@@ -438,7 +438,7 @@ model Customer {
   followUps CustomerFollowUp[]
   contacts      CustomerContact[]
   tracks        CustomerTrack[]
-  deleteRequests CustomerDeleteRequest[]
+  deletionRequests DeletionRequest[]
   battleScreenshots BattleScreenshot[]
   deposits      CustomerDeposit[]
 
@@ -1139,13 +1139,21 @@ model CustomerTrack {
   @@index([customerId])
 }
 
-model CustomerDeleteRequest {
+/// 陪玩端「申请删除」的统一工单（老板 2026-10-11：陪玩端不留任何直接删除按钮，
+/// 一律提交申请 → 客服 / 店长 / 老板 通过或驳回，全程留痕）。
+/// targetType：CUSTOMER（删客户）/ CHAT_MESSAGE（删聊天消息，通过后那条消息显示"已被撤回"）。
+model DeletionRequest {
     id           String    @id @default(uuid())
     studioId     String
     companionId  String
-    customerId   String
+    targetType   String    @default("CUSTOMER") // CUSTOMER | CHAT_MESSAGE
+    targetId     String?
+    customerId   String?
     reason       String?
     evidenceUrl  String?
+    /// 批下来之前先把要删的东西快照下来（聊天消息存原文 / 房间 / 发送人），
+    /// 审核页看得到原文，删掉以后也查得到"删了什么"。
+    payload      Json?
     status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
   reviewedById String?
   reviewedAt   DateTime?
@@ -1154,12 +1162,13 @@ model CustomerDeleteRequest {
 
   studio    Studio    @relation(fields: [studioId], references: [id])
   companion Companion @relation(fields: [companionId], references: [id])
-  customer  Customer  @relation(fields: [customerId], references: [id])
+  customer  Customer? @relation(fields: [customerId], references: [id])
   reviewer  User?     @relation("Reviewer", fields: [reviewedById], references: [id])
 
   @@index([studioId])
   @@index([companionId])
   @@index([customerId])
+  @@index([targetType])
   @@index([status])
 }
 

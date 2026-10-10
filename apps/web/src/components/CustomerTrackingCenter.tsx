@@ -65,7 +65,7 @@ const CustomerTrackingCenter: React.FC = () => {
   const review = async (id: string, approve: boolean, rejectReason?: string) => {
     try {
       await customerTrackingApi.reviewDeleteRequest(id, approve, rejectReason);
-      message.success(approve ? '已通过，客户已从陪玩端移除' : '已拒绝');
+      message.success(approve ? '已通过' : '已驳回');
       load();
     } catch (e: any) {
       message.error(extractErrorMessage(e, '操作失败'));
@@ -177,7 +177,7 @@ const CustomerTrackingCenter: React.FC = () => {
           <div style={{ ...glass, padding: 20, minHeight: 300 }}>
             <Space align="center" style={{ marginBottom: 14 }}>
               <CheckCircleOutlined style={{ color: BRAND.accent, fontSize: 18 }} />
-              <Text strong style={{ color: TEXT.inverse, fontSize: 16 }}>删除申请审核</Text>
+              <Text strong style={{ color: TEXT.inverse, fontSize: 16 }}>删除申请审核（客户 / 聊天消息）</Text>
             </Space>
             {requests.length === 0 ? (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span style={{ color: '#8A97B8' }}>暂无待处理申请</span>} />
@@ -195,10 +195,21 @@ const CustomerTrackingCenter: React.FC = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <Text strong style={{ color: TEXT.inverse }}>{r.customer?.wechatId || '未知客户'}</Text>
+                        <Text strong style={{ color: TEXT.inverse }}>
+                          {r.targetType === 'CHAT_MESSAGE'
+                            ? `聊天消息：${String((r.payload as any)?.text || '').slice(0, 30) || '（图片 / 文件）'}`
+                            : r.customer?.wechatId || '未知客户'}
+                        </Text>
                         <div>
                           <Text style={{ color: TEXT.onDarkMuted, fontSize: 12 }}>
-                            {r.companion?.user?.displayName || r.companion?.user?.username || '-'} · {r.status}
+                            <Tag
+                              color={r.targetType === 'CHAT_MESSAGE' ? 'cyan' : 'geekblue'}
+                              style={{ borderRadius: 999, marginRight: 6 }}
+                            >
+                              {r.targetType === 'CHAT_MESSAGE' ? '删聊天消息' : '删客户'}
+                            </Tag>
+                            {r.companion?.user?.displayName || r.companion?.user?.username || '-'} ·{' '}
+                            {r.reason || '（没写原因）'} · {r.status}
                           </Text>
                         </div>
                       </div>
@@ -212,7 +223,9 @@ const CustomerTrackingCenter: React.FC = () => {
                           </Button>
                         </Space>
                       ) : (
-                        <Tag color={r.status === 'APPROVED' ? 'green' : 'red'}>{r.status === 'APPROVED' ? '已通过' : '已拒绝'}</Tag>
+                        <Tag color={r.status === 'APPROVED' ? 'green' : 'red'}>
+                          {r.status === 'APPROVED' ? '已通过' : '已驳回'}
+                        </Tag>
                       )}
                     </div>
                   </div>

@@ -286,7 +286,7 @@
 - **待处理工作台**（老板 2026-10-06「把店长 / 老板 / 客服需要处理的集合起来……每天上班先点开待处理看一下」）：
   新模块 `apps/server/src/todos`（`TodosService` / `TodosController`），`GET /api/todos` 按角色
   （CS / ADMIN / OWNER）汇总散在各页面的待办 —— 成交核对待拍板 / 等我核对 / 抢了没结果、客服该跟进的客户、
-  补单申请、陪玩报账 / 支取 / 业绩待审、战绩图、工作微信、实名审核、删除客户、桥接申请（老板专属）——
+  补单申请、陪玩报账 / 支取 / 业绩待审、战绩图、工作微信、实名审核、删除申请（客户 / 聊天消息）、桥接申请（老板专属）——
   **「战绩图」这一条 2026-10-09 起客服也有**（老板「客服端怎么不能采纳陪玩上传的战绩图？」）：
   `POST /api/battle-screenshots/:id/review` 的 `@Roles` 加了 `CS`，待办里这条也不再只挂店长 / 老板那一组。
   范围跟「战绩图审核」页一致 —— 只看本店（老板全量）；非老板动别家的记录一律 `Forbidden`。
@@ -1178,6 +1178,6 @@ sequenceDiagram
 - `GET /api/orders/reviews?scope=waiting|recheck|archived|decided` — 成交核对清单（待拍板 / 抢了没结果 / 历史记录 / 已拍板；OWNER 全量，其余按可见工作室）
 - `GET /api/orders/reviews/summary` — 成交核对条数（管理端菜单红数字 `{ waiting, waitingCs, waitingDecide, recheck, rejected }`）
 - `POST /api/orders/:id/review-reject` — 店长 / 老板「打回重写」（**仅 ADMIN/OWNER**）：`{ note }` 必填，把失败单退回接单方重填（`reviewStatus=REJECTED` + `customFields.outcomeReject` 留痕，推接单方 + 发单客服）
-- `GET /api/todos` — 待处理工作台（**CS/ADMIN/OWNER**）：按角色汇总待拍板 / 等我核对 / 抢了没结果 / 跟进的客户 / 补单 / 报账 / 支取 / 业绩 / 战绩图 / 工作微信 / 实名 / 删除客户 / 桥接申请，返回 `{ total, groups[] }`
+- `GET /api/todos` — 待处理工作台（**CS/ADMIN/OWNER**）：按角色汇总待拍板 / 等我核对 / 抢了没结果 / 跟进的客户 / 补单 / 报账 / 支取 / 业绩 / 战绩图 / 工作微信 / 实名 / 删除申请（客户 / 聊天消息）/ 桥接申请，返回 `{ total, groups[] }`
 - `POST /api/upload/screenshot` — 截图上传（`COMPANION`/`CS`/`ADMIN`/`OWNER`，失败结果证据 / 客服代录用）
 - `GET/PUT /api/config` — 全局配置（含 `capture.*` 截图阈值）

@@ -13,7 +13,7 @@ import MessageContextMenu from './MessageContextMenu';
 import ChatVoiceCallStrip from './ChatVoiceCallStrip';
 import { startVoiceCallFromCurrentWindow } from '../../utils/voiceCallWindow';
 
-import { BG } from '../../styles/tokens';
+import { BG, TEXT } from '../../styles/tokens';
 interface ChatPanelProps {
   roomId?: string;
   participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
@@ -44,6 +44,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [broadcastText, setBroadcastText] = useState('');
   const [broadcasting, setBroadcasting] = useState(false);
+  // 陪玩「申请删除」自己发的一条消息（老板 2026-10-11：陪玩端不留直接删除按钮，一律申请 → 客服/店长审批）
+  const [deleteRequest, setDeleteRequest] = useState<{ message: Message; reason: string } | null>(null);
+  const [deleteRequestSubmitting, setDeleteRequestSubmitting] = useState(false);
+  const canRecallMyself = ['CS', 'ADMIN', 'OWNER'].includes(user?.role || '');
 
   useEffect(() => {
     if (!roomId || !(conv?.isGroup || participant?.role === 'GROUP')) return;
@@ -160,6 +164,30 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
     try { await chatApi.deleteRoomMessage?.(roomId, msg.id); } catch {}
     setContextMenu(null);
   }, [roomId]);
+
+  /** 陪玩申请删掉自己发的一条消息：提交后等客服 / 店长 / 老板通过或驳回，过程留痕。 */
+  const submitDeleteRequest = useCallback(async () => {
+    if (!roomId || !deleteRequest) return;
+    const reason = deleteRequest.reason.trim();
+    if (!reason) {
+      message.warning('请填写申请删除的原因');
+      return;
+    }
+    setDeleteRequestSubmitting(true);
+    try {
+      await http.post('/customer-tracking/message-delete-requests', {
+        roomId,
+        messageId: deleteRequest.message.id,
+        reason,
+      });
+      message.success('申请已提交，等客服 / 店长通过或驳回');
+      setDeleteRequest(null);
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '提交申请失败');
+    } finally {
+      setDeleteRequestSubmitting(false);
+    }
+  }, [roomId, deleteRequest]);
 
   const handleReaction = useCallback(async (msgId: string, emoji: string) => {
     if (!roomId) return;
@@ -333,8 +361,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
       {contextMenu && (
         <MessageContextMenu
           x={contextMenu.x} y={contextMenu.y}
-          isMine={contextMenu.message.senderId === user?.id}
-          canRecall={Date.now() - contextMenu.message.createdAt < 2 * 60 * 1000}
+          deleteAction={
+            contextMenu.message.senderId !== user?.id
+              ? null
+              : canRecallMyself
+                ? Date.now() - contextMenu.message.createdAt < 2 * 60 * 1000
+                  ? { label: '撤回', onClick: () => handleRecall(contextMenu.message) }
+                  : null
+                : { label: '申请删除', onClick: () => setDeleteRequest({ message: contextMenu.message, reason: '' }) }
+          }
           showCollect={!!extractCollectableUrl(contextMenu.message)}
           onCollectEmoji={() => {
             const url = extractCollectableUrl(contextMenu.message);
@@ -343,11 +378,38 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
           onClose={() => setContextMenu(null)}
           onCopy={() => navigator.clipboard.writeText(contextMenu.message.text)}
           onReply={() => handleReply(contextMenu.message)}
-          onRecall={() => handleRecall(contextMenu.message)}
-          onDelete={() => setContextMenu(null)}
           onReaction={(emoji) => handleReaction(contextMenu.message.id, emoji)}
         />
       )}
+      <Modal
+        title="申请删除这条消息"
+        open={!!deleteRequest}
+        onOk={submitDeleteRequest}
+        onCancel={() => setDeleteRequest(null)}
+        okText="提交申请"
+        cancelText="取消"
+        confirmLoading={deleteRequestSubmitting}
+        destroyOnClose
+      >
+        <div style={{ marginTop: 8 }}>
+          <div style={{ color: TEXT.tertiary, fontSize: 12 }}>要申请删除的内容</div>
+          <div style={{ marginTop: 6, padding: 10, background: BG.hover, borderRadius: 8 }}>
+            {deleteRequest?.message.text || '（图片 / 文件）'}
+          </div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <div style={{ marginBottom: 6 }}>申请原因（必填）</div>
+          <Input.TextArea
+            rows={3}
+            value={deleteRequest?.reason || ''}
+            onChange={(e) => setDeleteRequest((prev) => (prev ? { ...prev, reason: e.target.value } : prev))}
+            placeholder="例如：发错了 / 内容有误 / 泄露了房间码"
+          />
+        </div>
+        <div style={{ marginTop: 10, color: TEXT.tertiary, fontSize: 12 }}>
+          提交后由客服 / 店长 / 老板审核：通过才会删掉，驳回会通知你，全过程留痕。
+        </div>
+      </Modal>
     </div>
   );
 };

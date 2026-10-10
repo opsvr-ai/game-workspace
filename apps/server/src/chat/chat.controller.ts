@@ -266,7 +266,10 @@ export class ChatController {
   }
 
   @Delete('rooms/:id/messages/:msgId')
-  @UseGuards(ParticipantGuard)
+  @UseGuards(ParticipantGuard, RolesGuard)
+  // 老板 2026-10-11：陪玩端不留任何直接删除按钮 —— 陪玩想删自己发的消息得走
+  // 「申请删除」（POST /customer-tracking/message-delete-requests），客服 / 店长 / 老板批了才生效。
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async recallMessage(@Req() req: any, @Param('id') roomId: string, @Param('msgId') msgId: string) {
     await this.chatService.recallMessage(roomId, msgId, this.getUserId(req));
     return { code: 200, message: 'ok', data: { ok: true } };

@@ -348,12 +348,12 @@ export class TodosService {
             select: { id: true, realName: true, createdAt: true, user: { select: { displayName: true, username: true } } },
           })
           .catch(() => [] as any[]),
-        this.prisma.customerDeleteRequest
+        this.prisma.deletionRequest
           .findMany({
             where: { ...studioWhere, status: 'PENDING' },
             orderBy: { createdAt: 'asc' },
             take: 300,
-            select: { id: true, reason: true, createdAt: true, companion: { select: { user: { select: { displayName: true, username: true } } } }, customer: { select: { customerCode: true, wechatId: true } } },
+            select: { id: true, reason: true, targetType: true, payload: true, createdAt: true, companion: { select: { user: { select: { displayName: true, username: true } } } }, customer: { select: { customerCode: true, wechatId: true } } },
           })
           .catch(() => [] as any[]),
       ]);
@@ -435,17 +435,23 @@ export class TodosService {
       });
       push({
         key: 'customer_delete',
-        label: '删除客户申请待审',
-        hint: '陪玩申请删掉某个客户（删了档案就不在了），要点开看清再定',
+        label: '删除申请待审',
+        hint: '陪玩申请删掉某个客户 / 某条聊天消息，一律要客服 / 店长 / 老板看清再通过或驳回',
         count: (deletes as any[]).length,
         href: customersHref,
-        items: (deletes as any[]).slice(0, TAKE).map((r: any) => ({
-          id: r.id,
-          title: `${this.nameOf(r.companion?.user) || '陪玩'} → ${r.customer?.wechatId || (r.customer?.customerCode ? '#' + r.customer.customerCode : '客户')}`,
-          sub: (r.reason || '（没写原因）').slice(0, 40),
-          at: r.createdAt,
-          href: customersHref,
-        })),
+        items: (deletes as any[]).slice(0, TAKE).map((r: any) => {
+          const isMessage = r.targetType === 'CHAT_MESSAGE';
+          const target = isMessage
+            ? `聊天消息「${String((r.payload as any)?.text || '').slice(0, 20) || '图片/文件'}」`
+            : r.customer?.wechatId || (r.customer?.customerCode ? '#' + r.customer.customerCode : '客户');
+          return {
+            id: r.id,
+            title: `${this.nameOf(r.companion?.user) || '陪玩'} → ${target}`,
+            sub: (r.reason || '（没写原因）').slice(0, 40),
+            at: r.createdAt,
+            href: customersHref,
+          };
+        }),
       });
     }
 

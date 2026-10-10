@@ -43,6 +43,7 @@ const CompanionTrackingPanel: React.FC = () => {
   const [contactCustomer, setContactCustomer] = useState<any>(null);
   const [trackCustomer, setTrackCustomer] = useState<any>(null);
   const [deleteCustomer, setDeleteCustomer] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState('');
   const [contactForm] = Form.useForm();
   const [trackForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
@@ -102,11 +103,19 @@ const CompanionTrackingPanel: React.FC = () => {
   };
 
   const submitDelete = async () => {
+    if (!deleteReason.trim()) {
+      message.warning('请填写申请删除的原因');
+      return;
+    }
     setSubmitting(true);
     try {
-      await customerTrackingApi.submitDeleteRequest({ customerId: deleteCustomer.id });
-      message.success('删除申请已提交，等待管理端审核');
+      await customerTrackingApi.submitDeleteRequest({
+        customerId: deleteCustomer.id,
+        reason: deleteReason.trim(),
+      });
+      message.success('申请已提交，等客服 / 店长通过或驳回');
       setDeleteCustomer(null);
+      setDeleteReason('');
       load();
     } catch (e: any) {
       message.error(extractErrorMessage(e, '申请失败'));
@@ -195,7 +204,7 @@ const CompanionTrackingPanel: React.FC = () => {
                   <Space>
                     <Button size="small" ghost onClick={() => setContactCustomer(c)}>登记结果</Button>
                     <Button size="small" icon={React.createElement(PlusOutlined)} onClick={() => setTrackCustomer(c)}>追踪</Button>
-                    <Button size="small" danger icon={React.createElement(DeleteOutlined)} onClick={() => setDeleteCustomer(c)}>删除</Button>
+                    <Button size="small" danger icon={React.createElement(DeleteOutlined)} onClick={() => { setDeleteCustomer(c); setDeleteReason(''); }}>申请删除</Button>
                   </Space>
                 </div>
               </div>
@@ -245,8 +254,17 @@ const CompanionTrackingPanel: React.FC = () => {
 
       <Modal title="申请删除客户" open={!!deleteCustomer} onOk={submitDelete} confirmLoading={submitting} onCancel={() => setDeleteCustomer(null)} okText="提交申请" cancelText="取消">
         <Text style={{ display: 'block', marginTop: 12 }}>
-          确认客户 <Text strong>{deleteCustomer?.wechatId || deleteCustomer?.customerCode}</Text> 已删除你吗？提交后需管理端审核。
+          申请删除客户 <Text strong>{deleteCustomer?.wechatId || deleteCustomer?.customerCode}</Text>？提交后由客服 / 店长 / 老板审核，通过才会删。
         </Text>
+        <div style={{ marginTop: 12 }}>
+          <Text>申请删除原因（必填）：</Text>
+          <Input.TextArea
+            rows={3}
+            value={deleteReason}
+            onChange={(e) => setDeleteReason(e.target.value)}
+            placeholder="例如：客户已删除我 / 客户拉黑 / 不再合作"
+          />
+        </div>
       </Modal>
     </div>
   );

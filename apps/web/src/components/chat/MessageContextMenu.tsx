@@ -6,31 +6,30 @@ import { BG } from '../../styles/tokens';
 interface MessageContextMenuProps {
   x: number;
   y: number;
-  isMine: boolean;
-  canRecall: boolean; // within 2 minutes
   onClose: () => void;
   onCopy: () => void;
   onReply: () => void;
-  onRecall: () => void;
-  onDelete: () => void;
   onReaction: (emoji: string) => void;
   showCollect?: boolean;
   onCollectEmoji?: () => void;
+  /**
+   * 删除类操作（只在自己发的消息上出现）。
+   * 老板 2026-10-11：陪玩端不留任何直接删除按钮 —— 陪玩这里是「申请删除」（等客服/店长批），
+   * 管理端 / 客服还是「撤回」（2 分钟内当场删）。没有可做的删除时传 null。
+   */
+  deleteAction?: { label: string; onClick: () => void } | null;
 }
 
 const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   x,
   y,
-  isMine,
-  canRecall,
   onClose,
   onCopy,
   onReply,
-  onRecall,
-  onDelete,
   onReaction,
   showCollect,
   onCollectEmoji,
+  deleteAction,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -104,24 +103,13 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
           onClose();
         }}
       />
-      {isMine && canRecall && (
+      {deleteAction && (
         <MenuItem
           icon={<DeleteOutlined />}
-          label="撤回"
+          label={deleteAction.label}
           danger
           onClick={() => {
-            onRecall();
-            onClose();
-          }}
-        />
-      )}
-      {isMine && (
-        <MenuItem
-          icon={<DeleteOutlined />}
-          label="删除"
-          danger
-          onClick={() => {
-            onDelete();
+            deleteAction.onClick();
             onClose();
           }}
         />

@@ -89,6 +89,23 @@ export class CustomerTrackingController {
     return { code: 200, message: 'ok', data };
   }
 
+  /** 陪玩申请删掉自己发的一条聊天消息（老板 2026-10-11：陪玩端不留任何直接删除按钮）。 */
+  @Post('message-delete-requests')
+  @Roles(UserRole.COMPANION)
+  async submitMessageDeleteRequest(@Req() req: any, @Body() dto: any): Promise<ApiResponse<unknown>> {
+    const data = await this.tracking.submitMessageDeleteRequest(req.user, dto);
+    this.wsGateway.notifyManagers(req.user.studioId, {
+      title: '待审核：陪玩申请删除聊天消息',
+      desc: `有陪玩申请删掉一条聊天消息${dto?.reason ? '（原因：' + dto.reason + '）' : ''}，去「客户管理 → 客户追踪中心」通过或驳回`,
+      icon: '🗑️',
+      kind: 'audit',
+      hrefKey: 'customers',
+      dedupeKey: `msg-del-${(data as any)?.id || ''}`,
+      dedupeMs: 60 * 1000,
+    });
+    return { code: 200, message: 'ok', data };
+  }
+
   @Post('delete-requests/:id/review')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async reviewDeleteRequest(
@@ -99,12 +116,16 @@ export class CustomerTrackingController {
     const data = await this.tracking.reviewDeleteRequest(req.user, id, dto.approve, dto.rejectReason);
     // 审核结果实时告诉申请人本人（老板 2026-10-04：双方都要有提示）
     const approved = dto.approve !== false;
+    const isMessage = (data as any)?.targetType === 'CHAT_MESSAGE';
+    const thingLabel = isMessage ? '删除聊天消息' : '删除客户';
     if ((data as any)?.companionId) {
       this.wsGateway.notifyCompanionNotice((data as any).companionId, {
-        title: approved ? '删除客户申请已通过' : '删除客户申请被驳回',
+        title: approved ? `${thingLabel}申请已通过` : `${thingLabel}申请被驳回`,
         desc: approved
-          ? '你申请的「删除客户」已通过，该客户已不再显示'
-          : `你申请的「删除客户」被驳回${dto.rejectReason ? '：' + dto.rejectReason : ''}`,
+          ? isMessage
+            ? '你申请的「删除聊天消息」已通过，那条消息已撤回'
+            : '你申请的「删除客户」已通过，该客户已不再显示'
+          : `你申请的「${thingLabel}」被驳回${dto.rejectReason ? '：' + dto.rejectReason : ''}`,
         icon: approved ? '✅' : '⛔',
         kind: 'audit',
         hrefKey: 'customers',

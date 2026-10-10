@@ -1771,7 +1771,7 @@ export class CustomersService {
         where: { customerId: sourceId },
         data: { customerId: targetId },
       });
-      const deleteRequests = await tx.customerDeleteRequest.updateMany({
+      const deleteRequests = await tx.deletionRequest.updateMany({
         where: { customerId: sourceId },
         data: { customerId: targetId },
       });

@@ -223,6 +223,30 @@ export function createMockPrisma() {
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       count: vi.fn().mockResolvedValue(0),
     },
+    // 陪玩端「申请删除」统一工单（老板 2026-10-11：客户 + 聊天消息都走申请，客服/店长批了才删，全程留痕）
+    deletionRequest: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      count: vi.fn().mockResolvedValue(0),
+    },
+    chatMessageV3: {
+      findUnique: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    chatRoom: {
+      findUnique: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    chatAuditLog: {
+      create: vi.fn().mockResolvedValue({ id: 'audit-1' }),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     $queryRaw: vi.fn(),
     // 两种用法都要支持：回调式 `$transaction(async (tx) => ...)` 和数组式 `$transaction([op1, op2])`
     // （订单转让走的是数组式，两个 op 在同一事务里换手 + 落留痕）。

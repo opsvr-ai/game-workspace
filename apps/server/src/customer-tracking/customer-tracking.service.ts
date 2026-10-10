@@ -259,20 +259,74 @@ export class CustomerTrackingService {
     const customer = await this.prisma.customer.findUnique({ where: { id: dto.customerId } });
     if (!customer) throw new NotFoundException('客户不存在');
 
-    const existing = await this.prisma.customerDeleteRequest.findFirst({
-      where: { companionId, customerId: dto.customerId, status: 'PENDING' },
+    const existing = await this.prisma.deletionRequest.findFirst({
+      where: { companionId, targetType: 'CUSTOMER', targetId: dto.customerId, status: 'PENDING' },
     });
     if (existing) return existing;
 
-      return this.prisma.customerDeleteRequest.create({
-        data: {
-          studioId: customer.studioId,
-          companionId,
-          customerId: dto.customerId,
-          reason: dto.reason ?? null,
-          evidenceUrl: dto.evidenceUrl ?? null,
+    return this.prisma.deletionRequest.create({
+      data: {
+        studioId: customer.studioId,
+        companionId,
+        targetType: 'CUSTOMER',
+        targetId: dto.customerId,
+        customerId: dto.customerId,
+        reason: dto.reason ?? null,
+        evidenceUrl: dto.evidenceUrl ?? null,
+      },
+    });
+  }
+
+  /**
+   * 陪玩申请删掉自己发的一条聊天消息（老板 2026-10-11：陪玩端不留任何直接删除按钮）。
+   * 以前 2 分钟内点「撤回」就当场删了；现在一律走申请 —— 客服 / 店长 / 老板点头才真的删，
+   * 原消息内容快照进 payload，审核页看得到原文，留痕也查得到「删了什么」。
+   */
+  async submitMessageDeleteRequest(user: AuthUser, dto: any) {
+    const companionId = user.companionId ?? dto.companionId;
+    if (!companionId) throw new ForbiddenException('缺少陪玩标识');
+    const roomId = dto.roomId;
+    const messageId = dto.messageId;
+    if (!roomId || !messageId) throw new ForbiddenException('缺少要删除的消息');
+
+    const msg = await this.prisma.chatMessageV3.findUnique({ where: { id: messageId } });
+    if (!msg || msg.roomId !== roomId) throw new NotFoundException('消息不存在');
+    if (msg.senderId !== user.id) throw new ForbiddenException('只能申请删除自己发的消息');
+    if (msg.deletedAt) throw new ForbiddenException('这条消息已经删掉了');
+
+    const reason = String(dto.reason ?? '').trim();
+    if (!reason) throw new ForbiddenException('请填写申请删除的原因');
+
+    const room = await this.prisma.chatRoom.findUnique({ where: { id: roomId } });
+    const studioId = user.studioId || room?.studioId;
+    if (!studioId) throw new ForbiddenException('缺少店铺标识');
+
+    const existing = await this.prisma.deletionRequest.findFirst({
+      where: { companionId, targetType: 'CHAT_MESSAGE', targetId: messageId, status: 'PENDING' },
+    });
+    if (existing) return existing;
+
+    const sender = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { displayName: true, username: true },
+    });
+    return this.prisma.deletionRequest.create({
+      data: {
+        studioId,
+        companionId,
+        targetType: 'CHAT_MESSAGE',
+        targetId: messageId,
+        reason,
+        evidenceUrl: dto.evidenceUrl ?? null,
+        payload: {
+          roomId,
+          text: msg.content ?? '',
+          senderId: msg.senderId,
+          senderName: sender?.displayName || sender?.username || '',
+          sentAt: msg.createdAt.toISOString(),
         },
-      });
+      },
+    });
   }
 
   async listDeleteRequests(user: AuthUser, status?: string) {
@@ -283,7 +337,7 @@ export class CustomerTrackingService {
     } else if (user.studioId) {
       where.studioId = user.studioId;
     }
-    return this.prisma.customerDeleteRequest.findMany({
+    return this.prisma.deletionRequest.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -295,10 +349,10 @@ export class CustomerTrackingService {
   }
 
   async reviewDeleteRequest(user: AuthUser, id: string, approve: boolean, rejectReason?: string) {
-    const request = await this.prisma.customerDeleteRequest.findUnique({ where: { id } });
+    const request = await this.prisma.deletionRequest.findUnique({ where: { id } });
     if (!request) throw new NotFoundException('删除申请不存在');
 
-    const updated = await this.prisma.customerDeleteRequest.update({
+    const updated = await this.prisma.deletionRequest.update({
       where: { id },
       data: {
         status: approve ? 'APPROVED' : 'REJECTED',
@@ -308,7 +362,32 @@ export class CustomerTrackingService {
       },
     });
 
-    if (approve) {
+    const payload: any = (request.payload as any) ?? {};
+    if (request.targetType === 'CHAT_MESSAGE') {
+      if (approve && request.targetId) {
+        await this.prisma.chatMessageV3
+          .update({ where: { id: request.targetId }, data: { deletedAt: new Date() } })
+          .catch(() => {});
+      }
+      // 留痕：批没批都写进聊天审计日志（老板 2026-10-11：删除必须记录在案、可追责）
+      await this.prisma.chatAuditLog
+        .create({
+          data: {
+            roomId: payload.roomId || '',
+            userId: user.id,
+            action: approve ? 'DELETE' : 'DELETE_REJECTED',
+            metadata: {
+              messageId: request.targetId,
+              requestId: request.id,
+              requestedBy: request.companionId,
+              approved: approve,
+              rejectReason: approve ? null : rejectReason ?? null,
+              text: payload.text ?? null,
+            },
+          },
+        })
+        .catch(() => {});
+    } else if (approve && request.customerId) {
       await this.prisma.customer.update({
         where: { id: request.customerId },
         data: { isDeletedByCustomer: true },
@@ -328,7 +407,9 @@ export class CustomerTrackingService {
           where: { ...studioWhere, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
         }),
         this.prisma.customerContact.count({ where: { ...studioWhere, result: 'NO_REPLY' } }),
-        this.prisma.customerDeleteRequest.count({ where: { ...studioWhere, status: 'PENDING' } }),
+        this.prisma.deletionRequest.count({
+          where: { ...studioWhere, status: 'PENDING', targetType: 'CUSTOMER' },
+        }),
         this.prisma.customer.count({ where: { ...studioWhere, totalSpent: { lte: 0 }, isDeletedByCustomer: false } }),
         this.prisma.customerTrack.findMany({
           where: { ...studioWhere, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
