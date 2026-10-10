@@ -20,7 +20,28 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   一份数据三处叫法）+ 调整备注；保存走 `PUT /api/companions/:id/finance`，照旧落一条流水记录（谁改的、改前改后）。
   **只有店长 / 老板看得到这个按钮**：非 `isAdmin`（ADMIN / OWNER）不渲染，客服端那一页（`/cs/employees`）不受影响；
   服务端这个接口本来也只放行 店长 + 老板。操作列宽 248 → 304（多一个按钮，按同一套 22px 按钮规格算的）。
-  验证：`tsc --noEmit` 通过，网页 **125 / 125** 通过，守门脚本全绿（routes 90 / contract 403 / ui:tokens 332 / table-scroll 0 张超宽）。
+验证：`tsc --noEmit` 通过，网页 **125 / 125** 通过，守门脚本全绿（routes 90 / contract 403 / ui:tokens 332 / table-scroll 0 张超宽）。
+
+### Fixed
+
+- **店长不能再自己拨自己的考勤 —— 「考勤登记」不给选自己、「店长考勤」开关与时间归老板（老板 2026-10-10，服务端 + 网页）。**
+  老板问「店长自己设置自己的工资跟考勤？」。工资那边本来就锁着（`POST /payroll/configs` 里
+  「店长不能设置自己的工资」直接 403，界面那一行也只读），但考勤留着两个口子 ——
+  而**店长工资里的「迟到扣款 / 缺勤扣款」正是按这套考勤算的**（`PayrollService.generate`），
+  等于店长能变相改自己的工资，跟「店长工资只有老板能改」自相矛盾：
+  ① **考勤登记**：店长在「员工」下拉里看不到自己了（`PayrollPage` 的 `attendanceStaff` 过滤掉本人），
+     服务端 `POST /payroll/attendance` 也直接拦（店长给自己登记 → 403「店长不能给自己登记考勤，请联系老板」）；
+     给**客服**登记照旧可以（店长管客服考勤），老板给谁登记都不受影响。
+  ② **考勤设置**：`attendance.manager.enabled / workStart / workEnd` 三个键加进 `OWNER_ONLY_KEYS`
+     （`common/default-config.ts`）→ 店长保存会被跳过，界面上「店长考勤」这一块变成只读
+     （开关 / 上下班时间都锁住、挂「老板专属 · 只能查看」标），保存时也不再把这几个键打包发出去
+     （不然会弹出那句「N 项只有老板能改」，把人吓一跳）。
+     **客服考勤 `attendance.cs.*` 一个字没动**，仍然各店店长自己设。
+  验证：服务端新增 `payroll-attendance-guard.test.ts` **4 条**、`studio-config.test.ts` 新增 **1 条**
+  （`attendance.manager.*` 归老板 + `attendance.cs.*` 仍归分店）；网页新增
+  `attendance-manager-owner-only.test.tsx` **3 条**（店长只读 / 保存不带这几个键 / 老板不受影响）。
+  网页 **128 / 128**、服务端 **788 / 789**（另外那 1 条 `stats.daily-kpi.test.ts` 是写死日期的老用例
+  「2026-09-24 ~ 2026-10-07」，跟本次改动无关）；`tsc --noEmit` 两端通过；守门脚本全绿。
 
 ### Changed
 

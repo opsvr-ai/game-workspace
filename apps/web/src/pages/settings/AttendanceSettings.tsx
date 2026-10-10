@@ -5,6 +5,8 @@ import { message } from '../../utils/feedback';
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { configApi } from '../../api/config';
+import { useAuthStore } from '../../stores/authStore';
+import { UserRole } from '@chunlv/shared';
 import { SettingsLabel } from '../../components/settings/SettingsField';
 
 const { Text } = Typography;
@@ -26,6 +28,8 @@ type RoleBlock = {
   enabledKey: string;
   startKey: string;
   endKey: string;
+  /** 只有老板能改（店长看到的是只读的）—— 目前只有「店长考勤」这一块。 */
+  ownerOnly?: boolean;
 };
 
 const BLOCKS: RoleBlock[] = [
@@ -48,14 +52,22 @@ const BLOCKS: RoleBlock[] = [
   {
     key: 'manager',
     title: '🧑‍💼 店长考勤',
-    note: '跟客服同一套口径。如果店长不需要考勤，把上面这个开关关掉即可。',
+    note:
+      '跟客服同一套口径。店长的考勤由**老板**设置 —— 它直接决定店长工资里的迟到 / 缺勤扣款，' +
+      '不能由店长自己拨（自己关掉自己的考勤 = 变相改自己的工资）。',
     enabledKey: 'attendance.manager.enabled',
     startKey: 'attendance.manager.workStart',
     endKey: 'attendance.manager.workEnd',
+    ownerOnly: true,
   },
 ];
 
 const AttendanceSettings: React.FC = () => {
+  const user = useAuthStore((s) => s.user);
+  // 「店长考勤」这一块只有老板能改（老板 2026-10-10）：
+  // `attendance.manager.*` 已经不是「分店可写」的键（见服务端 common/default-config.ts 的 OWNER_ONLY_KEYS），
+  // 店长保存会被后端跳过 —— 界面这里先锁住，别让人白填半天。
+  const isOwner = user?.role === UserRole.OWNER;
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,6 +96,9 @@ const AttendanceSettings: React.FC = () => {
     try {
       const body: Record<string, unknown> = {};
       for (const b of BLOCKS) {
+        // 店长保存时不带「店长考勤」那几个键：后端本来也会跳过，
+        // 但先不带就不弹那句「N 项只有老板能改」，免得把人吓一跳。
+        if (b.ownerOnly && !isOwner) continue;
         body[b.enabledKey] = isOn(b.enabledKey);
         body[b.startKey] = config?.[b.startKey] ?? '09:00';
         body[b.endKey] = config?.[b.endKey] ?? '18:00';
@@ -123,6 +138,8 @@ const AttendanceSettings: React.FC = () => {
         </Text>
         {BLOCKS.map((b, idx) => {
           const on = isOn(b.enabledKey);
+          // 店长看「店长考勤」这一块 = 只读
+          const locked = !!b.ownerOnly && !isOwner;
           return (
             <div key={b.key}>
               {idx > 0 && <Divider style={{ margin: '14px 0' }} />}
@@ -130,14 +147,17 @@ const AttendanceSettings: React.FC = () => {
                 <Text strong style={{ fontSize: 14 }}>{b.title}</Text>
                 <Switch
                   checked={on}
+                  disabled={locked}
                   onChange={(v) => update(b.enabledKey, v)}
                   checkedChildren="启用"
                   unCheckedChildren="关闭"
                 />
                 {!on && <Tag color="default">已关闭考勤</Tag>}
+                {locked && <Tag color="gold">老板专属 · 只能查看</Tag>}
               </div>
               <Text type="secondary" style={{ display: 'block', fontSize: 12, marginBottom: 10 }}>
                 {b.note}
+                {locked && '（这一块由老板设置，你只能查看）'}
               </Text>
               <Row gutter={24}>
                 <Col span={12}>
@@ -145,7 +165,7 @@ const AttendanceSettings: React.FC = () => {
                     <SettingsLabel>上班时间</SettingsLabel>
                     <TimePicker
                       format="HH:mm"
-                      disabled={!on}
+                      disabled={!on || locked}
                       value={toTime(config?.[b.startKey])}
                       onChange={(d) => d && update(b.startKey, d.format('HH:mm'))}
                     />
@@ -156,7 +176,7 @@ const AttendanceSettings: React.FC = () => {
                     <SettingsLabel>下班时间</SettingsLabel>
                     <TimePicker
                       format="HH:mm"
-                      disabled={!on}
+                      disabled={!on || locked}
                       value={toTime(config?.[b.endKey], '18:00')}
                       onChange={(d) => d && update(b.endKey, d.format('HH:mm'))}
                     />

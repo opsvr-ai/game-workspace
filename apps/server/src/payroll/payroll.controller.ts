@@ -32,7 +32,15 @@ export class PayrollController {
 
   @Post('attendance')
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async attendance(@Body() dto: any) {
+  async attendance(@Req() req: any, @Body() dto: any) {
+    // 店长不能给自己登记考勤（老板 2026-10-10）。
+    //
+    // 店长工资里的「迟到扣款 / 缺勤扣款」就是按这张考勤算的（见 PayrollService.generate），
+    // 自己把自己登记成「正常」等于**变相改自己的工资** —— 跟上面那句
+    // 「店长不能设置自己的工资」自相矛盾。给自己以外的客服登记照旧可以（店长管客服考勤）。
+    if (req.user?.role === UserRole.ADMIN && dto?.userId && dto.userId === req.user.id) {
+      throw new ForbiddenException('店长不能给自己登记考勤，请联系老板');
+    }
     return { code: 200, data: await this.service.markAttendance(dto) };
   }
 

@@ -163,6 +163,17 @@ const PayrollPage: React.FC = () => {
     return true;
   };
 
+  /**
+   * 考勤登记下拉里能选的人 = 考勤开着的职位，且**店长看不到自己**（老板 2026-10-10）。
+   *
+   * 店长工资里的「迟到 / 缺勤扣款」就是按这张考勤算的，自己给自己登记 = 变相改自己的工资；
+   * 服务端 `POST /payroll/attendance` 同样会拦（店长给自己登记直接 403）。
+   * 给自己以外的客服登记照旧可以（店长管客服考勤）。
+   */
+  const attendanceStaff = staff
+    .filter((s) => attendanceOnFor(s.role))
+    .filter((s) => !(isAdmin && s.id === user?.id));
+
   const markAttendance = async (values: any) => {
     await payrollApi.attendance({
       userId: values.userId,
@@ -301,9 +312,7 @@ const PayrollPage: React.FC = () => {
           <Form.Item name="userId" label="员工" rules={[{ required: true }]}>
             <Select
               style={{ width: 160 }}
-              options={staff
-                .filter((s) => attendanceOnFor(s.role))
-                .map((s) => ({ value: s.id, label: s.username }))}
+              options={attendanceStaff.map((s) => ({ value: s.id, label: s.username }))}
             />
           </Form.Item>
           <Form.Item name="date" label="日期" rules={[{ required: true }]}><DatePicker /></Form.Item>
@@ -325,6 +334,12 @@ const PayrollPage: React.FC = () => {
           标准上下班时间：客服 {attCfg.cs?.start}–{attCfg.cs?.end}
           {attCfg.cs?.enabled === false ? '（已关闭考勤，下拉里不显示）' : ''}；店长 {attCfg.manager?.start}–{attCfg.manager?.end}
           {attCfg.manager?.enabled === false ? '（已关闭考勤，下拉里不显示）' : ''}。
+          {isAdmin && (
+            <>
+              <br />
+              店长不能给自己登记考勤 —— 你自己不在上面这个下拉里，要改请找老板；给客服登记照旧可以。
+            </>
+          )}
         </Text>
       </Card>
 

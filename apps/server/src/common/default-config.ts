@@ -353,6 +353,13 @@ export const OWNER_ONLY_KEYS = [
   'excellence.low_tier_streak', // 末位淘汰连续天数：由服务端每天累加，全局只有一份
   'counter.global_code',        // 全局流水号
   'watchdog.latest_build',      // 云端看门狗构建号：发布脚本写，客户端据此判断要不要换看门狗
+  // ── 店长的考勤：只有老板能改（老板 2026-10-10） ──
+  // 这三个键直接决定店长工资里的「迟到扣款 / 缺勤扣款」（PayrollService.generate 按它算）。
+  // 放给店长自己拨 = 关掉自己的考勤、或把上下班时间放宽到「永远不会迟到」→ 变相改自己的工资，
+  // 跟「店长工资只有老板能改」这条自相矛盾。**客服考勤 `attendance.cs.*` 不受影响**，照旧店长自己设。
+  'attendance.manager.enabled',
+  'attendance.manager.workStart',
+  'attendance.manager.workEnd',
 ] as const;
 
 /**

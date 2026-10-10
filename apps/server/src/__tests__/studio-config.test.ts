@@ -161,6 +161,10 @@ describe('配置归谁改：默认归分店，只有「安全与稳定」归老�
       'entertainment.hourly_rate',
       'attendance.workStart',
       'attendance.workEnd',
+      // 客服考勤仍然是各店店长自己设（只有「店长考勤」归老板，见下一条用例）
+      'attendance.cs.enabled',
+      'attendance.cs.workStart',
+      'attendance.cs.workEnd',
       'capture.expected_per_hour',
       'pool.middle_delay_seconds',
       'pool.bridge_return_jueju_cents',
@@ -178,6 +182,18 @@ describe('配置归谁改：默认归分店，只有「安全与稳定」归老�
     ]) {
       expect(isStudioScopedKey(key)).toBe(true);
       expect(isOwnerOnlyKey(key)).toBe(false);
+    }
+  });
+
+  it('「店长考勤」只有老板能改（店长不能自己拨自己的考勤开关 / 时间）', () => {
+    for (const key of [
+      'attendance.manager.enabled',
+      'attendance.manager.workStart',
+      'attendance.manager.workEnd',
+    ]) {
+      expect(isOwnerOnlyKey(key)).toBe(true);
+      expect(isStudioScopedKey(key)).toBe(false);
+      expect(() => assertStudioScopedKeys([key])).toThrow();
     }
   });
 
