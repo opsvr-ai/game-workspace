@@ -1091,7 +1091,7 @@ sequenceDiagram
 - 证据长图按「服务信息表 → 转账截图 → 游戏截图 → 财务核对卡 → AI 异常分析卡」顺序拼接；`CompositeService.buildComposite(sessionId, flaggedReason, flaggedLevel)` 在结束服务时调用，0 截图红标、转账低于审核金额黄标
 - 「每日统计」页复用 `GET /api/stats/daily`，升级为客服派单/提成核对工作台：发单客服、认领客服、工作微信、客户付款去向、收款账号、陪玩费状态与方式
 - 报账协商：`PUT /api/transactions/:id/propose` 发起改价（`NEGOTIATING`），`accept-proposal` / `reject-proposal` 由陪玩确认或退回
-- 支出/支取审核：`GET/PUT /api/expense-reports*` 与 `GET/PUT /api/wallet-transactions*` 审核陪玩支出、支取与钱包流水（`PENDING → APPROVED/REJECTED`）
+- 支出/支取审核：`GET/PUT /api/expense-reports*` 与 `GET/PUT /api/wallet-transactions*` 审核陪玩支出、支取与业绩（`PENDING → APPROVED/REJECTED`）
 - 报账微信码：陪玩在报账页上传自己的收款码（`Companion.payoutQrUrl`），财务在支出/支取审核与报账统计里点开扫码打钱；`GET /api/companions` 对陪玩本人返回的 `payoutQrUrl` 一律置空
 - **客服派单「先给谁抢」**（老板 2026-09-29）：发单时给 `Order.poolScope` 写 `ONLINE_FIRST`（本店线下先看不见，
   弹窗 / 通知只发桥接 + 线上）或留空（先本店线下，老行为）。本店线下的可见性判定在
@@ -1155,7 +1155,7 @@ sequenceDiagram
 - `GET /api/finance/risk-queue` — 客户画像 + AI 私单风险工作台
 - `PATCH /api/finance/commission/ledgers/:id/status` — 提成结算确认/撤销
 - `GET/PUT /api/expense-reports*` — 支出/支取申请查询与审核
-- `GET/PUT /api/wallet-transactions*` — 钱包流水查询与审核
+- `GET/PUT /api/wallet-transactions*` — 业绩查询与审核
 - `GET/PUT /api/companions/me/payout-qr` — 陪玩自己的报账微信码（读 / 上传更换，限 COMPANION）
 - `GET/PUT /api/finance/commission/cs-profiles` — 客服档位（默认派单范围 + 底薪；读放开到 CS，写限 ADMIN/OWNER）
 - `POST /api/orders/:id/chase-feedback` — 催接单工作室反馈结果（线上 / 桥接单待反馈时，记催的次数 + 推 `order:feedback_chase`）
