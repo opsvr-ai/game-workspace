@@ -222,7 +222,7 @@ export class SettlementService {
       deposit = depAgg._sum.deposit ?? 0;
     }
 
-    // 可支取余额：唯一口径在 common/withdrawable.ts。
+    // 可支取业绩：唯一口径在 common/withdrawable.ts。
     // 以前这里自己算了一遍（用全店业绩套一个档位、还带着写死的 5200 兜底），
     // 跟「钱包 / 支取审核」算出来的数能差出几百块，所以统一收敛过去。
     // 全店视图 = 每个陪玩各自的可用额相加（分润档位本来就是按人按月算的）。

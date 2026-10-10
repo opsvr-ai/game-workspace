@@ -23,7 +23,8 @@ function fakeFile(path: string, filename: string, mimetype = 'image/jpeg') {
 
 function setup() {
   const studiosService = {
-    registerViaInvite: vi.fn(async () => ({ studioId: 'st1', username: '店长A' })),
+    // 参数类型要写出来：`vi.fn(async () => …)` 的 calls[0] 是空元组，下面取 args[6] / args[7] 会判越界。
+    registerViaInvite: vi.fn(async (..._args: any[]) => ({ studioId: 'st1', username: '店长A' })),
   };
   const controller = new StudiosController(studiosService as any);
   return { controller, studiosService };

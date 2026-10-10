@@ -7,7 +7,7 @@
  * - 否则按 entertainment.hourly_rate（元/小时）折算到分钟，四舍五入到角
  *
  * 费率由老板在「系统设置」里填，线上填 0 就是全免。
- * 看板、工作台、搭档接单结算、娱乐余额预警一律走这里，避免四处算法不一致。
+ * 看板、工作台、搭档接单结算、娱乐业绩预警一律走这里，避免四处算法不一致。
  */
 import { roundToJiao } from './money';
 import { resolveConfigsRaw } from './studio-config';
@@ -72,12 +72,12 @@ export function isEntertainmentFree(todayRevenue: number, freeThreshold: number)
   return freeThreshold > 0 && todayRevenue >= freeThreshold;
 }
 /**
- * 刚进娱乐的宽限（秒）：这段时间内不因为「余额判定」把人踢回空闲。
+ * 刚进娱乐的宽限（秒）：这段时间内不因为「业绩判定」把人踢回空闲。
  * 见 checkEntertainmentEligibility 的注释 —— 防的是「刚进去就被踢」那种秒级来回。
  */
 export const ENTERTAINMENT_GRACE_SECONDS = 60;
 
-/** 余额 + 押金还能玩多少分钟（费率 ≤ 0 = 全免 → 无限；钱为负/NaN 一律按 0 算）。 */
+/** 业绩 + 押金还能玩多少分钟（费率 ≤ 0 = 全免 → 无限；钱为负/NaN 一律按 0 算）。 */
 export function entertainmentMinutesLeft(availableFunds: number, hourlyRate: number): number {
   const rate = Number(hourlyRate);
   if (!Number.isFinite(rate) || rate <= 0) return Number.POSITIVE_INFINITY;
@@ -90,7 +90,7 @@ export interface EntertainmentEligibility {
   ok: boolean;
   /** 不给进 / 该踢回去的原因（给陪玩看的中文；ok = true 时是空串） */
   reason: string;
-  /** 余额还能玩几分钟（Infinity = 全免） */
+  /** 业绩还能玩几分钟（Infinity = 全免） */
   minutesLeft: number;
 }
 
@@ -99,7 +99,7 @@ export interface EntertainmentEligibility {
  *
  * 老板报的原话：「刚才张权选择娱乐模式，怎么把 python 杀了，三角洲也进不去？」
  * 查到的是这条链：**切娱乐时压根没判过「玩不玩得起」** —— 先让他进去，
- * 下一个心跳（≤30 秒）才发现余额撑不住，再把他踢回空闲。
+ * 下一个心跳（≤30 秒）才发现业绩撑不住，再把他踢回空闲。
  * 这一进一出十几秒里，**娱乐名单（python.exe）和空闲名单（三角洲）各套了一遍**：
  * python 被杀、他一启动三角洲又被杀，而他根本没真正玩上娱乐。
  * 线上 2026-10-07 16:05:24 进娱乐 → 16:05:29 杀 python → 16:05:39 踢回空闲，就是这条链。
@@ -108,7 +108,7 @@ export interface EntertainmentEligibility {
  * 心跳里的兜底继续保留（context = 'stay'，玩到中途钱花完了才踢），而且刚进去的
  * ENTERTAINMENT_GRACE_SECONDS 内不踢，免得再出现「刚进去就被踢」的秒级来回。
  *
- * 判定口径跟扣费同一个：免单线到了随便玩；否则看余额 + 押金够不够玩满 1 分钟。
+ * 判定口径跟扣费同一个：免单线到了随便玩；否则看业绩 + 押金够不够玩满 1 分钟。
  */
 export function checkEntertainmentEligibility(params: {
   availableFunds: number;
@@ -133,7 +133,7 @@ export function checkEntertainmentEligibility(params: {
   return {
     ok: false,
     minutesLeft,
-    reason: `余额 + 押金不够玩娱乐（现在 ¥${funds}，娱乐 ¥${rate}/小时，${line}）—— 先充值或交押金，或者今天多打几单再进。`,
+    reason: `业绩 + 押金不够玩娱乐（现在 ¥${funds}，娱乐 ¥${rate}/小时，${line}）—— 先充值或交押金，或者今天多打几单再进。`,
   };
 }
 
@@ -218,16 +218,16 @@ export async function sumDepositPlayedToday(
 
 /**
  * 娱乐门槛用的「当日业绩」= 今天 DONE 单的业绩 + 今天打掉的存单。
- * 全系统只有这一处口径（看板 / 工作台 / 余额预警共用）。
+ * 全系统只有这一处口径（看板 / 工作台 / 业绩预警共用）。
  */
 export function entertainmentBasisRevenue(todayRevenue: number, depositPlayed: number): number {
   const a = Number.isFinite(todayRevenue) ? todayRevenue : 0;
   const b = Number.isFinite(depositPlayed) ? depositPlayed : 0;
   return roundToJiao(a + b);
 }
-/** 「能不能玩娱乐」要用到的全部数（余额、费率、免单线、今日业绩 + 打掉的存单） */
+/** 「能不能玩娱乐」要用到的全部数（业绩、费率、免单线、今日业绩 + 打掉的存单） */
 export interface EntertainmentStanding {
-  /** 余额 + 押金 */
+  /** 业绩 + 押金 */
   availableFunds: number;
   hourlyRate: number;
   freeThreshold: number;

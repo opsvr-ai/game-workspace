@@ -610,7 +610,7 @@ const CompanionsPage: React.FC = () => {
                     <Tag color="default" style={{ margin: 0 }}>已离职</Tag>
                     <Popconfirm
                       title="恢复在职？"
-                      description="恢复后可以重新登录；已清零的余额、已释放的工位和工作微信不会自动还原"
+                      description="恢复后可以重新登录；已清零的业绩、已释放的工位和工作微信不会自动还原"
                       onConfirm={() => handleRestore(record)}
                       okText="恢复"
                       cancelText="取消"
@@ -621,7 +621,7 @@ const CompanionsPage: React.FC = () => {
                 ) : (
                   <Popconfirm
                     title="确认离职处理？"
-                    description="账号停用、无法登录；业绩/余额清零，工位和工作微信交回。历史记录保留"
+                    description="账号停用、无法登录；业绩清零，工位和工作微信交回。历史记录保留"
                     onConfirm={() => handleResign(record.companionId || '')}
                     okText="确认"
                     cancelText="取消"

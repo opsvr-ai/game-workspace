@@ -133,11 +133,11 @@ const CompanionWalletCalendarPage: React.FC = () => {
   if (isCompanion) {
     return (
       <div>
-        <PageHeader title="💰 我的报账与支取" subtitle="余额、押金、每天的报账与支取明细" />
+        <PageHeader title="💰 我的报账与支取" subtitle="业绩、押金、每天的报账与支取明细" />
 
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={12}>
-            <StatCard label="余额" value={`¥${money(wallet.balance || 0)}`} tint={SEMANTIC.success} />
+            <StatCard label="业绩" value={`¥${money(wallet.balance || 0)}`} tint={SEMANTIC.success} />
           </Col>
           <Col span={12}>
             <StatCard label="押金" value={`¥${money(wallet.deposit || 0)}`} tint={SEMANTIC.warningDeep} />
@@ -255,7 +255,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
             size="small"
             dataSource={filteredCompanions}
             pagination={{ pageSize: 20, hideOnSinglePage: true, showSizeChanger: false }}
-            locale={{ emptyText: <EmptyState description="本月暂无已通过流水" /> }}
+            locale={{ emptyText: <EmptyState description="本月暂无已通过业绩" /> }}
             columns={[
               { title: '#', width: 50, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
               {

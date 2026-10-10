@@ -25,7 +25,7 @@ function mockWsGateway() {
       to: vi.fn().mockReturnValue({ emit }),
     },
     sendCommand: vi.fn(),
-    // 余额不足被强制切空闲时会重推状态黑名单（见 heartbeat.service.ts）
+    // 业绩不足被强制切空闲时会重推状态黑名单（见 heartbeat.service.ts）
     pushCurrentBlacklist: vi.fn(),
   } as any;
 }
@@ -59,7 +59,7 @@ describe('HeartbeatService', () => {
     wsGateway = mockWsGateway();
     service = new HeartbeatService(mockPrisma as any, wsGateway as any);
     vi.clearAllMocks();
-    // 娱乐余额判定会取「今日已完成业绩」（口径 A：主陪 + 搭档）；
+    // 娱乐业绩判定会取「今日已完成业绩」（口径 A：主陪 + 搭档）；
     // 真实 Prisma 一定返回数组，mock 返回 undefined 会让 `order.findMany(...).catch(...)` 直接炸掉。
     mockPrisma.order.findMany.mockResolvedValue([]);
   });
@@ -204,7 +204,7 @@ describe('HeartbeatService', () => {
     // =======================================================================
     // Force switch to AVAILABLE when balance exhausted
     // =======================================================================
-    it('刚进娱乐 20 秒（余额 0）→ 不踢：宽限防的是「刚进去就被踢」的秒级来回（老板 2026-10-08）', async () => {
+    it('刚进娱乐 20 秒（业绩 0）→ 不踢：宽限防的是「刚进去就被踢」的秒级来回（老板 2026-10-08）', async () => {
       mockPrisma.companionTimeLog.findFirst.mockResolvedValue({
         id: 'log-grace',
         companionId: 'companion-001',

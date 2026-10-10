@@ -42,7 +42,7 @@ interface Props {
  *    点「记跟进」写客户档案（客户管理里能看到同一条），谈好了点「直接派单」发给陪玩，
  *    谈崩了点「处理完成」收起来；
  *  - 已经派出去、陪玩接了的：看「收款情况」（转入 / 转出 / 去向 / 客服微信余额），
- *    账不对点「记流水」补记。
+ *    账不对点「记业绩」补记。
  *
  * 客户信息那五列（来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式）直接调订单表
  * 那一份（orderColumns.tsx 的 buildCustomerInfoColumns），和数据、列宽、字号和订单管理 /
@@ -108,7 +108,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       const { data } = await companionsApi.listPersonnel({ includeBridged: true });
       setPeople(data.data || []);
     } catch {
-      // 人员列表加载失败不阻塞资金流水功能
+      // 人员列表加载失败不阻塞业绩功能
     }
   };
 
@@ -342,7 +342,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
     if (moneyIn > 0 && out) return { text: '已收已转', color: SEMANTIC.successDeep };
     if (moneyIn > 0) return { text: '已收未转', color: SEMANTIC.warningDeep };
     if (out) return { text: '未记转入', color: SEMANTIC.warningDeep };
-    return { text: '未记流水', color: TEXT.tertiary };
+    return { text: '未记业绩', color: TEXT.tertiary };
   };
 
   const openFlow = (r: any) => {
@@ -423,7 +423,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   /**
    * 操作按钮分两套（同一张表里的两种行）：
    *  - 还没派出去的（跟进中）：添加成功 / 添加失败 / 客户已同意 / 直接派单 / 处理完成 + 记跟进；
-   *  - 已经派出去被陪玩接的：补「添加成功 / 添加失败」+ 记跟进 / 记流水。
+   *  - 已经派出去被陪玩接的：补「添加成功 / 添加失败」+ 记跟进 / 记业绩。
    */
   const renderActions = (r: any) => {
     const st = r.contactStatus;
@@ -525,7 +525,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
     if (r._converted) {
       buttons.push(
         <Button key="flow" size="small" onClick={() => openFlow(r)}>
-          记流水
+          记业绩
         </Button>,
       );
     }
@@ -635,7 +635,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
             )}
           </div>
           <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: TEXT.tertiary }}>
-            客户先加到客服工作微信上、慢慢聊；谈得差不多了点「直接派单」发给陪玩。已经派出去的在下面，看「收款情况」记流水。
+            客户先加到客服工作微信上、慢慢聊；谈得差不多了点「直接派单」发给陪玩。已经派出去的在下面，看「收款情况」记业绩。
           </div>
         </div>
         <Space size={8}>
@@ -762,7 +762,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       />
 
       <Modal
-        title="记资金流水"
+        title="记业绩"
         open={!!flowOrder}
         onOk={addFlow}
         onCancel={() => setFlowOrder(null)}

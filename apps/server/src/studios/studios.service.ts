@@ -356,7 +356,7 @@ export class StudiosService {
     return { success: true };
   }
 
-  /** 撤销离职（点错了用）：恢复登录。已清零的余额、已释放的工位和微信不自动还原。 */
+  /** 撤销离职（点错了用）：恢复登录。已清零的业绩、已释放的工位和微信不自动还原。 */
   async restoreEmployee(userId: string, adminStudioId?: string, adminRole?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

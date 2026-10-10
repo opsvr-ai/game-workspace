@@ -10,7 +10,7 @@ import {
   sumDepositPlayedToday,
 } from '../common/entertainment-fee';
 
-// 娱乐费在老板的系统里只有一个算法（看板 / 工作台 / 搭档结算 / 余额预警共用），
+// 娱乐费在老板的系统里只有一个算法（看板 / 工作台 / 搭档结算 / 业绩预警共用），
 // 这里的用例就是那个算法的说明书。
 describe('娱乐费唯一口径', () => {
   it('当日业绩达到免单线 → 免费', () => {
@@ -153,8 +153,8 @@ describe('打存单也算进娱乐门槛（老板 2026-10-04）', () => {
 
 // ── 「能不能进娱乐 / 该不该踢回空闲」的唯一判定（老板 2026-10-08） ──
 // 老板报的原话：「刚才张权选择娱乐模式，怎么把 python 杀了，三角洲也进不去？」
-// 线上现场：余额 0、押金 0、娱乐费率 10 元/小时、免单线 0（= 没开）——
-// 于是「进娱乐 → 20 秒后被心跳按余额不足踢回空闲」，这十几秒里娱乐名单（python.exe）
+// 线上现场：业绩 0、押金 0、娱乐费率 10 元/小时、免单线 0（= 没开）——
+// 于是「进娱乐 → 20 秒后被心跳按业绩不足踢回空闲」，这十几秒里娱乐名单（python.exe）
 // 和空闲名单（三角洲）各套了一遍，两边的进程都被杀了。
 describe('娱乐能不能进 / 该不该踢（老板 2026-10-08）', () => {
   it('费率 0（全免）→ 谁都能玩，永远不踢', () => {
@@ -164,14 +164,14 @@ describe('娱乐能不能进 / 该不该踢（老板 2026-10-08）', () => {
     ).toBe(true);
   });
 
-  it('余额够玩满 1 分钟 → 能进', () => {
+  it('业绩够玩满 1 分钟 → 能进', () => {
     expect(entertainmentMinutesLeft(10, 60)).toBe(10);
     expect(
       checkEntertainmentEligibility({ availableFunds: 10, hourlyRate: 60, freeThreshold: 0, freeToday: false }).ok,
     ).toBe(true);
   });
 
-  it('余额 0、也没到免单线 → 切状态那一下（enter）就该拒绝，并说清怎么办', () => {
+  it('业绩 0、也没到免单线 → 切状态那一下（enter）就该拒绝，并说清怎么办', () => {
     const verdict = checkEntertainmentEligibility({
       availableFunds: 0,
       hourlyRate: 10,
@@ -180,7 +180,7 @@ describe('娱乐能不能进 / 该不该踢（老板 2026-10-08）', () => {
     });
     expect(verdict.ok).toBe(false);
     expect(verdict.minutesLeft).toBe(0);
-    expect(verdict.reason).toContain('余额 + 押金不够玩娱乐');
+    expect(verdict.reason).toContain('业绩 + 押金不够玩娱乐');
   });
 
   it('宽限只给「已经进去的人」：stay 刚进去 20 秒不踢，到 60 秒才踢；enter 一律不宽限', () => {
@@ -190,7 +190,7 @@ describe('娱乐能不能进 / 该不该踢（老板 2026-10-08）', () => {
     expect(checkEntertainmentEligibility({ ...params, context: 'enter', elapsedSeconds: 20 }).ok).toBe(false);
   });
 
-  it('免单线到了 → 余额 0 也能玩', () => {
+  it('免单线到了 → 业绩 0 也能玩', () => {
     expect(
       checkEntertainmentEligibility({ availableFunds: 0, hourlyRate: 10, freeThreshold: 300, freeToday: true }).ok,
     ).toBe(true);

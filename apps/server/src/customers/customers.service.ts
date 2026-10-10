@@ -1360,7 +1360,7 @@ export class CustomersService {
     if (orderIds.length) {
       const blocked = await this.hasSettledOrderHistory(orders, orderIds);
       if (blocked) {
-        throw new ConflictException('该客户已有成交 / 流水记录，不能删除；请改用归属调整或备注说明');
+        throw new ConflictException('该客户已有成交 / 业绩记录，不能删除；请改用归属调整或备注说明');
       }
       try {
         await this.prisma.order.deleteMany({ where: { customerId: id } });

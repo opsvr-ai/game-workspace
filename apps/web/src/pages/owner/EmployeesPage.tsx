@@ -401,7 +401,7 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
         record.companion?.deposit !== undefined ? `¥${(record.companion.deposit || 0).toLocaleString()}` : '-',
     },
     {
-      title: '可支取余额',
+      title: '可支取业绩',
       dataIndex: ['companion', 'balance'],
       key: 'balance',
       width: 96,
@@ -478,7 +478,7 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
               {record.resignedAt ? (
                 <Popconfirm
                   title="确定恢复在职？"
-                  description="恢复后可以重新登录。已清零的余额、已释放的工位和工作微信不会自动还原"
+                  description="恢复后可以重新登录。已清零的业绩、已释放的工位和工作微信不会自动还原"
                   onConfirm={() => handleRestore(record)}
                   okText="恢复"
                   cancelText="取消"
@@ -488,7 +488,7 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
               ) : (
                 <Popconfirm
                   title="确定办理离职？"
-                  description="账号停用、无法登录；陪玩还会清空业绩/余额并释放工位与工作微信。历史记录保留"
+                  description="账号停用、无法登录；陪玩还会清空业绩并释放工位与工作微信。历史记录保留"
                   onConfirm={() => handleResign(record)}
                   okText="离职"
                   cancelText="取消"

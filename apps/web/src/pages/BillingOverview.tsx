@@ -871,7 +871,7 @@ const BillingOverview: React.FC = () => {
             </Text>
             <br />
             <Text>
-              可支取余额：
+              可支取业绩：
               <Text strong style={{ color: '#faad14', fontSize: 18 }}>
                 ¥{(overviewData?.summary?.withdrawable ?? 0).toFixed(1)}
               </Text>

@@ -233,7 +233,7 @@ describe('CustomersService', () => {
       expect(mockPrisma.customer.delete).not.toHaveBeenCalled();
     });
 
-    it('客户有流水记录时挡住', async () => {
+    it('客户有业绩记录时挡住', async () => {
       mockPrisma.customer.findUnique.mockResolvedValue({ id: 'c1', wechatId: 'wx1' });
       mockPrisma.order.findMany.mockResolvedValue([{ id: 'o1', status: 'GRABBED' }]);
       mockPrisma.transaction.count.mockResolvedValue(1);

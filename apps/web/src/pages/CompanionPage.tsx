@@ -249,12 +249,12 @@ const CompanionPage: React.FC = () => {
 
   // 老板 2026-10-08：玩不起就别让他点进去 —— 进去也会被踢回空闲，娱乐/空闲两份名单来回套，
   // python 和三角洲左右都是被杀。口径跟服务端 checkEntertainmentEligibility 完全一致：
-  // 免单线到了随便玩；否则看「余额 + 押金」够不够玩满 1 分钟（每分钟价 = 时价 / 60）。
+  // 免单线到了随便玩；否则看「业绩 + 押金」够不够玩满 1 分钟（每分钟价 = 时价 / 60）。
   const entertainmentAffordable =
     !!data?.entertainmentFreeToday ||
     Number(data?.hourlyRate ?? 0) <= 0 ||
     Number(data?.availableFunds ?? 0) * 60 >= Number(data?.hourlyRate ?? 0);
-  const entertainmentBlockReason = `余额 + 押金不够玩娱乐（现在 ¥${Number(
+  const entertainmentBlockReason = `业绩 + 押金不够玩娱乐（现在 ¥${Number(
     data?.availableFunds ?? 0,
   )}，娱乐 ¥${Number(data?.hourlyRate ?? 0)}/小时，${
     Number(data?.entertainmentThreshold ?? 0) > 0

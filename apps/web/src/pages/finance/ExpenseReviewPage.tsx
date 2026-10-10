@@ -80,7 +80,7 @@ const ExpenseReviewPage: React.FC = () => {
       const { data } = await billingApi.walletTransactions({ status: walletStatus || undefined });
       setWallets((data as any)?.data || []);
     } catch {
-      message.error('加载钱包流水失败');
+      message.error('加载业绩失败');
     } finally {
       setLoadingWallet(false);
     }
@@ -170,10 +170,10 @@ const ExpenseReviewPage: React.FC = () => {
       title: '操作', width: 150,
       render: (_: any, r: any) => r.status === 'PENDING' ? (
         <Space>
-          <Popconfirm title="确认通过该笔流水？" onConfirm={() => reviewWallet(r, 'APPROVED')}>
+          <Popconfirm title="确认通过该笔业绩？" onConfirm={() => reviewWallet(r, 'APPROVED')}>
             <Button size="small" type="primary">通过</Button>
           </Popconfirm>
-          <Popconfirm title="确认驳回该笔流水？" onConfirm={() => reviewWallet(r, 'REJECTED')}>
+          <Popconfirm title="确认驳回该笔业绩？" onConfirm={() => reviewWallet(r, 'REJECTED')}>
             <Button size="small" danger>驳回</Button>
           </Popconfirm>
         </Space>
@@ -185,7 +185,7 @@ const ExpenseReviewPage: React.FC = () => {
     <div>
       <PageHeader
         title="支出/支取审核"
-        subtitle="审核陪玩提交的支出、支取申请与钱包流水，杜绝多报、重复支取"
+        subtitle="审核陪玩提交的支出、支取申请与业绩，杜绝多报、重复支取"
         extra={
           <Space>
             <DatePicker picker="month" value={month} onChange={(v) => v && setMonth(v)} allowClear={false} />
@@ -224,9 +224,9 @@ const ExpenseReviewPage: React.FC = () => {
           },
           {
             key: 'wallet',
-            label: `钱包流水 (${wallets.length})`,
+            label: `业绩 (${wallets.length})`,
             children: (
-              <Card size="small" title="钱包流水审核" extra={
+              <Card size="small" title="业绩审核" extra={
                 <Select size="small" style={{ width: 120 }} value={walletStatus} onChange={setWalletStatus}
                   options={[
                     { label: '待审核', value: 'PENDING' },
@@ -236,7 +236,7 @@ const ExpenseReviewPage: React.FC = () => {
                   ]} />
               }>
                 <Table rowKey="id" size="small" loading={loadingWallet} pagination={{ pageSize: 20 }} dataSource={wallets}
-                  columns={walletColumns as any} locale={{ emptyText: '暂无钱包流水' }} />
+                  columns={walletColumns as any} locale={{ emptyText: '暂无业绩' }} />
               </Card>
             ),
           },

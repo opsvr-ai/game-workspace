@@ -6,7 +6,7 @@ import { resolveConfigs } from './studio-config';
 import { companionOrderRevenue } from './order-revenue';
 
 /**
- * 可支取余额（唯一口径，需求文档 §7.1）：
+ * 可支取业绩（唯一口径，需求文档 §7.1）：
  *   (当月累计业绩 × 分润比例) − 当月已支取 − 当月待审支取 − 未打存单预留
  *
  * 老板 2026-09-20 拍板前，代码里三处算法各不相同（历史全量业绩 / 忙碌人数快照 …），

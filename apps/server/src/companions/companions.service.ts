@@ -627,7 +627,7 @@ export class CompanionsService {
    * 娱乐「玩不玩得起」——进之前先问一次（老板 2026-10-08）。
    *
    * 老板报的原话：「张权选择娱乐模式，怎么把 python 杀了，三角洲也进不去？」
-   * 查到的根因是：以前**切娱乐时压根没判**，先让他进去，下一个心跳（≤30 秒）才发现余额撑不住，
+   * 查到的根因是：以前**切娱乐时压根没判**，先让他进去，下一个心跳（≤30 秒）才发现业绩撑不住，
    * 再把他踢回空闲。这一进一出十几秒里，娱乐名单（python.exe）和空闲名单（三角洲）**各套了一遍** ——
    * python 被杀、他一启动三角洲又被杀，而他根本没真正玩上娱乐。
    *
@@ -1100,7 +1100,7 @@ export class CompanionsService {
     const todayDepositPlayed = depositPlayedMap.get(companionId) || 0;
     const entertainmentBasis = entertainmentBasisRevenue(todayRevenue, todayDepositPlayed);
     // 娱乐随时可进：门槛内免费，否则按小时计费（报账时体现）。
-    // 算法统一在 common/entertainment-fee.ts，跟看板、搭档结算、余额预警同一套。
+    // 算法统一在 common/entertainment-fee.ts，跟看板、搭档结算、业绩预警同一套。
     const entertainmentFee = computeEntertainmentFee({
       minutes: durations.entertainment / 60,
       todayRevenue: entertainmentBasis,

@@ -235,8 +235,8 @@ describe('CompanionsService', () => {
       expect(result).toEqual(updatedCompanion);
     });
 
-    it('余额/押金不够、又没到免单线 → 当场拒绝进娱乐，娱乐名单根本不下发（老板 2026-10-08 张权那单）', async () => {
-      // 线上现场：余额 0、押金 0、娱乐费率 10 元/小时、免单线 0（= 没开）。
+    it('业绩/押金不够、又没到免单线 → 当场拒绝进娱乐，娱乐名单根本不下发（老板 2026-10-08 张权那单）', async () => {
+      // 线上现场：业绩 0、押金 0、娱乐费率 10 元/小时、免单线 0（= 没开）。
       // 以前不判就让他进，下一个心跳（≤30 秒）又把他踢回空闲 —— 这十几秒里娱乐名单（python.exe）
       // 和空闲名单（三角洲）各套了一遍：python 被杀、他一启动三角洲又被杀。现在进之前就拦掉。
       const companionUser = {
@@ -260,12 +260,12 @@ describe('CompanionsService', () => {
       ]);
 
       await expect(service.updateStatus('comp-1', 'ENTERTAINMENT', companionUser)).rejects.toThrow(
-        /余额 \+ 押金不够玩娱乐/,
+        /业绩 \+ 押金不够玩娱乐/,
       );
       expect(mockPrisma.companion.update).not.toHaveBeenCalled();
     });
 
-    it('今天业绩到了免单线 → 余额 0 也能进娱乐', async () => {
+    it('今天业绩到了免单线 → 业绩 0 也能进娱乐', async () => {
       const companionUser = {
         id: 'u5',
         username: 'zhangsan',

@@ -249,7 +249,7 @@ export class BillingService {
     });
   }
 
-  // 陪玩报账与支取统计：管理端按陪玩汇总，陪玩端看自己的每日明细。只统计已通过流水。
+  // 陪玩报账与支取统计：管理端按陪玩汇总，陪玩端看自己的每日明细。只统计已通过业绩。
   async getWalletDaily(studioId: string, month: string, companionId?: string) {
     const [year, mon] = month.split('-').map((n) => Number(n));
     const start = new Date(Date.UTC(year, mon - 1, 1));
@@ -380,7 +380,7 @@ export class BillingService {
       const breakdown = await computeWithdrawable(this.prisma, tx.companionId, { excludeTxId: tx.id });
       if (breakdown.withdrawable < tx.amount) {
         throw new ForbiddenException(
-          `可支取余额不足，无法通过支取（可用 ¥${breakdown.withdrawable}，申请 ¥${tx.amount}）`,
+          `可支取业绩不足，无法通过支取（可用 ¥${breakdown.withdrawable}，申请 ¥${tx.amount}）`,
         );
       }
       update.balanceAfter = Math.round((breakdown.withdrawable - tx.amount) * 100) / 100;

@@ -3366,7 +3366,7 @@ export class OrdersService implements OnModuleInit {
     };
   }
 
-  // 客服工作微信收款明细：按微信聚合相关订单的每一笔资金流水，并标出问题单。
+  // 客服工作微信收款明细：按微信聚合相关订单的每一笔业绩，并标出问题单。
   async listCsWechatFlow(studioId: string) {
     const [wechats, orders, logs, bridgeCfg] = await Promise.all([
       this.prisma.workWechat.findMany({ where: { studioId, type: 'STUDIO' } }),
@@ -3476,7 +3476,7 @@ export class OrdersService implements OnModuleInit {
 
     const problems: string[] = [];
     if (moneyFlows.length === 0) {
-      problems.push('未记流水');
+      problems.push('未记业绩');
     } else {
       if (inTotal <= 0) problems.push('无客户转入');
 

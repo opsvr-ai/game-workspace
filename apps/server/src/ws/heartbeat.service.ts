@@ -76,7 +76,7 @@ export class HeartbeatService {
         data: { durationSeconds: elapsed },
       });
 
-      // 娱乐余额检查：数从 loadEntertainmentStanding 一次取齐（跟「能不能进娱乐」同一处口径，
+      // 娱乐业绩检查：数从 loadEntertainmentStanding 一次取齐（跟「能不能进娱乐」同一处口径，
       // 见 common/entertainment-fee.ts）—— 以前切状态和心跳各查各的，才会出现「能进、进去又被踢」。
       if (openLog.mode === 'ENTERTAINMENT') {
         const standing = await loadEntertainmentStanding(this.prisma as any, user.companionId, now);
@@ -91,7 +91,7 @@ export class HeartbeatService {
           });
           const remainingMinutes = entertainmentMinutesLeft(availableFunds, hourlyRate);
 
-          // 能不能继续留在娱乐：唯一口径（免单线到了随便玩；否则余额 + 押金够不够玩满 1 分钟），
+          // 能不能继续留在娱乐：唯一口径（免单线到了随便玩；否则业绩 + 押金够不够玩满 1 分钟），
           // 且刚进娱乐的宽限期内不踢 —— 见 checkEntertainmentEligibility 的注释。
           const verdict = checkEntertainmentEligibility({
             availableFunds,
@@ -105,7 +105,7 @@ export class HeartbeatService {
           // 30 minute warning
           if (!freeToday && remainingMinutes <= 30 && remainingMinutes > 0) {
             this.wsGateway.server.to(`user:${user.id}`).emit('entertainment:warning', {
-              message: `娱乐已 ${feeMinutes} 分钟（¥${fee}），费率 ¥${hourlyRate}/小时，余额 ¥${availableFunds} 仅够再玩 ${remainingMinutes} 分钟`,
+              message: `娱乐已 ${feeMinutes} 分钟（¥${fee}），费率 ¥${hourlyRate}/小时，业绩 ¥${availableFunds} 仅够再玩 ${remainingMinutes} 分钟`,
               elapsedMinutes: feeMinutes,
               fee,
               hourlyRate,
@@ -143,7 +143,7 @@ export class HeartbeatService {
               },
             });
             this.wsGateway.server.to(`user:${user.id}`).emit('entertainment:forceIdle', {
-              message: `余额不足，已自动切换到空闲状态（娱乐 ${feeMinutes} 分钟，按 ¥${hourlyRate}/小时 该收 ¥${fee}）。${verdict.reason}`,
+              message: `业绩不足，已自动切换到空闲状态（娱乐 ${feeMinutes} 分钟，按 ¥${hourlyRate}/小时 该收 ¥${fee}）。${verdict.reason}`,
             });
             if (user.studioId) {
               this.wsGateway.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
