@@ -10,7 +10,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { companionMonthRevenueParts, companionOrderRevenue } from '../common/order-revenue';
-import { checkEntertainmentEligibility, computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, loadEntertainmentStanding, manualTodayBoost, sumDepositPlayedToday } from '../common/entertainment-fee';
+import { checkEntertainmentEligibility, computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, loadEntertainmentStanding, manualTodayBoost, manualTodayBoosts, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { roundToJiao } from '../common/money';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { CompanionRevenueService } from './companion-revenue.service';
@@ -389,6 +389,10 @@ export class CompanionsService {
       }
     }
     // 今日接单时长：与首页仪表盘同源（CompanionTimeLog mode=BUSY），跨营业日只算落在今天那段。
+    // 叠加手工补录的今日业绩（老板 2026-10-11）：实时看板那一列「今日」跟娱乐门槛 / 首页同一个口径。
+    for (const [boostCid, boost] of manualTodayBoosts(companions, dayNow)) {
+      todayRevMap.set(boostCid, (todayRevMap.get(boostCid) || 0) + boost);
+    }
     const busyLogs = await this.prisma.companionTimeLog.findMany({
       where: {
         companionId: { in: ids },
