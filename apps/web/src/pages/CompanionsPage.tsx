@@ -893,7 +893,7 @@ const CompanionsPage: React.FC = () => {
           <Form.Item
             name="todayRevenue"
             label="今日业绩（要测娱乐就填这格，留空 = 不改）"
-            extra="能不能点「娱乐」、接单名额解不解锁，看的就是「今天」的业绩 —— 填到本店免单线，他今天就能免费玩娱乐。只算今天这一天，明天自动失效。"
+            extra="能不能点「娱乐」、接单名额解不解锁，看的就是「今天」的业绩 —— 填到本店免单线（默认 300），他今天就能免费玩娱乐。填多少今天就算多少（不是往上加）；只算今天这一天，明天自动失效。"
           >
             <InputNumber min={0} step={50} style={{ width: '100%' }} prefix="¥" placeholder="不改就不填" />
           </Form.Item>
