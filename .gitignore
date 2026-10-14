@@ -224,6 +224,11 @@ apps/*/.claude/
 **/__pycache__/
 
 # 本机预览用：假后台 + 截图注入脚本（2026-10-07）
+
+# 运维（远程装 / 排障）工具目录：里面难免出现机器口令、现场日志、从别人机器上取回的样本，
+# 一律不进仓库（2026-10-15 发现其中一个取回脚本带着明文的运维口令，差点被 git add -A 带进来）。
+_ops_scripts/
+
 !scripts/_mock_api.mjs
 !scripts/_shot_seed_owner.js
 !scripts/_shot_pages.mjs
