@@ -2181,24 +2181,16 @@ func launchClient() {
 	safeInfo(fmt.Sprintf("Launching: %s", path))
 	pid, err := launchInUserSession(path)
 	if err != nil {
-		// 机器上明明有登录用户在、却没能在他的桌面上把客户端拉起来 —— 这一轮先不拉。
-		// 绝不能退回「以 SYSTEM 在会话 0 里 exec 一份」：那份实例没人看得见、也用不上，
-		// GPU 子进程还会崩溃-重启到天荒地老（见 userSessionForLaunch 的注释）。
-		if _, ok := userSessionForLaunch(); ok {
-			safeWarn(fmt.Sprintf("CreateProcessAsUser failed: %v — a user session exists, refusing the session-0 fallback", err))
-			atomic.StoreInt64(&launchBackoffUntil, time.Now().Add(30*time.Second).UnixNano())
-			return
-		}
-		safeWarn(fmt.Sprintf("CreateProcessAsUser failed: %v — no user session, fallback exec", err))
-		killAllClientProcesses()
-		time.Sleep(500 * time.Millisecond)
-		cmd := exec.Command(path)
-		cmd.Dir = filepath.Dir(path)
-		if e := cmd.Start(); e != nil {
-			safeWarn(fmt.Sprintf("exec fallback failed: %v", e))
-		} else {
-			clientPID = uint32(cmd.Process.Pid)
-		}
+		// 拉不起来就这一轮先不拉，下一轮再试。**绝不退回「以 SYSTEM 在会话 0 里 exec 一份」**：
+		// 客户端是带界面的程序，会话 0 里那份没人看得见、也没人用得上，Electron 的 GPU 子进程
+		// 还会在那边「崩溃 → 重启」转上几千次，白吃 CPU/内存把整台机器拖卡 ——
+		// 2026-10-15 在 192.168.1.6 抓到：一天 8300 多条重启，任务管理器里同时挂着两个
+		// 陪玩管理.exe；192.168.1.4 也是同一份毛病。
+		// 最常见的失败是「开机了但还没人登录」（服务启动比登录早），那会儿本来也没人要用客户端；
+		// 等有人登录，下一轮自然会在他的桌面上把它拉起来。
+		safeWarn(fmt.Sprintf("CreateProcessAsUser failed: %v — no user session to launch into, retry in 60s", err))
+		atomic.StoreInt64(&launchBackoffUntil, time.Now().Add(60*time.Second).UnixNano())
+		return
 	} else {
 		clientPID = pid
 		safeInfo(fmt.Sprintf("Client started pid=%d", pid))
