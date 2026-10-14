@@ -293,6 +293,8 @@ var (
 	userenv                          = windows.NewLazySystemDLL("userenv.dll")
 	procWTSGetActiveConsoleSessionId = kernel32.NewProc("WTSGetActiveConsoleSessionId")
 	procWTSQueryUserToken            = wtsapi32.NewProc("WTSQueryUserToken")
+	procWTSEnumerateSessionsW        = wtsapi32.NewProc("WTSEnumerateSessionsW")
+	procWTSFreeMemory                = wtsapi32.NewProc("WTSFreeMemory")
 	procCreateEnvironmentBlock       = userenv.NewProc("CreateEnvironmentBlock")
 	procDestroyEnvironmentBlock      = userenv.NewProc("DestroyEnvironmentBlock")
 )
@@ -2014,14 +2016,83 @@ func consumeExitRequest() bool {
 	return true
 }
 
+// WTS_SESSION_INFOW：枚举会话时拿到的每一条。
+type wtsSessionInfo struct {
+	SessionID      uint32
+	WinStationName *uint16
+	State          uint32
+}
+
+// WTSActive：这个会话有用户登录、正连着。
+const wtsActive = 0
+
+// pickActiveSessionID 从会话列表里挑一个「能拿到用户令牌的活动会话」。
+// 单独抽出来是为了能在单测里喂假数据：真机上要跑 WTS 得是本机服务，测不了。
+func pickActiveSessionID(infos []wtsSessionInfo, canQueryToken func(uint32) bool) (uint32, bool) {
+	for i := range infos {
+		if infos[i].State != wtsActive || infos[i].SessionID == 0 {
+			continue
+		}
+		if canQueryToken(infos[i].SessionID) {
+			return infos[i].SessionID, true
+		}
+	}
+	return 0, false
+}
+
+// userSessionForLaunch 找一个「有登录用户」的会话号，去他的桌面上拉起客户端。
+//
+// 只用 WTSGetActiveConsoleSessionId 是不够的：那是**控制台**会话。机器锁着屏、或者
+// 用户是从远程桌面登进来的（控制台那头没人），它就拿不到用户令牌，WTSQueryUserToken
+// 直接失败 —— 老代码这时会退回「以 SYSTEM 在会话 0 里 exec 一份」。客户端是带界面的
+// 程序，会话 0 里那份没人看得见、也用不上，Electron 的 GPU 子进程还会在那边
+// 「崩溃 → 重启 → 再崩溃」转上几千次，白吃 CPU/内存。2026-10-15 在 192.168.1.6
+// 抓到：一天 1.5MB / 8300 多条重启，任务管理器里同时挂着两个客户端进程；
+// 192.168.1.4 也是同一个毛病。所以控制台令牌拿不到时，改成枚举会话挑一个活动的。
+func userSessionForLaunch() (uint32, bool) {
+	if sid, _, _ := procWTSGetActiveConsoleSessionId.Call(); sid != 0xFFFFFFFF {
+		if canQueryUserToken(uint32(sid)) {
+			return uint32(sid), true
+		}
+	}
+
+	var (
+		sessions *wtsSessionInfo
+		count    uint32
+	)
+	// WTS_CURRENT_SERVER_HANDLE = 0；Version 必须是 1。
+	if r, _, _ := procWTSEnumerateSessionsW.Call(
+		0, 0, 1,
+		uintptr(unsafe.Pointer(&sessions)),
+		uintptr(unsafe.Pointer(&count)),
+	); r == 0 {
+		return 0, false
+	}
+	defer procWTSFreeMemory.Call(uintptr(unsafe.Pointer(sessions)))
+	if sessions == nil || count == 0 {
+		return 0, false
+	}
+	return pickActiveSessionID(unsafe.Slice(sessions, count), canQueryUserToken)
+}
+
+// canQueryUserToken 试拿一次这个会话的用户令牌（拿到就关掉），只用来判断会话能不能用。
+func canQueryUserToken(sessionID uint32) bool {
+	var token windows.Token
+	if r, _, _ := procWTSQueryUserToken.Call(uintptr(sessionID), uintptr(unsafe.Pointer(&token))); r != 0 {
+		token.Close()
+		return true
+	}
+	return false
+}
+
 func launchInUserSession(exePath string) (uint32, error) {
-	sessionID, _, _ := procWTSGetActiveConsoleSessionId.Call()
-	if sessionID == 0xFFFFFFFF {
-		return 0, fmt.Errorf("no active console session")
+	sessionID, ok := userSessionForLaunch()
+	if !ok {
+		return 0, fmt.Errorf("no logged-on user session")
 	}
 
 	var token windows.Token
-	r1, _, _ := procWTSQueryUserToken.Call(sessionID, uintptr(unsafe.Pointer(&token)))
+	r1, _, _ := procWTSQueryUserToken.Call(uintptr(sessionID), uintptr(unsafe.Pointer(&token)))
 	if r1 == 0 {
 		return 0, fmt.Errorf("WTSQueryUserToken failed")
 	}
@@ -2110,7 +2181,15 @@ func launchClient() {
 	safeInfo(fmt.Sprintf("Launching: %s", path))
 	pid, err := launchInUserSession(path)
 	if err != nil {
-		safeWarn(fmt.Sprintf("CreateProcessAsUser failed: %v — fallback exec", err))
+		// 机器上明明有登录用户在、却没能在他的桌面上把客户端拉起来 —— 这一轮先不拉。
+		// 绝不能退回「以 SYSTEM 在会话 0 里 exec 一份」：那份实例没人看得见、也用不上，
+		// GPU 子进程还会崩溃-重启到天荒地老（见 userSessionForLaunch 的注释）。
+		if _, ok := userSessionForLaunch(); ok {
+			safeWarn(fmt.Sprintf("CreateProcessAsUser failed: %v — a user session exists, refusing the session-0 fallback", err))
+			atomic.StoreInt64(&launchBackoffUntil, time.Now().Add(30*time.Second).UnixNano())
+			return
+		}
+		safeWarn(fmt.Sprintf("CreateProcessAsUser failed: %v — no user session, fallback exec", err))
 		killAllClientProcesses()
 		time.Sleep(500 * time.Millisecond)
 		cmd := exec.Command(path)

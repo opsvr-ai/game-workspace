@@ -996,3 +996,46 @@ func TestUpdateSignalForMyOwnKindStillApplies(t *testing.T) {
 		t.Fatal("装完之后应该留下 pending-update.json 等健康标记")
 	}
 }
+
+// 会话 0 里那份「以 SYSTEM 跑」的客户端是一颗地雷（见 userSessionForLaunch 的注释）：
+// 挑会话时必须跳过会话 0 和已经断开的会话，只认活动会话里能拿到用户令牌的那个。
+func TestPickActiveSessionSkipsSessionZeroAndDisconnected(t *testing.T) {
+	infos := []wtsSessionInfo{
+		{SessionID: 0, State: wtsActive}, // 服务会话，永远不选
+		{SessionID: 1, State: 4},         // WTSDisconnected：用户早就退了
+		{SessionID: 2, State: wtsActive}, // 就是它
+	}
+	var asked []uint32
+	sid, ok := pickActiveSessionID(infos, func(id uint32) bool {
+		asked = append(asked, id)
+		return true
+	})
+	if !ok || sid != 2 {
+		t.Fatalf("must pick session 2, got %d (ok=%v)", sid, ok)
+	}
+	if len(asked) != 1 || asked[0] != 2 {
+		t.Fatalf("must not even try session 0 / the disconnected one, asked=%v", asked)
+	}
+}
+
+// 活动会话也可能拿不到令牌（锁屏、或用户是从远程桌面登的）—— 撞上就继续往下找，
+// 别就此认输、退回会话 0 里跑一份 SYSTEM 实例。
+func TestPickActiveSessionSkipsSessionsWithoutAUserToken(t *testing.T) {
+	infos := []wtsSessionInfo{
+		{SessionID: 1, State: wtsActive},
+		{SessionID: 3, State: wtsActive},
+	}
+	sid, ok := pickActiveSessionID(infos, func(id uint32) bool { return id != 1 })
+	if !ok || sid != 3 {
+		t.Fatalf("must fall through to session 3, got %d (ok=%v)", sid, ok)
+	}
+}
+
+func TestPickActiveSessionReportsNoneFound(t *testing.T) {
+	if sid, ok := pickActiveSessionID([]wtsSessionInfo{{SessionID: 1, State: 4}}, func(uint32) bool { return true }); ok {
+		t.Fatalf("no active session must report not-found, got %d", sid)
+	}
+	if sid, ok := pickActiveSessionID(nil, func(uint32) bool { return true }); ok {
+		t.Fatalf("empty session list must report not-found, got %d", sid)
+	}
+}
