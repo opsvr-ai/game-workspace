@@ -101,7 +101,7 @@ const updateDecisions = createUpdateDecisions({
   fs,
   env: process.env,
 });
-const { watchdogReady, readBlockedVersions, signalUpdate } = updateDecisions;
+const { watchdogReady, readBlockedVersions, signalUpdate, freeDiskBytes } = updateDecisions;
 
 // 看门狗更新完会等客户端自报「我起来了」（client-healthy.json）：
 // 等不到就整目录回滚到更新前那一版。所以只要主进程起来了就写，之后每分钟刷新一次。
@@ -147,6 +147,8 @@ function checkForUpdates() {
           zipUrl: data.zipUrl,
           blockedVersions: readBlockedVersions(),
           isWatchdogReady: watchdogReady,
+          // 装机盘快满了就别下（下得下来、装不进去，只会空转着刷流量），见 update-decisions.js。
+          freeBytes: freeDiskBytes(path.parse(UPDATE_DIR).root),
         });
         if (decision.action === 'skip') return;
 

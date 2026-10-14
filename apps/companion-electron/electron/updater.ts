@@ -152,6 +152,22 @@ function signalUpdate(downloadUrl: string, localPath?: string, version?: string)
   }
 }
 
+// 装机盘至少要空出这么多，才去下那个 120MB 起的安装包。
+// 2026-10-15 线上实况：一台机器 C 盘只剩 0.5GB，包能下下来、静默安装却写不进去，
+// 于是「下载 → 装失败 → 重启 → 再下」一天白刷 13GB，还把整台机器拖到卡死。
+// 盘不够就先别下（管理端能看到版本一直上不去），等腾出空间再来。
+const MIN_FREE_DISK_BYTES = 2 * 1024 * 1024 * 1024;
+
+/** 装机盘还能写多少字节。量不出来（不支持 statfs 的盘）就当无限，别因此卡住更新。 */
+function freeDiskBytes(dir: string): number {
+  try {
+    const st = (fs as any).statfsSync(dir) as { bsize: number; bavail: number };
+    return Number(st.bsize) * Number(st.bavail);
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
+
 /**
  * 只给单测用的出口（electron/updater.test.ts）。
  *
@@ -168,6 +184,8 @@ export const __test__ = {
   stagedPackageReady,
   compareVersions,
   mayApplyUpdateNow,
+  freeDiskBytes,
+  MIN_FREE_DISK_BYTES,
 };
 
 // 更新进度不再弹窗，改为更新托盘提示文字（配合托盘图标转圈）
@@ -337,6 +355,14 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
   // 上一轮在接单时已经把这一版的包下好了 → 不用再下 123MB，等空闲直接装。
   const havePackage = stagedPackageReady(version, localZip);
   if (!havePackage) {
+    const free = freeDiskBytes('C:\\');
+    if (free < MIN_FREE_DISK_BYTES) {
+      logger.warn('Not enough free disk space to download the update — skip this round', {
+        freeMB: Math.round(free / 1024 / 1024),
+        needMB: MIN_FREE_DISK_BYTES / 1024 / 1024,
+      });
+      return;
+    }
     // 下载本身不打断接单（计时、截图、客户都在陪玩那边，跟这儿没关系），
     // 所以「接单中」也先把包下好；会不会打断只看最后那一下重启。
     // 串行更新：先申请下载名额，没名额就等着，避免多台同时下载把带宽打满、谁也下不动。
@@ -394,7 +420,10 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
     return;
   }
   signalUpdate(downloadUrl, localZip, version);
-  clearStagedUpdate();
+  // 备货标记**先别清**：看门狗这一轮要是没装成（磁盘满、目录动不了、断电都算），
+  // 下一轮就能直接用这份包，不必再下 120MB。真装上了 clearUpdateAttemptIfApplied()
+  // 会连同标记一起清掉；包被看门狗删了的话 stagedPackageReady() 会因为文件不在而
+  // 返回 false，也不会拿着不完整的包硬装。
   logger.info('Update handed off to SystemHelper', { localZip, version });
   // 记下「这一版已经交出去了」：装成功后 clearUpdateAttemptIfApplied 会清掉，
   // 装不成功就至少 30 分钟内不再重复下这一版。

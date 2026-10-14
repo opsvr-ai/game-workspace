@@ -17,6 +17,7 @@ const {
   decideUpdate,
   createUpdateDecisions,
   defaultCompanionExePaths,
+  MIN_FREE_DISK_BYTES,
 } = requireCjs('./update-decisions.js');
 
 const MARK = '客服管理.exe';
@@ -282,5 +283,50 @@ describe('compareVersions：按段比数字，不是按字符串', () => {
 
   it('不是数字的段当 0', () => {
     expect(compareVersions('1.x.0', '1.0.0')).toBe(0);
+  });
+});
+
+describe('装机盘快满了就别下更新包（2026-10-15 那台只剩 0.5GB 的机器）', () => {
+  const base = {
+    latest: '1.1.0',
+    current: '1.0.0',
+    exeUrl: '/api/agent/cs/download/latest',
+    zipUrl: '/api/agent/cs/download/zip',
+    blockedVersions: {},
+    isWatchdogReady: () => true,
+  };
+
+  it('只剩不到 2GB → 这一轮不下（下得下来、装不进去，纯空转刷流量）', () => {
+    expect(decideUpdate({ ...base, freeBytes: MIN_FREE_DISK_BYTES - 1 })).toEqual({
+      action: 'skip',
+      reason: 'low-disk',
+    });
+  });
+
+  it('空间够 → 照常走静默整包换装', () => {
+    expect(decideUpdate({ ...base, freeBytes: MIN_FREE_DISK_BYTES }).action).toBe('silent');
+  });
+
+  it('没传 freeBytes（老的调用方 / 量不到）→ 不拦，照常更新', () => {
+    expect(decideUpdate({ ...base }).action).toBe('silent');
+  });
+
+  it('盘不够排在「拉黑」之后：这台机器上装坏过的版本照旧直接跳过', () => {
+    const d = decideUpdate({ ...base, blockedVersions: { '1.1.0': '装坏过' }, freeBytes: 1 });
+    expect(d.reason).toBe('blocked');
+  });
+});
+
+describe('freeDiskBytes：量不出来就当无限，别把机器永远卡在老版本上', () => {
+  it('量得到就按 bsize × 可用块数算字节', () => {
+    const fs = fakeFs();
+    fs.statfsSync = vi.fn(() => ({ bsize: 4096, bavail: 1000 }));
+    const { decisions } = makeDecisions({ fs });
+    expect(decisions.freeDiskBytes('C:\\')).toBe(4096 * 1000);
+  });
+
+  it('fs 上没有 statfsSync（或它抛错）= 量不到 → Infinity，不拦更新', () => {
+    const { decisions } = makeDecisions(); // 这个假 fs 本来就没实现 statfsSync
+    expect(decisions.freeDiskBytes('C:\\')).toBe(Infinity);
   });
 });

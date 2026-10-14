@@ -54,6 +54,14 @@ function defaultCompanionExePaths(env) {
   ];
 }
 
+/**
+ * 装机盘至少空出这么多才去下更新包。
+ * 2026-10-15 线上实况：一台机器 C 盘只剩 0.5GB，120MB 的包下得下来、装却写不进去，
+ * 于是「下载 → 装失败 → 重启 → 再下」一天白刷十几 GB，还把整台机器拖到卡死。
+ * 盘不够就先不下（管理端上能看出这台的版本一直没动），等腾出空间再来。
+ */
+const MIN_FREE_DISK_BYTES = 2 * 1024 * 1024 * 1024;
+
 function compareVersions(a, b) {
   const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
   const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0);
@@ -70,7 +78,8 @@ function compareVersions(a, b) {
  *   ① 服务器没给版本 / 没给安装包地址 → 什么都别做；
  *   ② 版本不比本机新 → 不做（用字符串不等判断会反复下载安装 + 退出，闪退死循环就是这么来的）；
  *   ③ 这个版本在这台机器上装坏过（看门狗回滚 + 拉黑）→ 不再下，否则死循环；
- *   ④ 走到这里才决定路径：有「认得客服端」的看门狗就走整包静默换装，否则退回装安装包（要点一次 UAC）。
+ *   ④ 装机盘快满了（下得下来、装不进去，只会空转）→ 这一轮先不下；
+ *   ⑤ 走到这里才决定路径：有「认得客服端」的看门狗就走整包静默换装，否则退回装安装包（要点一次 UAC）。
  * isWatchdogReady 传的是函数：只有真走到第 ④ 步才去读那个 1MB 的看门狗 exe，
  * 前面几步跳过时不该有任何多余的文件读写。
  */
@@ -81,11 +90,16 @@ function decideUpdate({
   zipUrl,
   blockedVersions,
   isWatchdogReady,
+  freeBytes,
 }) {
   if (!latest || !exeUrl) return { action: 'skip', reason: 'no-server-info' };
   if (compareVersions(latest, current) <= 0) return { action: 'skip', reason: 'not-newer' };
   if (Object.prototype.hasOwnProperty.call(blockedVersions || {}, latest)) {
     return { action: 'skip', reason: 'blocked' };
+  }
+  // freeBytes 缺省（老的调用方 / 量不到）时不做判断，交给下面照常走。
+  if (typeof freeBytes === 'number' && freeBytes < MIN_FREE_DISK_BYTES) {
+    return { action: 'skip', reason: 'low-disk' };
   }
   const silent = !!(zipUrl && isWatchdogReady());
   return {
@@ -172,6 +186,17 @@ function createUpdateDecisions(deps) {
     }
   }
 
+  // 装机盘还剩多少可写字节。量不出来（假 fs / 不支持 statfs 的盘）就当无限：
+  // 宁可放它去更新，也别因为量不到空间把一台机器永远卡在老版本上。
+  function freeDiskBytes(dir) {
+    try {
+      const st = fs.statfsSync(dir);
+      return Number(st.bsize) * Number(st.bavail);
+    } catch {
+      return Infinity;
+    }
+  }
+
   function signalUpdate(url, localPath, version) {
     try {
       fs.mkdirSync(updateDir, { recursive: true });
@@ -189,6 +214,7 @@ function createUpdateDecisions(deps) {
     watchdogWatchesCs,
     readBlockedVersions,
     watchdogReady,
+    freeDiskBytes,
     signalUpdate,
     decide: (input) => decideUpdate(input),
     paths: { updateDir, signalFile, blockedFile, kindFile, watchdogExe },
@@ -203,4 +229,5 @@ module.exports = {
   DEFAULT_UPDATE_DIR,
   DEFAULT_WATCHDOG_EXE,
   DEFAULT_WATCHDOG_MARK,
+  MIN_FREE_DISK_BYTES,
 };

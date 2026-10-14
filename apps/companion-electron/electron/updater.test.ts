@@ -19,6 +19,7 @@ const { fsMock, appMock, storeMock } = vi.hoisted(() => ({
     writeFileSync: vi.fn(),
     mkdirSync: vi.fn(),
     statSync: vi.fn(),
+    statfsSync: vi.fn(),
     rmSync: vi.fn(),
     unlinkSync: vi.fn(),
     existsSync: vi.fn(),
@@ -241,5 +242,25 @@ describe('什么时候才真的换版（老板 2026-10-08：包下好就直接�
     await expect(__test__.mayApplyUpdateNow('t', { pollMs: 1, maxWaitMs: 5 })).resolves.toBe(false);
     storeMock.get.mockImplementation((k: string) => (k === 'lastStatus' ? 'AVAILABLE' : undefined));
     await expect(__test__.mayApplyUpdateNow('t', { pollMs: 1, maxWaitMs: 5 })).resolves.toBe(true);
+  });
+});
+
+// 盘快满了就别下更新包：C 盘只剩 0.5GB 的那台机器就是「下得下来、装不进去」，
+// 一天白刷 13GB 还把整台机器拖卡（2026-10-15 线上实况）。
+describe('盘不够就别下更新包', () => {
+  it('量得到就按 bsize × 可用块数算字节', () => {
+    fsMock.statfsSync.mockReturnValue({ bsize: 4096, bavail: 1000 });
+    expect(__test__.freeDiskBytes('C:\\')).toBe(4096 * 1000);
+  });
+
+  it('量不出来就当无限 —— 宁可放它去更新，也别因为量不到空间卡住', () => {
+    fsMock.statfsSync.mockImplementation(() => {
+      throw new Error('ENOSYS: statfs not supported');
+    });
+    expect(__test__.freeDiskBytes('C:\\')).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it('门槛是 2GB', () => {
+    expect(__test__.MIN_FREE_DISK_BYTES).toBe(2 * 1024 * 1024 * 1024);
   });
 });
