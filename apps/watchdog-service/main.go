@@ -31,14 +31,14 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 // 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
-const serviceBuild = "2026-10-03.1"
+const serviceBuild = "2026-10-15.1"
 
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026100302"
+const serviceBuildNumber = "2026101501"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026100302" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026101501" // 必须与 serviceBuildNumber 一致
 
 // 陪玩端的安装位置（老机器的习惯，别动顺序）。
 var companionSearchPaths = []string{
