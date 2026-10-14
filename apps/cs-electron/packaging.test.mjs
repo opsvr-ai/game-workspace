@@ -55,3 +55,38 @@ describe('打包白名单（electron-builder.yml 的 files:）', () => {
     expect(entries).toContain('update-decisions.js');
   });
 });
+
+/** 从 electron-builder.yml 的 extraResources: 里抠出「- from: xxx」。 */
+function extraResourceFroms() {
+  const lines = read('electron-builder.yml').split(/\r?\n/);
+  const start = lines.findIndex((l) => /^extraResources:\s*$/.test(l));
+  expect(start).toBeGreaterThanOrEqual(0);
+  const out = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S/.test(line)) break; // 回到顶层键
+    const m = /^\s*-\s*from:\s*(\S+)\s*$/.exec(line);
+    if (m) out.push(m[1]);
+  }
+  return out;
+}
+
+describe('托盘图标（蓝色那张）必须真的进安装包', () => {
+  // 老板 2026-10-15：右下角两个驴图标长得一模一样，分不清哪个是陪玩哪个是客服。
+  // 现在客服端用蓝色方块、陪玩端用绿色方块 —— 但这份图要是没进 extraResources，
+  // 运行时读不到就会退回老的 donkey.ico，两个客户端又变回一模一样，而且不报任何错。
+  it('public/tray-cs.png 真的在仓库里', () => {
+    expect(fs.existsSync(path.join(here, 'public', 'tray-cs.png'))).toBe(true);
+  });
+
+  it('tray-cs.png 在 extraResources 里（打包时会被拷进 resources/）', () => {
+    expect(extraResourceFroms()).toContain('public/tray-cs.png');
+  });
+
+  it('托盘优先用新图，老 donkey.ico 只排在后面兜底', () => {
+    const src = read('main.js');
+    const fresh = src.indexOf('tray-cs.png');
+    const legacy = src.indexOf('donkey.ico');
+    expect(fresh).toBeGreaterThan(-1);
+    expect(legacy).toBeGreaterThan(fresh);
+  });
+});

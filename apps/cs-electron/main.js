@@ -523,11 +523,15 @@ function showWindow() {
   mainWindow.focus();
 }
 
-// 托盘图标：优先用打包进 resources 的 donkey.ico，其次开发目录里的同名文件。
+// 托盘图标：优先用打包进 resources 的 tray-cs.png（蓝色方块 + 白驴），其次开发目录里的同名文件。
 // 老代码直接 createFromPath，文件不存在时拿到的是「空图片」，托盘里啥也看不见
-// —— 老板 2026-09-26 报的「客服端右下角没图标」就是这个（安装包里从来没打进这个 ico）。
+// —— 老板 2026-09-26 报的「客服端右下角没图标」就是这个（安装包里从来没打进这个图）。
 function createTrayIcon() {
+  // 那三张老 donkey.* 留着兜底：新图万一没打进包，也不至于让托盘变成空白
+  // （老板 2026-10-15：两个驴图标长得一模一样，分不清哪个是陪玩、哪个是客服）。
   const candidates = [
+    process.resourcesPath ? path.join(process.resourcesPath, 'tray-cs.png') : '',
+    path.join(__dirname, 'public', 'tray-cs.png'),
     process.resourcesPath ? path.join(process.resourcesPath, 'donkey.ico') : '',
     path.join(__dirname, 'public', 'donkey.ico'),
     process.resourcesPath ? path.join(process.resourcesPath, 'donkey.png') : '',

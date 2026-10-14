@@ -155,6 +155,7 @@ scripts/_*
 !scripts/_push_watchdog_all.py
 !scripts/_repack_client_zip.py
 !scripts/_repack_cs_zip.py
+!scripts/_make_tray_icons.py
 !scripts/_export_api_contract.mjs
 !scripts/_check_ui_tokens.mjs
 !scripts/_check_loading_state.mjs

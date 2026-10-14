@@ -150,7 +150,13 @@ export function stopUpdateSpin(): void {
 function createTrayIcon() {
   // createFromPath 在文件不存在时不会抛错，只会返回「空图片」，托盘里什么都看不见。
   // 所以这里必须自己 existsSync + isEmpty() 双重判断，否则托盘图标会静默失踪。
+  // 托盘图标是「绿色方块 + 白驴」（scripts/_make_tray_icons.py 生成）：老板 2026-10-15 报
+  // 右下角两个驴图标长得一模一样、分不清哪个是陪玩哪个是客服 —— 现在陪玩是绿的、客服是蓝的。
+  // 老 donkey.png 留着兜底：万一新图没打进包，也不至于让托盘变成空白。
   const candidates = [
+    process.resourcesPath ? path.join(process.resourcesPath, 'tray-companion.png') : '',
+    path.join(__dirname, '../public/tray-companion.png'),
+    path.join(__dirname, '../dist/tray-companion.png'),
     process.resourcesPath ? path.join(process.resourcesPath, 'donkey.png') : '',
     path.join(__dirname, '../dist/donkey.png'),
     path.join(__dirname, '../public/donkey.png'),
