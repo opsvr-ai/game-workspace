@@ -17,6 +17,25 @@ function rememberClientUser(user: UserInfo | null | undefined): void {
   try { (window as any).electronAPI?.setCurrentUser?.(user.id, user.username); } catch {}
 }
 
+/**
+ * 把「这个账号是什么角色」告诉客户端**外壳**（老板 2026-10-17：「登录什么就是什么」）。
+ *
+ * 外壳拿它干两件事：
+ *   ① 开关陪玩专属能力 —— 录屏 / 锁屏 / 进程管控 / 陪玩状态上报，全是 `currentRole === 'COMPANION'`
+ *      才跑（main.ts 里那几处判断）。客服账号登在陪玩端壳里，这些本来就该关掉。
+ *   ② 心跳里报的 `loginRole` 就是这个值 —— 服务端靠它认「这台电脑现在是什么端」。
+ *
+ * 以前这里只在 `login()` 那一刻调一次，而网页热更刷新 / 令牌续期走的是 `fetchUser()` ——
+ * 那条路径不调，外壳的 currentRole 就一直停在初始值 `COMPANION`。于是：客服账号的电脑
+ * 热更一轮之后**又被当成陪玩**（陪玩专属能力重新打开、台账继续认错端）。跟
+ * `rememberClientUser` 是同一个病根，一起修：登录 / 会话恢复 / setUser 三条路径都写。
+ */
+function rememberClientRole(user: UserInfo | null | undefined): void {
+  const role = String(user?.role || '').trim();
+  if (!role) return;
+  try { (window as any).electronAPI?.setRole?.(role); } catch {}
+}
+
 interface AuthState {
   user: UserInfo | null;
   isAuthenticated: boolean;
@@ -39,7 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try { (window as any).electronAPI?.storeSet('token', accessToken); } catch {}
     try { (window as any).electronAPI?.storeSet('refreshToken', refreshToken); } catch {}
     rememberClientUser(user);
-    try { (window as any).electronAPI?.setRole?.(user.role); } catch {}
+    rememberClientRole(user);
     try { (window as any).electronAPI?.setStudioName?.(user.studioName || ''); } catch {}
     try { (window as any).electronAPI?.onLoggedIn?.(); } catch {}
 
@@ -68,6 +87,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = data.data;
       set({ user, isAuthenticated: true });
       rememberClientUser(user);
+      rememberClientRole(user);
       try { (window as any).electronAPI?.setStudioName?.(user.studioName || ''); } catch {}
       return user;
     } catch (err: any) {
@@ -87,5 +107,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setUser: (user: UserInfo) => {
     set({ user, isAuthenticated: true });
     rememberClientUser(user);
+    rememberClientRole(user);
   },
 }));
