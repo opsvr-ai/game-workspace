@@ -46,6 +46,13 @@ let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 
+// 老板 2026-10-17「登录什么就是什么」：客服端外壳以前把身份写死成 CS，
+// 陪玩账号登在客服端壳里也会被报成客服。currentRole 由网页登录 / 会话恢复时
+// 调的 auth:setRole 写进来（见下方 app.whenReady 里的 ipcMain.on），
+// 上报机器台账、连不上服务器的报错都按它走。没人登录时按客服端（老机器行为不变）。
+// 陪玩端外壳同一处改动见 apps/companion-electron/electron/main.ts。
+let currentRole = 'CS';
+
 function downloadFile(url, dest) {
   return new Promise((resolve, reject) => {
     const http = require('http');
@@ -301,7 +308,7 @@ function reportLoadFailure(desc, code) {
   try {
     const url = getServerUrl().replace(/\/$/, '') + '/api/agent/client-error';
     const payload = {
-      ip: '', user: '', role: 'CS', appVersion: app.getVersion(),
+      ip: '', user: '', role: String(currentRole || 'CS'), appVersion: app.getVersion(),
       page: 'cs-shell', url: getLoginUrl(), phase: 'cs-page-load',
       status: code === 'timeout' ? null : (code == null ? null : code),
       message: String(desc || ''), detail: 'attempts=' + loadAttempts + ' code=' + code, ua: '',
@@ -610,7 +617,7 @@ const machineAgent = createMachineAgent({
   // 只有本机本用户能解开 —— 拿它当「这台电脑现在是哪个人在用」。
   getLoginUser: () => {
     const creds = loadCredentials();
-    return creds && creds.username ? { username: creds.username, role: 'CS' } : null;
+    return creds && creds.username ? { username: creds.username, role: String(currentRole || 'CS') } : null;
   },
   log: logLine,
 });
@@ -623,6 +630,10 @@ app.whenReady().then(() => {
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
   ipcMain.handle('chat:open-window', (_e, payload) => openChatWindow(payload));
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  // 网页登录 / 会话恢复时把真实角色告诉外壳（老板 2026-10-17「登录什么就是什么」）
+  ipcMain.on('auth:setRole', (_e, role) => {
+    if (typeof role === 'string' && role) currentRole = role;
+  });
   // 兜底页上的「立即重新加载」按钮走这里（不用整页刷新，重试次数不会被清零）
   ipcMain.handle('app:reload', () => {
     loadAttempts = 0;

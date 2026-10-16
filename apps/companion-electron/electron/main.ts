@@ -1966,7 +1966,7 @@ const machineAgent = createMachineAgent({
     // 客服账号登在陪玩端壳里也报「陪玩」，台账/统计全认错端，只能靠「换端」去补。
     // currentRole 是登录 / 会话恢复时网页调的 auth:setRole 写进来的（见上面 ipcMain.on）。
     // 没人登录时按陪玩端（老机器行为不变）。
-    const role = currentRole === 'COMPANION' ? 'COMPANION' : String(currentRole || 'COMPANION');
+    const role = String(currentRole || 'COMPANION');
     return username ? { username, role } : null;
   },
   log: (msg: string) => logger.info(`[machine-agent] ${msg}`),
