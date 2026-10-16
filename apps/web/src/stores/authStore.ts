@@ -2,6 +2,21 @@ import { create } from 'zustand';
 import type { LoginRequest, UserInfo } from '@chunlv/shared';
 import { authApi, clearStoredSession } from '../api/client';
 
+/**
+ * 把「这台电脑现在是谁在用」写进客户端本地。
+ *
+ * 陪玩端台账里的 loginUser 只认客户端本地这一个值（machine-agent 的 getLoginUser 读
+ * config.json 的 currentUsername）。以前只有 login() 那一刻写 —— 会话恢复（网页热更刷新、
+ * 令牌续期、打开就在登录态）全都不写，于是那台机器在「机器管理」里的 loginUser 永远是空的，
+ * 服务器就没法把账号挂到真机器上（2026-10-17 老板问「孙可馨在哪台电脑」时实测：
+ * BF-202406300325 那台 loginUser 就是空的，她只能以一行「孙可馨 的电脑（不可诊断）」顶着）。
+ * 现在凡是拿到登录态就补写一次：页面一刷新、台账最迟 5 分钟后就能认人。
+ */
+function rememberClientUser(user: UserInfo | null | undefined): void {
+  if (!user?.id || !user?.username) return;
+  try { (window as any).electronAPI?.setCurrentUser?.(user.id, user.username); } catch {}
+}
+
 interface AuthState {
   user: UserInfo | null;
   isAuthenticated: boolean;
@@ -23,7 +38,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.setItem('refreshToken', refreshToken);
     try { (window as any).electronAPI?.storeSet('token', accessToken); } catch {}
     try { (window as any).electronAPI?.storeSet('refreshToken', refreshToken); } catch {}
-    try { (window as any).electronAPI?.setCurrentUser?.(user.id, user.username); } catch {}
+    rememberClientUser(user);
     try { (window as any).electronAPI?.setRole?.(user.role); } catch {}
     try { (window as any).electronAPI?.setStudioName?.(user.studioName || ''); } catch {}
     try { (window as any).electronAPI?.onLoggedIn?.(); } catch {}
@@ -52,6 +67,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data } = await authApi.me();
       const user = data.data;
       set({ user, isAuthenticated: true });
+      rememberClientUser(user);
       try { (window as any).electronAPI?.setStudioName?.(user.studioName || ''); } catch {}
       return user;
     } catch (err: any) {
@@ -70,5 +86,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setUser: (user: UserInfo) => {
     set({ user, isAuthenticated: true });
+    rememberClientUser(user);
   },
 }));

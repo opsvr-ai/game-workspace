@@ -15,7 +15,7 @@ $ProgressPreference = 'SilentlyContinue'
 
 $L = New-Object System.Collections.Generic.List[string]
 function W([string]$t) { $L.Add([string]$t) }
-function H([string]$t) { $L.Add(''); $L.Add('===== ' + $t + ' =====') }
+function SEC([string]$t) { $L.Add(''); $L.Add('===== ' + $t + ' =====') }
 function FL([string]$m) {
   if (-not $m) { return '' }
   $i = $m.IndexOf([Environment]::NewLine)
@@ -29,9 +29,9 @@ function Try2([scriptblock]$block) {
 W ('诊断时间: ' + (Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))
 W ('任务编号: ' + $TaskId)
 W ('诊断原因: ' + $Reason)
-W ('脚本版本: 2026-10-07.1')
+W ('脚本版本: 2026-10-17.1')
 
-H '一、这台电脑'
+SEC '一、这台电脑'
 Try2 {
   W ('计算机名: ' + $env:COMPUTERNAME)
   W ('当前登录用户: ' + $env:USERDOMAIN + '\' + $env:USERNAME)
@@ -57,14 +57,48 @@ Try2 {
   if ($cpu) { W ('CPU: ' + $cpu.Name) }
 }
 
-H '二、磁盘空间'
+SEC '一·补、这台电脑的客户端登录账号（服务端台账靠它认人）'
+Try2 {
+  $clvRoots = @()
+  if ($env:APPDATA) { $clvRoots += (Join-Path $env:APPDATA '@chunlv') }
+  Get-ChildItem (Join-Path $env:SystemDrive 'Users') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    $clvR = Join-Path $_.FullName 'AppData\Roaming\@chunlv'
+    if (Test-Path $clvR) { $clvRoots += $clvR }
+  }
+  $clvRoots = $clvRoots | Select-Object -Unique
+  $clvFound = 0
+  foreach ($clvRoot in $clvRoots) {
+    Get-ChildItem $clvRoot -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+      $clvF = Join-Path $_.FullName 'config.json'
+      if (Test-Path $clvF) {
+        $clvFound = $clvFound + 1
+        W ('  配置: ' + $clvF)
+        $clvJ = $null
+        try { $clvJ = (Get-Content -LiteralPath $clvF -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { }
+        if ($clvJ) {
+          if ($clvJ.currentUsername) { W ('    当前登录账号: ' + $clvJ.currentUsername) } else { W '    当前登录账号: (空 —— 台账里这台机器认不出人，重新登录一次即可补上)' }
+          W ('    当前登录用户ID: ' + $clvJ.currentUserId)
+          if ($clvJ.token -or $clvJ.refreshToken) { W '    有登录令牌: 是' } else { W '    有登录令牌: 否' }
+          W ('    网页版本: ' + $clvJ.webVersion)
+        } else {
+          W '    配置读不出来（文件损坏或权限不足）'
+        }
+      }
+    }
+  }
+  if ($clvFound -eq 0) { W '  没找到 @chunlv 客户端配置（这个 Windows 用户从没登录过客户端）' }
+  $clvWinUsers = @(Get-ChildItem (Join-Path $env:SystemDrive 'Users') -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)
+  W ('  本机 Windows 用户目录: ' + ($clvWinUsers -join ', '))
+}
+
+SEC '二、磁盘空间'
 Try2 {
   Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | ForEach-Object {
     W ('  ' + $_.DeviceID + ' 可用 ' + [math]::Round($_.FreeSpace / 1GB, 1) + ' GB / 共 ' + [math]::Round($_.Size / 1GB, 1) + ' GB')
   }
 }
 
-H '三、网络'
+SEC '三、网络'
 Try2 {
   Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' } | ForEach-Object {
     W ('  地址 ' + $_.InterfaceAlias + ' = ' + $_.IPAddress + '/' + $_.PrefixLength)
@@ -81,7 +115,7 @@ Try2 {
   W ('  DNS: ' + ($dns -join ' ; '))
 }
 
-H '四、能不能连上服务器'
+SEC '四、能不能连上服务器'
 Try2 {
   if ($ServerUrl) {
     W ('  服务器地址: ' + $ServerUrl)
@@ -106,7 +140,7 @@ Try2 {
   }
 }
 
-H '五、客户端进程 / 服务'
+SEC '五、客户端进程 / 服务'
 Try2 {
   foreach ($n in @('客服管理', '陪玩管理', 'electron', 'SystemHelper', 'node')) {
     $procs = Get-Process -Name $n -ErrorAction SilentlyContinue
@@ -125,7 +159,7 @@ Try2 {
   }
 }
 
-H '六、安装目录与版本'
+SEC '六、安装目录与版本'
 Try2 {
   $dirs = @(
     ($env:ProgramFiles + '\客服管理'),
@@ -161,7 +195,7 @@ Try2 {
   if ($unins.Count -gt 0) { W '  注册表里的安装记录:'; $unins | ForEach-Object { W $_ } }
 }
 
-H '七、客户端日志（末尾 120 行）'
+SEC '七、客户端日志（末尾 120 行）'
 Try2 {
   $logDirs = @(
     ($env:APPDATA + '\客服管理'),
@@ -180,7 +214,7 @@ Try2 {
   }
 }
 
-H '八、系统日志里的报错（最近 24 小时）'
+SEC '八、系统日志里的报错（最近 24 小时）'
 Try2 {
   $evts = Get-WinEvent -FilterHashtable @{ LogName = 'System'; Level = 1, 2; StartTime = (Get-Date).AddHours(-24) } -MaxEvents 30 -ErrorAction SilentlyContinue
   if ($evts) {
@@ -197,7 +231,7 @@ Try2 {
   }
 }
 
-H '九、蓝屏 / 异常关机记录'
+SEC '九、蓝屏 / 异常关机记录'
 Try2 {
   $crash = Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 41, 1001, 6008, 6005, 6006 } -MaxEvents 15 -ErrorAction SilentlyContinue
   if ($crash) {
@@ -212,7 +246,7 @@ Try2 {
   }
 }
 
-H '十、远程管理账号'
+SEC '十、远程管理账号'
 Try2 {
   $u = Get-LocalUser -Name 'chunlvops' -ErrorAction SilentlyContinue
   if ($u) {
@@ -227,7 +261,7 @@ Try2 {
   W ('  RDP 是否被禁用(fDenyTSConnections, 1=禁用): ' + ((Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -ErrorAction SilentlyContinue).fDenyTSConnections))
 }
 
-H '十一、代理 / VPN / 加速器迹象'
+SEC '十一、代理 / VPN / 加速器迹象'
 Try2 {
   $proxies = Get-Process | Where-Object { $_.ProcessName -match 'v2ray|clash|verge|sing-box|ssr|trojan|proxy|accel|netch|nekoray' } | Select-Object -First 10
   if ($proxies) { foreach ($p in $proxies) { W ('  进程 ' + $p.ProcessName + ' PID=' + $p.Id) } } else { W '  没有发现代理/VPN 进程' }
@@ -241,14 +275,14 @@ Try2 {
   $wh | ForEach-Object { W ('  ' + $_) }
 }
 
-H '十二、当前网络连接'
+SEC '十二、当前网络连接'
 Try2 {
   Get-NetTCPConnection -State Established -ErrorAction SilentlyContinue | Select-Object -First 25 | ForEach-Object {
     W ('  ' + $_.LocalAddress + ':' + $_.LocalPort + ' -> ' + $_.RemoteAddress + ':' + $_.RemotePort + ' pid=' + $_.OwningProcess)
   }
 }
 
-H '诊断结束'
+SEC '诊断结束'
 W ('报告共 ' + $L.Count + ' 行')
 
 $text = ($L -join [Environment]::NewLine)
