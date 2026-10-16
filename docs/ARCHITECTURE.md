@@ -83,6 +83,13 @@
   守门：陪玩端 `electron/updater.test.ts` 25 条（新增 4 条钉住「闲着就装 / 接单就等 / 卡住有兜底」）、
   客服端 `update-decisions.test.mjs` 35 条；两处都做过变异验证（改坏 → 点名失败）。
 
+- **更新包下发改成「全局共享带宽 + 下完前不换人」（2026-10-17，服务端 `common/throttled-file.ts` + `agent/agent.service.ts`）**：
+  老板报「192.168.0.133 打开软件一直在加载」。根因是**发更新自己把办公室那条网吃干**：陪玩端 `1.0.20261024` 一发，
+  店里 3～5 台机器同时去拉 92MB 的包（服务端日志里单路 3～12 分钟），所有页面接口 25 秒超时。两个放大器一起修：
+  ① 限速从「每路各 700KB/s」改成「`SUM(每一路) ≤ UPDATE_DOWNLOAD_KBPS`（默认 300KB/s）」—— 新来的一路会立刻把在下的
+  几路一起降速，总额度永不超；② `updateSlots` 的「排队够久 + 持有者下够 3 分钟就让位」在慢网里是放大器，
+  改成**只要有活跃更新流就一律不动名额**（真卡死时流会自己断，名额照旧释放），名额超时兜底 10 分钟 → 15 分钟。
+
 - **订单列表给陪玩加了 `scope='served'`（2026-10-03，`OrdersService.findAll` + `order-privacy.ts`）**：
   「我服务的」＝ 我是该单主陪 **或** 我是它某条会话的副陪（`sessions.some.coCompanionId`）。
   没有 `companionId` 的账号走这条分支时直接返回空数组（防越权）。非主陪的 `served` 单统一过
@@ -990,7 +997,7 @@ graph TB
 
 **服务端:**
 - 版本与下载地址：`SystemConfig` 的 `agent.latest_version` / `agent.latest_download_url`（客户端只认「服务端版本严格大于本机版本」）
-- 下发限速：`common/throttled-file.ts`（约 700KB/s；**每块必须单独分配内存** —— 复用同一块 buffer 会在背压时把还没发出去的数据覆盖成乱码，字节数却分毫不差）
+- 下发限速：`common/throttled-file.ts`（**2026-10-17 起是「全局共享额度」，默认 300KB/s —— 多路同时下载分摊同一份**，不再是每路各 700KB/s；总额度用 `UPDATE_DOWNLOAD_KBPS` 调。**每块必须单独分配内存** —— 复用同一块 buffer 会在背压时把还没发出去的数据覆盖成乱码，字节数却分毫不差）
 
 **API 端点:**
 - `GET /api/agent/version` — 最新版本号（客户端每 30 分钟查一次，接单中自动跳过）
