@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { presence } from '../common/presence';
+import { activeThrottledDownloads } from '../common/throttled-file';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -46,7 +47,11 @@ function waitersOf(scope: string): Map<string, { firstAskedAt: number }> {
   return queue;
 }
 
-const UPDATE_SLOT_TIMEOUT = 10 * 60 * 1000; // 10 分钟超时，避免某台卡死长期占住名额
+// 15 分钟超时，避免某台卡死长期占住名额。
+// 2026-10-17 从 10 分钟放宽：更新包下发的带宽改成「全局共享」之后，多台机器同时升级时
+// 每一路会慢一些（这是故意的 —— 不能让更新把办公室那条网吃干），10 分钟会把
+// 正常在下的机器误判成卡死。
+const UPDATE_SLOT_TIMEOUT = 15 * 60 * 1000;
 /**
  * 叫号时先把名额「预约」给被叫到的那台机器：
  * 以前叫号只是推个消息过去，被叫的机器还要错峰 0-60 秒才开始申请名额，
@@ -94,7 +99,9 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
       for (const scope of [...updateSlots.keys()]) {
         if (this.slotBusy(scope)) continue; // 这家店有人在下载：别打扰
         const slot = slotOf(scope);
-        if (slot.companionId) {
+        // 真的有人在下载（有活跃的更新流）时一律不动名额：
+        // 否则「持有者还在下、名额被腾走」会让下一台也开下，两路并行又把带宽抢光。
+        if (slot.companionId && activeThrottledDownloads() === 0) {
           logger.warn(
             slot.reserved
               ? `Reserved update slot not claimed, releasing ${slot.companionId}`
@@ -276,7 +283,19 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
       const waitedMs = now - waiter.firstAskedAt;
       const heldMs = now - slot.startedAt;
       // 预约不占着名额：客户端要是没来领，别拦着排队的机器等满 5 分钟。
-      if (!slot.reserved && waitedMs >= WAIT_PRIORITY_MS && heldMs >= HOLD_MIN_MS) {
+      //
+      // 2026-10-17：正在下载时不抢名额（`activeThrottledDownloads() > 0`）。
+      // 老规则「等够 5 分钟 + 持有者下够 3 分钟就让位」在办公室里是个放大器：
+      // 那条网慢，一台 92MB 的包要下 3～12 分钟 → 时间一到名额就被抢走，
+      // 老的还在下、新的也开下 → 3～5 路并行 → 网被占满 → 所有页面一起超时
+      // （老板 2026-10-17 报「192.168.0.133 打开软件一直在加载」就是这个）。
+      // 真卡死（客户端崩了）时下载流会自己断掉，`active` 归零，名额照旧会被释放。
+      if (
+        !slot.reserved &&
+        activeThrottledDownloads() === 0 &&
+        waitedMs >= WAIT_PRIORITY_MS &&
+        heldMs >= HOLD_MIN_MS
+      ) {
         logger.warn(`Update slot preempted for waiter ${companionId} (waited ${Math.round(waitedMs / 1000)}s)`);
         updateSlots.set(key, { companionId, startedAt: now, reserved: false });
         queue.delete(companionId);

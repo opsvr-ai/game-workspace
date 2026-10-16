@@ -153,7 +153,9 @@ describe('更新名额叫号（发布铺开速度）', () => {
 
     service.onModuleInit();
     try {
-      vi.setSystemTime(T0 + 11 * 60_000); // 超过 UPDATE_SLOT_TIMEOUT 10 分钟
+      // 超过 UPDATE_SLOT_TIMEOUT（2026-10-17 起改成 15 分钟：共享带宽让单路慢一些，
+      // 10 分钟会把正常在下的机器误判成卡死）
+      vi.setSystemTime(T0 + 16 * 60_000);
       vi.advanceTimersByTime(61_000);
       await Promise.resolve();
       expect(service.getUpdateSlot().companionId).toBe('');
