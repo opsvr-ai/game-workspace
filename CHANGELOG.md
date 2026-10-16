@@ -25,12 +25,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     `HKEY_USERS\*` 去掉开机自启 → 静默跑旧端卸载程序）；④ 把「记住的账号密码」搬到新端
     （两端都是 Electron safeStorage，Windows 上就是 DPAPI，同机同用户可解），换完不用让人重新登一次。
     不是管理员就 `exit 3` 直接放弃、不弹任何窗，留给看门狗下一轮。
-  - **超时**：换端要下 80MB 安装包，任务自带 `timeoutSec=1800`（诊断 / 指令仍是 240 / 300 秒）。
+  - **超时**：换端要下 80MB 安装包，任务自带 `timeoutSec=600`（诊断 / 指令仍是 240 / 300 秒）。
+    ⚠️ 这里**只能给到 600** —— 看门狗（`main.go` 的 `remoteTaskMaxSec`）遇到 `timeoutSec > 600` 不是截断、
+    而是**退回 240 秒默认值**，写 1800 反而更短。所以 `buildTaskPayload` 里统一 `Math.min(600, …)` 夹住，
+    以后再加长任务也不会踩这个坑。
   - 新增 6 条用例（`machine-switch-client.test.ts`，全绿：点名 → 派单 / 已到位 → 撤点名且不派 /
     没点名 → 一台都不动 / 对象写法也认 / 待执行时不重复派 / 脚本正文核对）。服务端 845 / 846
     （唯一红的是写死日期的 `stats.daily-kpi`，与本次无关）、`tsc --noEmit` 干净、脚本正文 PowerShell 解析 0 错。
   - **线上实测（造了一台假机器号跑通后立刻删干净）**：`machine-report` → 3 秒内落 `switch-client` 任务
-    （`createdBy=system` / `clientKind=cs` / `timeoutSec=1800`）；`machine-tasks?as=system` 领到的就是换端脚本 +
+    （`createdBy=system` / `clientKind=cs` / `timeoutSec=600`）；`machine-tasks?as=system` 领到的就是换端脚本 +
     `-Kind cs`。**终端程序不用更新**（换端脚本是随任务下发的），也不影响正在接单的陪玩。
 - **陪玩端再也没有「删除」按钮了 —— 想删得客服 / 店长批准或驳回，全程记录在案（老板 2026-10-11，服务端 + 网页）。**
   老板：「以后陪玩端所有的删除按钮都去掉，不要让他们随意删除，想删除得客服或者店长批准通过或者驳回，并且记录在案」。

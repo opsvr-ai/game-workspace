@@ -75,13 +75,13 @@ describe('MachineService 云端点名换端', () => {
     expect(tasks[0].createdById).toBe('');
     expect(tasks[0].status).toBe('pending');
     expect(String(tasks[0].reason)).toContain('自动换端');
-    // 换端要下 80MB 安装包，得给它自己的超时，否则慢网上会被 300 秒掐掉
-    expect(tasks[0].timeoutSec).toBe(1800);
+    // 换端要下 80MB 安装包，得给足超时；但只能给到看门狗的上限 600 秒（超了它会退回 240，反而更短）
+    expect(tasks[0].timeoutSec).toBe(600);
     // 换的时候别把老客户端先卸了 —— 这条任务只负责“装新端并验在不在”
     expect(tasks[0].command).toBe('');
   });
 
-  it('换端任务发给客户端时，带的是换端脚本 + -Kind cs', async () => {
+  it('换端任务发给客户端时，带的是换端脚本 + -Kind cs；超时夹在看门狗上限以内', async () => {
     mockPrisma.systemConfig.findUnique.mockImplementation(({ where }: any) =>
       Promise.resolve(where?.key === machineKey ? machineRow({ systemPollAt: new Date().toISOString() }) : null),
     );
@@ -89,6 +89,8 @@ describe('MachineService 云端点名换端', () => {
       machineId,
       type: 'switch-client',
       clientKind: 'cs',
+      // 故意写一个「看着更保险」的 1800：看门狗收到 >600 会退回 240 秒默认值，
+      // 所以服务端必须自己先夹住（2026-10-17 差点踩上）。
       timeoutSec: 1800,
       reason: '自动换端：换成客服端',
       actor: { username: 'system', id: '' },
@@ -100,7 +102,7 @@ describe('MachineService 云端点名换端', () => {
     expect(payload.type).toBe('switch-client');
     expect(payload.mode).toBe('script');
     expect(payload.args).toEqual(['-ServerUrl', '__SERVER__', '-Kind', 'cs']);
-    expect(payload.timeoutSec).toBe(1800);
+    expect(payload.timeoutSec).toBe(600);
     // 脚本正文要真是「装目标端 → 验在不在 → 退旧端 → 搬账号密码」那一份
     expect(String(payload.script)).toContain('[换端]');
     expect(String(payload.script)).toContain('/api/agent/download/cs');

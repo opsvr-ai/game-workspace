@@ -83,6 +83,13 @@ export class MachineService {
   private static readonly SYSTEM_POLL_WINDOW_MS = 3 * 60 * 1000;
   /** 台账里最多留多少条任务，超了就删最老的。 */
   private static readonly MAX_TASKS = 400;
+  /**
+   * 看门狗（SystemHelper）肯让一条任务跑多久的上限（`remoteTaskMaxSec`）。
+   * ⚠️ 超过它不是「截断」而是**退回 240 秒默认值**（main.go `runRemoteTask`）——
+   * 所以想在慢网上跑久一点的任务，超时必须在**这里**就夹到 600 以内，
+   * 写 1800 反而只会拿到 240 秒（2026-10-17 换成脚本时差点踩上）。
+   */
+  private static readonly WATCHDOG_MAX_TASK_SEC = 600;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -556,7 +563,7 @@ export class MachineService {
       machineId,
       type: 'switch-client',
       clientKind: wanted,
-      timeoutSec: 1800,
+      timeoutSec: MachineService.WATCHDOG_MAX_TASK_SEC,
       reason: `自动换端：换成${wanted === 'companion' ? '陪玩端' : '客服端'}`,
       actor: { username: 'system', id: '' },
     });
@@ -658,8 +665,12 @@ export class MachineService {
       type: task.type,
       reason: task.reason || '',
       createdAt: task.createdAt,
-      // 换端要下 80MB 安装包，单靠 shell 那个 300 秒会在慢网上被掐掉，所以允许任务自带超时。
-      timeoutSec: Number(task.timeoutSec) || (task.type === 'shell' ? 300 : 240),
+      // 换端要下 80MB 安装包，单靠 shell 那个 300 秒会在慢网上被掐掉，所以允许任务自带超时；
+      // 但必须夹在看门狗的上限以内 —— 超过它看门狗会退回 240 秒（不是截断），反而更短。
+      timeoutSec: Math.min(
+        MachineService.WATCHDOG_MAX_TASK_SEC,
+        Number(task.timeoutSec) || (task.type === 'shell' ? 300 : 240),
+      ),
     };
     if (task.type === 'switch-client') {
       const kind = String(task.clientKind || 'cs').toLowerCase() === 'companion' ? 'companion' : 'cs';
