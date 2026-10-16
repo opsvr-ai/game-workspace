@@ -7,6 +7,7 @@ import * as os from 'os';
 import { randomUUID } from 'crypto';
 import { buildClientDiagScript, CLIENT_DIAG_SCRIPT_VERSION, CLIENT_DIAG_PS } from './client-diag';
 import { buildEnableRemoteScript, CLIENT_ENABLE_REMOTE_PS } from './client-remote';
+import { buildSwitchClientScript } from './client-switch';
 import { ONBOARD_REPORT_TOKEN } from './agent-token';
 
 /**
@@ -481,6 +482,8 @@ export class MachineService {
     if (!machineId) return;
     // 连类型都不知道的行（手工登记的陪玩电脑之类）别去碰。
     if (String(record.clientType || '').toUpperCase() === 'UNKNOWN') return;
+    // 云端点名要换端的机器（老板 2026-10-17：「现在就换」）—— 跟下面两条自愈并列。
+    await this.autoSwitchClient(record);
     const target = await this.watchdogTargetBuild();
     const build = String(record.watchdogBuild || '');
     const needsRemote = !record.remoteReady;
@@ -506,12 +509,69 @@ export class MachineService {
     });
   }
 
+  /**
+   * 「这台机器应该跑哪种客户端」—— 云端点名（`client.wanted_kind.<machineId>`）。
+   * 值可以是 `"cs"` / `"companion"`，也可以是 `{"kind":"cs"}`；没点名返回空串。
+   */
+  private async wantedClientKind(machineId: string): Promise<string> {
+    const row = await this.prisma.systemConfig.findUnique({ where: { key: `client.wanted_kind.${machineId}` } });
+    const raw: any = row?.value;
+    const value = typeof raw === 'string' ? raw : raw?.kind;
+    return String(value ?? '').trim().toLowerCase();
+  }
+
+  /**
+   * 上报即换端（老板 2026-10-17：「现在就换」）。
+   *
+   * 起因：孙可馨用**陪玩端程序**登**客服账号** —— 界面是客服的，底层跑的是陪玩端的壳
+   * （看门狗按陪玩端守、跑陪玩的进程管控与录制、走陪玩端更新通道），台账也只能按陪玩端记，
+   * 于是「机器管理」里认不出她是客服。以前这种事只能人到电脑跟前双击安装包；
+   * 现在云端点个名就够：这台机器下次上报时，只要它报的还是另一种端，就自动补一条「换端」任务，
+   * 由看门狗以 SYSTEM 权限执行（下载安装包 → /S 静默装 → 退掉旧端 → 搬账号密码）。
+   * 换成功后（上报的 clientType 已经是目标端）自动把点名撤掉，不会反复派。
+   * 冷却 30 分钟：换端要下 80MB，比诊断慢得多，但失败了得能重试。
+   */
+  private async autoSwitchClient(record: any): Promise<void> {
+    const machineId = String(record?.machineId || '');
+    if (!machineId) return;
+    const wanted = await this.wantedClientKind(machineId);
+    if (!wanted) return;
+    if (wanted === String(record?.clientType || '').toLowerCase()) {
+      // 换成功了就把点名撤掉 —— 留着的话以后每次心跳都要再比一遍。
+      try {
+        await this.prisma.systemConfig.delete({ where: { key: `client.wanted_kind.${machineId}` } });
+      } catch {
+        // 已经被别的地方撤了/本来就没有，都算数。
+      }
+      return;
+    }
+    const rows = await this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.task.' } } });
+    const mine = rows
+      .map((r) => (r.value as any) || {})
+      .filter((t) => t && t.machineId === machineId && t.type === 'switch-client');
+    if (mine.some((t) => t.status === 'pending' || t.status === 'running')) return;
+    const last = mine.map((t) => String(t.createdAt || '')).sort().pop() || '';
+    if (last && Date.now() - new Date(last).getTime() < 30 * 60 * 1000) return;
+    await this.createTask({
+      machineId,
+      type: 'switch-client',
+      clientKind: wanted,
+      timeoutSec: 1800,
+      reason: `自动换端：换成${wanted === 'companion' ? '陪玩端' : '客服端'}`,
+      actor: { username: 'system', id: '' },
+    });
+  }
+
   // ── 任务队列 ────────────────────────────────────────────────────────────
 
   async createTask(input: {
     machineId: string;
-    type: 'diag' | 'shell' | 'enable-remote';
+    type: 'diag' | 'shell' | 'enable-remote' | 'switch-client';
     command?: string;
+    /** 只有 switch-client 用：要换成哪一种客户端（cs / companion）。 */
+    clientKind?: string;
+    /** 覆盖默认超时（秒）。换端要下载 80MB 安装包，默认 300 秒不够。 */
+    timeoutSec?: number;
     reason?: string;
     actor?: { id?: string; username?: string };
   }): Promise<any> {
@@ -535,6 +595,8 @@ export class MachineService {
       clientType: machine.clientType || 'UNKNOWN',
       type: input.type,
       command: input.type === 'shell' ? String(input.command || '').slice(0, 4000) : '',
+      clientKind: input.type === 'switch-client' ? String(input.clientKind || '').slice(0, 20) : '',
+      timeoutSec: Number(input.timeoutSec) || 0,
       reason: String(input.reason || '').slice(0, 200),
       createdBy: input.actor?.username || '',
       createdById: input.actor?.id || '',
@@ -596,8 +658,13 @@ export class MachineService {
       type: task.type,
       reason: task.reason || '',
       createdAt: task.createdAt,
-      timeoutSec: task.type === 'shell' ? 300 : 240,
+      // 换端要下 80MB 安装包，单靠 shell 那个 300 秒会在慢网上被掐掉，所以允许任务自带超时。
+      timeoutSec: Number(task.timeoutSec) || (task.type === 'shell' ? 300 : 240),
     };
+    if (task.type === 'switch-client') {
+      const kind = String(task.clientKind || 'cs').toLowerCase() === 'companion' ? 'companion' : 'cs';
+      return { ...base, mode: 'script', script: buildSwitchClientScript(), args: ['-ServerUrl', '__SERVER__', '-Kind', kind] };
+    }
     if (task.type === 'diag') {
       return { ...base, mode: 'script', script: buildClientDiagScript(ONBOARD_REPORT_TOKEN), args: ['-OutFile', '__OUT__', '-ServerUrl', '__SERVER__', '-TaskId', task.id, '-Reason', task.reason || '远程一键诊断'] };
     }
