@@ -58,6 +58,33 @@ export function currentSettlementMonthRange(now: Date = new Date()): { start: Da
   return settlementMonthRange(month);
 }
 
+/**
+ * 当前营业日 12:00 起点 —— **按北京时间算出来的绝对时刻**。
+ *
+ * 上面那套 `businessDayOf` / `currentBusinessDayRange` 用的是「进程本地时区」：
+ * 服务器跑在 UTC（腾讯云默认），拿它们算边界会比国内客服的浏览器差 8 小时 ——
+ * 中午 12 点刚过、客服想看新营业日的数，结果还在旧营业日上（或者反过来）。
+ * 凡是要跟浏览器（北京时间）对齐的营业日计算，一律走这个。
+ */
+export function currentBusinessDayStartCn(now: Date = new Date()): Date {
+  const CN_OFFSET_MS = 8 * 60 * 60 * 1000;
+  const cn = new Date(now.getTime() + CN_OFFSET_MS);
+  if (cn.getUTCHours() < BUSINESS_DAY_BOUNDARY_HOUR) {
+    cn.setUTCDate(cn.getUTCDate() - 1);
+  }
+  const boundaryUtcMs =
+    Date.UTC(
+      cn.getUTCFullYear(),
+      cn.getUTCMonth(),
+      cn.getUTCDate(),
+      BUSINESS_DAY_BOUNDARY_HOUR,
+      0,
+      0,
+      0,
+    ) - CN_OFFSET_MS;
+  return new Date(boundaryUtcMs);
+}
+
 /** 对局时长容忍度（分钟）：计时差异在此范围内不标记异常 */
 export const ROUND_TOLERANCE_MINUTES = 20;
 export const ROUND_TOLERANCE_MAX_MINUTES = 30;

@@ -459,6 +459,20 @@ export class OrdersController {
     return { code: 200, message: 'ok', data };
   }
 
+  /**
+   * 派单工作台顶上的「今日新增 / 已抢」两个数字。
+   *
+   * 2026-10-17（老板报「孙可馨的电脑店派单管理怎么没反应」）：以前前端是拉整份订单列表
+   * 自己数这两个数（`GET /orders` = 全店全量，606 张单原始 2.5MB），那条宽带上就这一个
+   * 请求会跑到 25 秒超时。现在服务端直接 count，响应体几百字节。
+   * 注意：必须排在 `orders/:id` 前面，否则会被那条通配路由吃掉。
+   */
+  @Get('orders/dispatch-summary')
+  async dispatchSummary(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.dispatchSummary(req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Post('orders/:id/assign')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async assign(

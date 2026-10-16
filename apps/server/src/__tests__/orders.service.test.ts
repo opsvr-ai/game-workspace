@@ -320,6 +320,79 @@ describe('OrdersService', () => {
     });
   });
 
+  /**
+   * 派单工作台的「今日新增 / 已抢」（2026-10-17，老板报「孙可馨的电脑店派单管理怎么没反应」）。
+   *
+   * 以前这两个数字是前端把整份订单列表拉下来自己数的：`GET /orders` 不带筛选 = 全店全量
+   * （606 张单、原始 2.5MB），在那条窄带宽带上就它一路顶到 25 秒超时 —— 页面看着就是「没反应」。
+   * 现在服务端自己 count：响应体几百字节，且口径必须和订单列表一字不差。
+   */
+  describe('dispatchSummary', () => {
+    it('客服：口径跟订单列表一样（本店 + 桥接），只回两个数字', async () => {
+      prisma.order.count.mockResolvedValueOnce(7).mockResolvedValueOnce(3);
+
+      const out = await service.dispatchSummary({
+        id: 'cs-1',
+        role: 'CS',
+        studioId: 'studio-1',
+      });
+
+      expect(out).toEqual({ todayNew: 7, todayGrabbed: 3 });
+      expect(prisma.order.count).toHaveBeenCalledTimes(2);
+      // 两个数字都套在同一份可见范围里 —— 不会再出现「列表按 A 口径、数字按 B 口径」。
+      const firstWhere = prisma.order.count.mock.calls[0][0].where;
+      const secondWhere = prisma.order.count.mock.calls[1][0].where;
+      expect(firstWhere.AND[0]).toEqual({ studioId: { in: ['studio-1'] } });
+      expect(secondWhere.AND[0]).toEqual({ studioId: { in: ['studio-1'] } });
+      expect(secondWhere.AND[1]).toEqual({ status: { in: ['GRABBED', 'CONFIRMED'] } });
+      // 没记抢单时间的单按创建时间算（跟前端 `grabbedAt || createdAt` 的老算法对齐）
+      expect(secondWhere.AND[2].OR).toEqual([
+        { grabbedAt: { gte: expect.any(Date) } },
+        { grabbedAt: null, createdAt: { gte: expect.any(Date) } },
+      ]);
+    });
+
+    it('陪玩账号没挂 Companion 档案：给 0/0，绝不把全站订单数漏出去', async () => {
+      const out = await service.dispatchSummary({ id: 'u-9', role: 'COMPANION' });
+
+      expect(out).toEqual({ todayNew: 0, todayGrabbed: 0 });
+      expect(prisma.order.count).not.toHaveBeenCalled();
+    });
+
+    it('营业日边界按北京时间：服务器在 UTC 时不能差 8 小时', async () => {
+      // 北京时间 2026-10-17 09:09（还没到 12:00）→ 算前一营业日 10-16 12:00
+      const now = new Date('2026-10-17T01:09:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+      try {
+        prisma.order.count.mockResolvedValue(0);
+
+        await service.dispatchSummary({ id: 'admin-1', role: 'ADMIN', studioId: 'studio-1' });
+
+        const bizStart = prisma.order.count.mock.calls[0][0].where.AND[1].createdAt.gte;
+        expect(bizStart.toISOString()).toBe('2026-10-16T04:00:00.000Z');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('跨过北京时间 12:00 就翻到新营业日', async () => {
+      // 北京时间 2026-10-17 13:30 → 新营业日从 10-17 12:00 起算
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-17T05:30:00.000Z'));
+      try {
+        prisma.order.count.mockResolvedValue(0);
+
+        await service.dispatchSummary({ id: 'admin-1', role: 'ADMIN', studioId: 'studio-1' });
+
+        const bizStart = prisma.order.count.mock.calls[0][0].where.AND[1].createdAt.gte;
+        expect(bizStart.toISOString()).toBe('2026-10-17T04:00:00.000Z');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
 
   describe('grab', () => {
     const orderId = 'order-1';

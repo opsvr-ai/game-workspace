@@ -52,7 +52,6 @@ import {
   fixedColumnFlex,
   fixedColumnStyle,
 } from '../../constants';
-import { currentBusinessDayStart } from '../../utils/businessDay';
 import { buildOrderPoolFields, orderMatchesSearch } from '../../utils/orderPool';
 import OrderFieldLine from '../../components/OrderFieldLine';
 import {
@@ -202,9 +201,17 @@ const CSDispatchView: React.FC = () => {
     setLoadingPool(true);
     try {
       setPoolError('');
-      // 用 allSettled，避免「订单列表」偶发超时把整个订单池一起拉崩；
+      // 用 allSettled，避免「今日概览」偶发超时把整个订单池一起拉崩；
       // 订单池请求成功就保留数据，失败也只提示一次，不丢上一次已加载的内容。
-      const [poolRes, allRes] = await Promise.allSettled([ordersApi.pool(), ordersApi.list()]);
+      //
+      // 顶上那两个数字走 dispatchSummary（服务端 count，几百字节）。
+      // 2026-10-17 以前这里拉的是 ordersApi.list()——整份订单列表（606 张单原始 2.5MB），
+      // 只为在前端 filter 出两个数字。老板报「孙可馨那台派单管理没反应」，
+      // 服务端日志里就是它在那条窄带上一路顶到 25 秒超时。
+      const [poolRes, sumRes] = await Promise.allSettled([
+        ordersApi.pool(),
+        ordersApi.dispatchSummary(),
+      ]);
 
       if (poolRes.status === 'fulfilled') {
         setPoolOrders(poolRes.value.data.data ?? []);
@@ -214,17 +221,10 @@ const CSDispatchView: React.FC = () => {
         setPoolError(`订单池暂时加载失败：${msg}（${new Date().toLocaleTimeString()}），正在自动重试`);
       }
 
-      if (allRes.status === 'fulfilled') {
-        const all = allRes.value.data.data ?? [];
-        const bizStart = currentBusinessDayStart().getTime();
-        setTodayNew(all.filter((o: any) => new Date(o.createdAt).getTime() >= bizStart).length);
-        setTodayGrabbed(
-          all.filter(
-            (o: any) =>
-              (o.status === 'GRABBED' || o.status === 'CONFIRMED') &&
-              new Date(o.grabbedAt || o.createdAt).getTime() >= bizStart,
-          ).length,
-        );
+      if (sumRes.status === 'fulfilled') {
+        const summary = sumRes.value.data.data ?? {};
+        setTodayNew(Number(summary.todayNew) || 0);
+        setTodayGrabbed(Number(summary.todayGrabbed) || 0);
       }
     } finally {
       setLoadingPool(false);

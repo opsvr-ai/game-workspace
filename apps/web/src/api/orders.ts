@@ -26,6 +26,13 @@ export const ordersApi = {
   csWechatBalanceSummary: () => http.get('/orders/cs-wechat-balances/summary'),
   csWechatFlow: () => http.get('/orders/cs-wechat-flow'),
   list: (params?: any) => http.get('/orders', { params }),
+  /**
+   * 派单工作台顶上的「今日新增 / 已抢」两个数字。
+   *
+   * 2026-10-17：以前是 `list()` 把整份订单列表拉下来自己数（606 张单原始 2.5MB），
+   * 老板报「派单管理没反应」就是这个请求在窄带上顶掉了 25 秒超时。现在只回两个数。
+   */
+  dispatchSummary: () => http.get('/orders/dispatch-summary'),
   getOrder: (id: string) => http.get(`/orders/${id}`),
   pool: () => http.get('/orders/pool'),
   poolStatus: () => http.get('/orders/pool/status'),

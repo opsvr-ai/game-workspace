@@ -13,7 +13,11 @@ import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { switchCompanionStatus } from '../common/companion-status-switch';
 import { computeEntertainmentFee, loadEntertainmentRule, manualTodayBoost } from '../common/entertainment-fee';
 import { companionOrderRevenue } from '../common/order-revenue';
-import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
+import {
+  currentBusinessDayRange,
+  currentBusinessDayStartCn,
+  settlementMonthRange,
+} from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { DIRECT_ALERT_SECONDS } from './direct-assignment-reminder.service';
 import { isBelowPriceFloor, isRenewalSegment, partnerUnitPriceYuan, priceStatsFloor, resolvePriceMode } from '../common/price-rules';
@@ -718,14 +722,34 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
-   * 订单管理列表。
+   * 订单列表的「看得见范围」——订单管理列表、派单工作台的「今日概览」共用这一份口径。
+   *
+   * 以前只有 `findAll` 里那一份。2026-10-17 查「孙可馨那台打开派单管理一直没反应」时发现：
+   * 派单工作台为了数「今日新增 / 已抢」两个数字，把整份订单列表拉了下来（全店 606 张单、
+   * 原始 2.5MB），而这是她那条宽带上唯一会跑到 25 秒以上超时的请求。现在把口径抽出来，
+   * 列表和计数同源 —— 不会再出现「列表按 A 口径、数字按 B 口径」。
    *
    * `scope` 只有客服端和陪玩端用得上：
    * - 客服：「只看我的」传 `mine`，要看全店传 `all`（不传按原来的全店口径）
    * - 陪玩：「我抢到的」传 `taken`（默认），「我服务的」传 `served`，「我发的」传 `published`
    * 店长 / 老板传什么都不受影响，各自走下面的本店 / 全部工作室分支。
+   *
+   * 返回 null = 这个账号本来就看不到任何单（异常陪玩账号没挂 Companion 档案）。
    */
-  async findAll(user: any, status?: string, scope?: string) {
+  private async buildOrderVisibilityWhere(
+    user: any,
+    opts: { status?: string; scope?: string } = {},
+  ): Promise<{
+    where: any;
+    pendingIncoming: Array<{
+      id: string;
+      orderId: string;
+      fromCompanionId: string;
+      reason: string | null;
+      createdAt: Date;
+    }>;
+  } | null> {
+    const { status, scope } = opts;
     const where: any = {};
     // 别人正想转给我、还没点同意的单（老板 2026-10-03）：它们现在还不挂在我名下，
     // 但老板要的是「在订单列表那一行点接手」——所以先查出来，等下一并按 id 捞进本次查询。
@@ -744,9 +768,9 @@ export class OrdersService implements OnModuleInit {
         // 这里不再排除 PENDING+POOL —— 自己发出去还没人抢的单也是「我发的单」。
         where.csUserId = user.id;
       } else {
-        // 陪玩一定挂着 Companion 档案。万一没挂（异常账号），宁可给空列表 ——
-        // 否则 `{ companionId: undefined }` 会被 Prisma 当成空条件，等于把全站订单漏给他。
-        if (!user.companionId) return [];
+          // 陪玩一定挂着 Companion 档案。万一没挂（异常账号），宁可给空列表 ——
+          // 否则 `{ companionId: undefined }` 会被 Prisma 当成空条件，等于把全站订单漏给他。
+          if (!user.companionId) return null;
         if (scope === 'served') {
           // 「我服务的单」（老板 2026-10-03）：别人抢到、我当搭档（副陪）跟着一起打的单。
           // 以前这类单混在「我接的单」里，跟主陪自己的单分不清；现在单独一栏，
@@ -802,6 +826,59 @@ export class OrdersService implements OnModuleInit {
       where.studioId = user.studioId;
     }
     // OWNER: 不添加过滤条件，可以看到所有订单
+    return { where, pendingIncoming };
+  }
+
+  /**
+   * 派单工作台的「今日概览」：只要「今日新增 / 已抢」两个数字。
+   *
+   * 2026-10-17：以前这两个数字是前端把整份订单列表拉下来自己数的（`GET /orders`
+   * 不带筛选 = 全店全量，606 张单原始 2.5MB）。老板报「孙可馨的电脑店派单管理怎么没反应」，
+   * 翻服务端日志对下来：那条宽带上传得动的接口都是几十毫秒，只有这个整份列表会跑到
+   * 5～63 秒、直接顶掉客户端 25 秒的超时。改成服务端 count，响应体几百字节。
+   *
+   * 口径跟订单列表严格一致（同一个 `buildOrderVisibilityWhere`）；营业日按「每日 12:00 为界」，
+   * 边界取北京时间 —— 服务器的本地时区是 UTC，用进程本地时区会跟客服的浏览器差 8 小时。
+   */
+  async dispatchSummary(user: any) {
+    const visibility = await this.buildOrderVisibilityWhere(user, {});
+    if (!visibility) return { todayNew: 0, todayGrabbed: 0 };
+    const { where } = visibility;
+    const bizStart = currentBusinessDayStartCn();
+    const [todayNew, todayGrabbed] = await Promise.all([
+      this.prisma.order.count({
+        where: { AND: [where, { createdAt: { gte: bizStart } }] },
+      }),
+      this.prisma.order.count({
+        where: {
+          AND: [
+            where,
+            { status: { in: ['GRABBED', 'CONFIRMED'] } },
+            // 跟原来前端 `grabbedAt || createdAt` 的算法对齐：没记抢单时间的单按创建时间算。
+            {
+              OR: [
+                { grabbedAt: { gte: bizStart } },
+                { grabbedAt: null, createdAt: { gte: bizStart } },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+    return { todayNew, todayGrabbed };
+  }
+
+  /**
+   * 订单管理列表（全量下发，前端自己筛）。
+   *
+   * 注意响应体是跟着订单总量一起长的：606 张单已经 2.5MB（gzip 后约 130KB）。
+   * 派单工作台只用它数两个数字，2026-10-17 起改走 `dispatchSummary`，不再拉整份列表；
+   * 订单管理页确实要看全部，暂时仍走这里。
+   */
+  async findAll(user: any, status?: string, scope?: string) {
+    const visibility = await this.buildOrderVisibilityWhere(user, { status, scope });
+    if (!visibility) return [];
+    const { where, pendingIncoming } = visibility;
     const orders = await this.prisma.order.findMany({
       where,
       include: {
