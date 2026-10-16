@@ -1120,10 +1120,17 @@ export class OrdersService implements OnModuleInit {
    * （开始计时）时才会自动切，可开始计时的前提又是先点「添加成功」…… 房间码单压根没有
    * 微信可加，于是整条流程卡死。
    *
-   * 这条路一次办两件事：
-   *   ① 记 contactStatus='added' —— 客户立刻进他的「客户管理」，跟点「添加成功」一个效果；
-   *   ② 把他切成「接单中」—— 空闲黑名单不再生效，游戏不会被杀，他才能进房间对接客户。
-   * 对接完照旧点「开始首单」正常计时；不打了就切回「空闲」（或让店长点「结束会话」）。
+   * 这条路**只办一件事**：把他切成「接单中」—— 空闲黑名单不再生效，游戏不会被杀，
+   * 他才能进房间对接客户。
+   *
+   * **2026-10-17 改口径（老板：「进去之后客户不喜欢怎么办？也添加成功？」）**：
+   * 以前这里顺手把 contactStatus 写成 `added`（等于替他点了「添加成功」）—— 那是错的：
+   * 客户人还没见着、微信都还没要，就算「添加成功」，客户立刻进他的「客户管理」，
+   * 「首单成功率」的分母也跟着虚高。现在**一个字都不碰 contactStatus**：
+   *   - 客户同意加微信 → 他自己点「✅ 添加成功」（客户这时候才进他的「客户管理」，
+   *     客户归属也在这时候落到他名下，跟 updateContact 的 'added' 分支同一个口径）；
+   *   - 客户不喜欢 / 没给微信 → 他点「❌ 添加失败」，走跟别的单一样的补单审核。
+   * 这里只记 customFields.roomJoinedAt，给界面区分「还没进去 / 已经进去过」。
    */
   async joinRoom(orderId: string, user: any) {
     const order = await this.prisma.order.findUnique({
@@ -1152,14 +1159,12 @@ export class OrdersService implements OnModuleInit {
 
     const updated = await this.prisma.order.update({
       where: { id: orderId },
-      data: { contactStatus: 'added' },
+      // 只留个记号，不动 contactStatus（见上面 2026-10-17 那段）。
+      data: { customFields: { ...cf, roomJoinedAt: new Date().toISOString() } },
       include: { customer: true },
     });
-    // 客户归属：跟 updateContact 一个口径（已经挂在别人名下的不抢，空着的才归他）
-    await this.prisma.customer
-      .updateMany({ where: { id: order.customerId, companionId: null }, data: { companionId: order.companionId } })
-      .catch(() => null);
-
+    // 客户归属**不在这里做**：等他真点到「添加成功」时才归他（updateContact 的 'added' 分支），
+    // 不然「客户不喜欢」的单也会挂到他名下。
     // 切成「接单中」：空闲黑名单（本店挂着三角洲）立刻撤掉，他才能开着游戏进房间对接。
     if (order.companionId) {
       await switchCompanionStatus(this.prisma, order.companionId, 'BUSY');
