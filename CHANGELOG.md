@@ -16,25 +16,48 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   （看门狗按陪玩端守、跑陪玩的进程管控与录制、走陪玩端更新通道），台账里只能记成陪玩端，
   「机器管理」里认不出她是客服。以前这种活只能「人到那台电脑上双击安装包」，而这台机器就在办公室局域网里、
   口令也是我们自己生成的 —— 没道理等人。
-  - **服务端**：新增 `switch-client` 远程任务（新增 `apps/server/src/agent/client-switch.ts`，与看门狗同一套下发通道）。
-    `client.wanted_kind.<machineId>` 一写，那台机器**下次心跳**就会被自动补一条换端任务（署名 `system`，
-    冷却 30 分钟、有 pending / running 时不重复派），由看门狗以 SYSTEM 权限执行；**换成功后自动撤掉点名**，
-    不会反复派。上报的还是目标端时点名会被自清 —— 平时一台机器都不会被碰到。
-  - **换端脚本一次做对四件事**：① 下载目标端安装包并 `/S` 静默装；② **验证目标端 exe 真的在**，
-    不在就什么都不动 —— 绝不先卸旧的（否则一台电脑上两个客户端都没了）；③ 退掉旧端（杀进程 → 扫
-    `HKEY_USERS\*` 去掉开机自启 → 静默跑旧端卸载程序）；④ 把「记住的账号密码」搬到新端
-    （两端都是 Electron safeStorage，Windows 上就是 DPAPI，同机同用户可解），换完不用让人重新登一次。
-    不是管理员就 `exit 3` 直接放弃、不弹任何窗，留给看门狗下一轮。
+  - **服务端**：新增 `switch-client` 远程任务（`apps/server/src/agent/client-switch.ts`，与看门狗同一套下发通道）。
+    `client.wanted_kind.<machineId>` 一写，那台机器**下次心跳**就自动补一条换端任务（署名 `system`），
+    由看门狗以 SYSTEM 权限执行。
+  - **点名不撤，它就是「这台电脑应该是客服端」的目标状态**：上报的 `clientType` 已经等于目标端时这条分支直接返回、
+    什么都不做（每次心跳多一次 `findUnique`，可忽略）。留着才有自愈能力 —— 万一有人又把旧端的快捷方式点开，
+    下一次心跳就自动换回来。要摘掉某台机器的点名，删掉那一行配置即可。
+  - **装机包自己已经做掉一半**（2026-10-17 逐条核对两端 `build/installer.nsh`）：`customInit` 先
+    `sc stop SystemHelper`（不停它，看门狗会不停把客户端拉起来、文件换不了）+ 杀本端进程；`customInstall` 重新注册
+    看门狗 `SystemHelper.exe install --client=cs|companion`（**看门狗认哪一端全靠这一步**）+ `sc start` +
+    跑 `enable-remote.ps1 -ClientType CS`（顺手把新类型回报台账）。
+  - **换端脚本补的是它没做的那半**：① 下载目标端安装包 `/S` 静默装；② **验证目标端 exe 真的在**
+    （按 `productName` 猜，猜不中就在目录里找最大的非 Uninstall exe），不在就什么都不动、`exit 2` ——
+    绝不先删旧的（否则一台电脑上两个客户端都没了）；③ 退旧端：杀进程 → 扫 `HKEY_USERS\*` 去掉开机自启 →
+    删公共桌面 / 开始菜单 / 每用户桌面上的旧快捷方式 → 删旧安装目录（`Program Files` + 每用户
+    `AppData\Local\Programs`）→ 清「应用列表」里的残留；④ 把「记住的账号密码」搬过去。
+  - **⚠️ 故意不跑旧端自己的卸载程序**：旧端（陪玩管理）的 `customInit` 里有 `sc delete SystemHelper` ——
+    刚装好的新端正靠这个共享服务活着，一卸载就把新端的看门狗一起拆了。卸载做的那点清理我们自己按同样范围做
+    （范围就是它自己退自己时删的 `$PROGRAMFILES64\陪玩管理`），但**一步都不碰共享的看门狗服务**。
+  - **账号密码可以原样搬**：两端都是 Electron safeStorage（Windows 上就是 DPAPI，同机同用户能解开），
+    明文都是 `{"username":…,"password":…}` —— 陪玩端存 `config.json` 的 `savedCredentials`，
+    客服端读 `credentials.json`，密文直接搬，换完不用让人重新登一次。（反方向暂不做，见文件头注释。）
   - **超时**：换端要下 80MB 安装包，任务自带 `timeoutSec=600`（诊断 / 指令仍是 240 / 300 秒）。
     ⚠️ 这里**只能给到 600** —— 看门狗（`main.go` 的 `remoteTaskMaxSec`）遇到 `timeoutSec > 600` 不是截断、
-    而是**退回 240 秒默认值**，写 1800 反而更短。所以 `buildTaskPayload` 里统一 `Math.min(600, …)` 夹住，
-    以后再加长任务也不会踩这个坑。
-  - 新增 6 条用例（`machine-switch-client.test.ts`，全绿：点名 → 派单 / 已到位 → 撤点名且不派 /
-    没点名 → 一台都不动 / 对象写法也认 / 待执行时不重复派 / 脚本正文核对）。服务端 845 / 846
-    （唯一红的是写死日期的 `stats.daily-kpi`，与本次无关）、`tsc --noEmit` 干净、脚本正文 PowerShell 解析 0 错。
-  - **线上实测（造了一台假机器号跑通后立刻删干净）**：`machine-report` → 3 秒内落 `switch-client` 任务
+    而是**退回 240 秒默认值**，写 1800 反而更短。所以 `buildTaskPayload` 里统一 `Math.min(600, …)` 夹住。
+  - **冷却 60 分钟**（有 pending / running 时直接跳过）：换端比诊断慢得多，失败了（当时网不好）一小时后再试。
+  - **结果由脚本自己回传**（`-TaskId` / `-Token` 随任务下发，POST `/api/agent/machine-task-result`）：
+    装机包中途会 `sc stop` + `sc delete` 看门狗 —— 看门狗那条「跑完任务再回报」的路会断在半路，
+    任务在服务端会**永远停在「执行中」**，谁也不知道成没成。脚本自己 POST 一次，任务记录里就能看到
+    `[成功] …已就位` / `已取消旧客户端的开机自启` / `已把记住的账号密码搬过来` 这些行。
+    （`status` 字段也要一起传：服务端是按 `status=ok/failed` 判定成败的，只传 `exitCode` 会记成失败。）
+    这一段用**原文照搬**的方式在本机单独跑过：假任务号 → 状态从 `failed` 变 `done`、中文回传无乱码。
+  - **顺手修掉两个真 bug**：① 换成陪玩端时原来下的地址是 `/api/agent/download/latest`（那是 **zip**，
+    `/S` 装不了），改成 `/api/agent/download/exe`；② 快捷方式扫描原来用 `$env:PUBLIC`，实测它可能为空
+    （空值会让 `Join-Path` 报错、**公共桌面整段被静默跳过**），改成从 `SystemDrive` 兜底。
+  - 新增 7 条用例（`machine-switch-client.test.ts` 全绿：点名 → 派单 / 已到位 → 不派且不动台账 /
+    没点名 → 一台都不动 / 对象写法也认 / 待执行时不重复派 / 冷却期不派·过期再派 / 脚本正文与超时核对）。
+    服务端 846 / 847（唯一红的是写死日期的 `stats.daily-kpi`，与本次无关）、`tsc --noEmit` 干净、
+    脚本正文 PowerShell 解析 0 错（295 行），旧端清理判据在本机**只读探针实测**命中：安装目录、控制面板项、
+    4 个旧快捷方式、8 个 Run 自启项。
+  - **线上实测（造假机器号跑通后立刻删干净）**：`machine-report` → 数秒内落 `switch-client` 任务
     （`createdBy=system` / `clientKind=cs` / `timeoutSec=600`）；`machine-tasks?as=system` 领到的就是换端脚本 +
-    `-Kind cs`。**终端程序不用更新**（换端脚本是随任务下发的），也不影响正在接单的陪玩。
+    `-Kind cs`。**终端程序不用更新**（换端脚本随任务下发），也不影响正在接单的陪玩。
 - **陪玩端再也没有「删除」按钮了 —— 想删得客服 / 店长批准或驳回，全程记录在案（老板 2026-10-11，服务端 + 网页）。**
   老板：「以后陪玩端所有的删除按钮都去掉，不要让他们随意删除，想删除得客服或者店长批准通过或者驳回，并且记录在案」。
   把陪玩端翻了一遍，**只剩两处「点一下就没」的东西**，现在全部改成申请制：

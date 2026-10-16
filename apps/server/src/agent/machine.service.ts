@@ -535,30 +535,27 @@ export class MachineService {
    * 于是「机器管理」里认不出她是客服。以前这种事只能人到电脑跟前双击安装包；
    * 现在云端点个名就够：这台机器下次上报时，只要它报的还是另一种端，就自动补一条「换端」任务，
    * 由看门狗以 SYSTEM 权限执行（下载安装包 → /S 静默装 → 退掉旧端 → 搬账号密码）。
-   * 换成功后（上报的 clientType 已经是目标端）自动把点名撤掉，不会反复派。
-   * 冷却 30 分钟：换端要下 80MB，比诊断慢得多，但失败了得能重试。
+   * 点名**不撤**：它就是「这台电脑应该是客服端」的目标状态。换成功后上报的 clientType 已经
+   * 等于目标端，这条分支直接返回、什么都不做（每次心跳多一次 findUnique，可忽略）。
+   * 留着它是有用的：万一有人又去点旧端的快捷方式（换端脚本已经把快捷方式和旧目录都清了，
+   * 但没法保证绝对），下一次心跳就又会自动换回来 —— 声明式的目标状态比「换一次就不管了」稳。
+   * 真要摘掉这台机器的点名，删掉 `client.wanted_kind.<machineId>` 这一行即可。
+   * 冷却 60 分钟：换端要下 80MB，比诊断慢得多；失败了（比如当时网不好）一小时内再试一次。
    */
   private async autoSwitchClient(record: any): Promise<void> {
     const machineId = String(record?.machineId || '');
     if (!machineId) return;
     const wanted = await this.wantedClientKind(machineId);
     if (!wanted) return;
-    if (wanted === String(record?.clientType || '').toLowerCase()) {
-      // 换成功了就把点名撤掉 —— 留着的话以后每次心跳都要再比一遍。
-      try {
-        await this.prisma.systemConfig.delete({ where: { key: `client.wanted_kind.${machineId}` } });
-      } catch {
-        // 已经被别的地方撤了/本来就没有，都算数。
-      }
-      return;
-    }
+    // 上报的就是目标端 —— 已经是我们要的样子，什么都不用做。
+    if (wanted === String(record?.clientType || '').toLowerCase()) return;
     const rows = await this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.task.' } } });
     const mine = rows
       .map((r) => (r.value as any) || {})
       .filter((t) => t && t.machineId === machineId && t.type === 'switch-client');
     if (mine.some((t) => t.status === 'pending' || t.status === 'running')) return;
     const last = mine.map((t) => String(t.createdAt || '')).sort().pop() || '';
-    if (last && Date.now() - new Date(last).getTime() < 30 * 60 * 1000) return;
+    if (last && Date.now() - new Date(last).getTime() < 60 * 60 * 1000) return;
     await this.createTask({
       machineId,
       type: 'switch-client',
@@ -674,7 +671,14 @@ export class MachineService {
     };
     if (task.type === 'switch-client') {
       const kind = String(task.clientKind || 'cs').toLowerCase() === 'companion' ? 'companion' : 'cs';
-      return { ...base, mode: 'script', script: buildSwitchClientScript(), args: ['-ServerUrl', '__SERVER__', '-Kind', kind] };
+      // -TaskId / -Token：换端脚本自己把结果 POST 回来。装机包中途会 sc stop + sc delete 看门狗，
+      // 看门狗那条「跑完任务再回报」的路会断在半路（任务永远停在「执行中」），所以不能指望它。
+      return {
+        ...base,
+        mode: 'script',
+        script: buildSwitchClientScript(),
+        args: ['-ServerUrl', '__SERVER__', '-Kind', kind, '-TaskId', task.id, '-Token', ONBOARD_REPORT_TOKEN],
+      };
     }
     if (task.type === 'diag') {
       return { ...base, mode: 'script', script: buildClientDiagScript(ONBOARD_REPORT_TOKEN), args: ['-OutFile', '__OUT__', '-ServerUrl', '__SERVER__', '-TaskId', task.id, '-Reason', task.reason || '远程一键诊断'] };

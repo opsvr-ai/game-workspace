@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MachineService } from '../agent/machine.service';
 import { createMockPrisma, MockPrisma } from '../__mocks__/prisma.mock';
+import { ONBOARD_REPORT_TOKEN } from '../agent/agent-token';
 
 /**
  * 老板 2026-10-17：「现在就换」。
@@ -101,15 +102,19 @@ describe('MachineService 云端点名换端', () => {
     const payload = got.tasks[0] as any;
     expect(payload.type).toBe('switch-client');
     expect(payload.mode).toBe('script');
-    expect(payload.args).toEqual(['-ServerUrl', '__SERVER__', '-Kind', 'cs']);
+    // -TaskId / -Token：脚本自己把结果回传（装机包会中途把看门狗停掉，看门狗报不回来）
+    expect(payload.args).toEqual([
+      '-ServerUrl', '__SERVER__', '-Kind', 'cs', '-TaskId', payload.id, '-Token', ONBOARD_REPORT_TOKEN,
+    ]);
     expect(payload.timeoutSec).toBe(600);
     // 脚本正文要真是「装目标端 → 验在不在 → 退旧端 → 搬账号密码」那一份
     expect(String(payload.script)).toContain('[换端]');
     expect(String(payload.script)).toContain('/api/agent/download/cs');
     expect(String(payload.script)).toContain('HKEY_USERS');
+    expect(String(payload.script)).toContain('/api/agent/machine-task-result');
   });
 
-  it('已经换成客服端了 → 不再派任务，并自动把点名撤掉（不反复派）', async () => {
+  it('已经换成客服端了 → 不再派任务，也不许动别的台账行（点名留着当目标状态）', async () => {
     mockPrisma.systemConfig.findUnique.mockImplementation(({ where }: any) => {
       if (where?.key === wantedKey) return Promise.resolve({ key: wantedKey, value: 'cs' });
       if (where?.key === 'watchdog.latest_build') return Promise.resolve({ key: where.key, value: '2026093006' });
@@ -119,10 +124,9 @@ describe('MachineService 云端点名换端', () => {
     await heartbeat({ clientType: 'CS', remoteReady: true, watchdogBuild: '2026093006' });
     await new Promise((r) => setTimeout(r, 0));
     expect(createdTasks()).toHaveLength(0);
-    const deleted = (mockPrisma.systemConfig.delete as any).mock.calls.map((c: any[]) => c[0]?.where?.key);
-    expect(deleted).toContain(wantedKey);
-    // 别的台账行（比如重复行清理）不该被顺手删
-    expect(deleted).not.toContain(machineKey);
+    // 点名是「这台电脑应该是客服端」的目标状态，换成功了也留着 ——
+    // 万一有人又把旧端点开，下一次心跳还会自动换回来。
+    expect(mockPrisma.systemConfig.delete).not.toHaveBeenCalled();
   });
 
   it('没点名就不许动人家的客户端（平时一台都不许换）', async () => {
@@ -172,5 +176,36 @@ describe('MachineService 云端点名换端', () => {
     await heartbeat({ clientType: 'COMPANION', remoteReady: true, watchdogBuild: '2026093006' });
     await new Promise((r) => setTimeout(r, 0));
     expect(createdTasks()).toHaveLength(0);
+  });
+
+  it('上一轮换端失败了（任务已结束）→ 一小时内不重复派，过了冷却还会再试', async () => {
+    const wantedImpl = ({ where }: any) => {
+      if (where?.key === wantedKey) return Promise.resolve({ key: wantedKey, value: 'cs' });
+      if (where?.key === 'watchdog.latest_build') return Promise.resolve({ key: where.key, value: '2026093006' });
+      if (where?.key === machineKey) return Promise.resolve(machineRow());
+      return Promise.resolve(null);
+    };
+    const failedTask = (agoMin: number) => ({
+      key: 'client.task.t-failed',
+      value: {
+        id: 't-failed',
+        machineId,
+        type: 'switch-client',
+        status: 'done',
+        createdAt: new Date(Date.now() - agoMin * 60 * 1000).toISOString(),
+      },
+    });
+
+    mockPrisma.systemConfig.findUnique.mockImplementation(wantedImpl);
+    mockPrisma.systemConfig.findMany.mockResolvedValue([failedTask(10)]);
+    await heartbeat({ clientType: 'COMPANION', remoteReady: true, watchdogBuild: '2026093006' });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(createdTasks()).toHaveLength(0);
+
+    mockPrisma.systemConfig.findUnique.mockImplementation(wantedImpl);
+    mockPrisma.systemConfig.findMany.mockResolvedValue([failedTask(90)]);
+    await heartbeat({ clientType: 'COMPANION', remoteReady: true, watchdogBuild: '2026093006' });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(createdTasks()).toHaveLength(1);
   });
 });
