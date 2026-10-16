@@ -41,7 +41,7 @@ import {
   publishVoiceCallState,
   setVoiceOwner,
 } from '../utils/voiceCallWindow';
-import { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, makeGroupsClickable, rolePage, IconLogout, IconFold, IconUnfold } from '../config/roleMenus';
+import { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, makeTitlesClickable, rolePage, IconLogout, IconFold, IconUnfold } from '../config/roleMenus';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
 // Badge pulse animation
@@ -1882,11 +1882,14 @@ const AppLayout: React.FC = () => {
         ? { ...it, label: menuBadgeLabel(it.label, todosBadge, todosHint || undefined) }
         : it,
     );
-    // 最后一步：分组标题（type: 'group'，如「陪玩工资 70%」）本来只做视觉分段、点了不跳（老板
-    // 2026-10-08 的「最多两级」规矩），但它长得跟能点的菜单项一模一样 —— 老板 2026-10-10 直接问
-    // 「陪玩工资 70% 点不开？」。所以把它包成可点：点一下进里面第一个页面，不折叠这条规矩不变。
+    // 最后一步：把标题包成可点 —— 点一下直接进它里面第一个页面。
+    //   ① 一级菜单（陪玩管理 / 客服管理…）：老板 2026-10-16「点一下，再动鼠标点右侧的二级标题，
+    //      很不顺手」—— 以前点一级的文字只是展开 / 收起，得再点一次二级才进得去。
+    //   ② 分组标题（type: 'group'，如「陪玩工资 70%」）：老板 2026-10-10「点不开？」，
+    //      它本来只做视觉分段，但长得跟能点的菜单项一模一样。
+    // 「最多两级」这条规矩不变（老板 2026-10-08），展开 / 收起改由那一行右边的箭头管。
     // 必须放在徽标 / 业绩比例之后：那些是按 label 字符串比对的，先换成节点就比不中了。
-    return makeGroupsClickable(withTodosBadge, (key) => navigate(key));
+    return makeTitlesClickable(withTodosBadge, (key) => navigate(key));
   }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, reviewBadge, outcomeReviewBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey, rememberCleared, navigate, markSeen, markBridgeSeen, markBillingSeen, markReviewSeen, markContactSeen, markPendingStartSeen, todosBadge, todosHint]);
 
   const selectedKeys = useMemo(() => {

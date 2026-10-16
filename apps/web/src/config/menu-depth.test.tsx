@@ -9,7 +9,7 @@ import { act, fireEvent, render } from '@testing-library/react';
 import { Menu } from 'antd';
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@chunlv/shared';
-import { makeGroupsClickable, roleMenus } from './roleMenus';
+import { makeTitlesClickable, roleMenus } from './roleMenus';
 
 /** 渲染完再等一拍：rc-menu 挂载后有异步的展开动画状态更新，不等它 Rest 会报 act(...) 警告。 */
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
@@ -53,7 +53,7 @@ describe('左侧导航渲染（最多两级）', () => {
 
   it('分组标题可点：点「陪玩工资」直接进它里面第一个页面（老板 2026-10-10「点不开？」）', async () => {
     const jumps: string[] = [];
-    const items = makeGroupsClickable(roleMenus[UserRole.ADMIN] as any[], (key) => jumps.push(key));
+    const items = makeTitlesClickable(roleMenus[UserRole.ADMIN] as any[], (key) => jumps.push(key));
     const { container, getByText } = render(
       <Menu mode="inline" items={items} openKeys={openKeysOf(items)} />,
     );
@@ -65,5 +65,19 @@ describe('左侧导航渲染（最多两级）', () => {
     // 「客服提成」里第一个页面是「今日看板」。
     fireEvent.click(getByText('客服提成'));
     expect(jumps).toEqual(['/admin/finance/expenses', '/admin/finance/commission-today']);
+  });
+
+  it('一级菜单可点：点「陪玩管理」直接进它里面第一个页面，不用先展开再点二级（老板 2026-10-16）', async () => {
+    const jumps: string[] = [];
+    const items = makeTitlesClickable(roleMenus[UserRole.ADMIN] as any[], (key) => jumps.push(key));
+    const { getByText } = render(<Menu mode="inline" items={items} openKeys={openKeysOf(items)} />);
+    await settle();
+    // 一级标题的文字被包成可点节点：点一下 = 进它里面第一个页面。
+    expect(getByText('陪玩管理').closest('span')).toBeTruthy();
+    fireEvent.click(getByText('陪玩管理'));
+    expect(jumps).toEqual(['/admin/companions?role=COMPANION']);
+    // 点一级不会顺带把「展开 / 收起」也触发（stopPropagation），二级项照旧自己点照旧跳。
+    fireEvent.click(getByText('客服管理'));
+    expect(jumps).toEqual(['/admin/companions?role=COMPANION', '/admin/employees?role=CS']);
   });
 });

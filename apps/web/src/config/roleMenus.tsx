@@ -96,7 +96,11 @@ const firstPageKeyOf = (node: any): string | null => {
 };
 
 /**
- * 把分组标题（`type: 'group'`）做成**可点**：点它直接进里面第一个页面。
+ * 把「标题」做成**可点**：点一下直接进它里面第一个页面。
+ *
+ * - 一级菜单（带子项）—— 老板 2026-10-16：「点一下，再动鼠标点右侧的二级标题，很不顺手」。
+ *   以前点一级的文字只是展开 / 收起，得再点一次二级才进得去；现在点文字 = 直接进第一个子页面，
+ *   展开 / 收起改由这一行右边的箭头管（「最多两级」的规矩不变）。
  *
  * 老板 2026-10-10：「陪玩工资 70% 点不开？」—— 分组标题本来只是视觉分段（点了不跳转），
  * 但在左侧栏里它跟能点的菜单项长得一样，**看着像个菜单却点不动**比长一点更别扭。
@@ -104,15 +108,15 @@ const firstPageKeyOf = (node: any): string | null => {
  *
  * onClick 里先 stopPropagation：别顺带触发父级 Menu 的 onClick（那会按 key 再跳一次）。
  */
-const makeGroupsClickable = (
+const makeTitlesClickable = (
   items: any[],
   onJump: (key: string) => void,
 ): any[] =>
   items.map((node) => {
     const kids = Array.isArray(node?.children)
-      ? makeGroupsClickable(node.children, onJump)
+      ? makeTitlesClickable(node.children, onJump)
       : undefined;
-    if (node?.type !== 'group' || !kids?.length) return kids ? { ...node, children: kids } : node;
+    if (!kids?.length) return node;
     const jump = firstPageKeyOf(node);
     if (!jump) return { ...node, children: kids };
     return {
@@ -516,5 +520,5 @@ const ROLE_PAGES: Record<string, Record<string, string>> = {
 const rolePage = (role: string | undefined, module: string): string => ROLE_PAGES[role || '']?.[module] || '';
 
 // AppLayout 真正要用的就这几样（图标只导出它在别处直接渲染的那三个）。
-export { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, makeGroupsClickable, rolePage, IconLogout, IconFold, IconUnfold };
+export { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, makeTitlesClickable, rolePage, IconLogout, IconFold, IconUnfold };
 export type { MenuItemDef };
