@@ -562,173 +562,6 @@ const OrdersPage: React.FC = () => {
     return () => window.removeEventListener('chunlv:transfer-updated', load);
   }, [isCompanion, user?.companionId]);
 
-  // Companion-only action buttons
-  const renderCompanionActions = (r: any) => {
-    const hasWorkWechat = r.customFields?.workWechatName || r.customFields?.workWechatId;
-    const contactDisabled = !hasWorkWechat;
-
-    return (
-      <>
-        <Badge count={unreadMap[r.id] || 0} size="small">
-          <Button
-            size="small"
-            onClick={() => {
-              localStorage.removeItem(`unread-${r.id}`);
-              setUnreadMap((prev) => {
-                const { [r.id]: _, ...rest } = prev;
-                return rest;
-              });
-              const csUser = r.csUser;
-              if (csUser?.id) {
-                // 「这一单」那行字带上订单 id / 单号：客服在聊天框里点一下就能跳到这张单
-                const orderInfo = encodeOrderInfo(orderInfoTextOf(r), r.id);
-                useChatStore.getState().openConversation(
-                  csUser.id,
-                  {
-                    userId: csUser.id,
-                    username: csUser.username || '未知',
-                    displayName: csUser.displayName,
-                    avatar: csUser.avatar,
-                    role: csUser.role || 'CS',
-                  },
-                  orderInfo,
-                );
-                setChatPartner({
-                  conversationId: csUser.id,
-                  participant: {
-                    userId: csUser.id,
-                    username: csUser.username || '未知',
-                    displayName: csUser.displayName,
-                    avatar: csUser.avatar,
-                    role: csUser.role || 'CS',
-                  },
-                  orderInfo,
-                });
-              }
-            }}
-          >
-            沟通
-          </Button>
-        </Badge>
-        {(r.status === 'GRABBED' || r.status === 'CONFIRMED') && !r.contactStatus && (
-          <>
-            {r.customFields?.customerRoomCode && !r.customFields?.roomJoinedAt ? (
-              // 房间码单、还没进过游戏（老板 2026-10-11 加；2026-10-17 改口径）：
-              // 这一颗**只做一件事** —— 切成「接单中」，看门狗才不再杀三角洲，他才进得去房间。
-              // 以前它顺手记「添加成功」，老板 2026-10-17 问「进去之后客户不喜欢怎么办？也添加成功？」
-              // → 现在**不算添加成功**：要到客户微信了再点旁边那颗「添加成功」，客户不喜欢就点「添加失败」。
-              <Tooltip title="房间码单：点一下只把你切成「接单中」（空闲时看门狗会把三角洲杀掉，切了才进得去游戏）。进去要到客户微信了再点「✅ 添加成功」；客户不喜欢就点「❌ 添加失败」">
-                <Button
-                  type="primary"
-                  size="small"
-                  style={{ background: SEMANTIC.success, borderColor: SEMANTIC.success }}
-                  onClick={async () => {
-                    try {
-                      await http.post(`/orders/${r.id}/room-join`);
-                      message.success('已切成「接单中」，游戏不会被关 —— 进游戏对接吧，要到客户微信再点「添加成功」');
-                      fetch();
-                    } catch (e: any) {
-                      message.error(extractErrorMessage(e, '操作失败'));
-                    }
-                  }}
-                >
-                  🏠 进游戏对接
-                </Button>
-              </Tooltip>
-            ) : (
-              <Tooltip title={contactDisabled ? '请先在"工作微信"列选择微信' : undefined}>
-                <Button
-                  type="primary"
-                  size="small"
-                  disabled={contactDisabled && !r.customFields?.customerRoomCode}
-                  style={{
-                    background: contactDisabled && !r.customFields?.customerRoomCode ? undefined : SEMANTIC.success,
-                    borderColor: contactDisabled && !r.customFields?.customerRoomCode ? undefined : SEMANTIC.success,
-                  }}
-                  onClick={async () => {
-                    try {
-                      await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                      message.success('已添加成功，正在进入客户管理');
-                      window.location.href = '/companion/customers';
-                    } catch (e: any) {
-                      message.error(extractErrorMessage(e, '操作失败'));
-                    }
-                  }}
-                >
-                  ✅ 添加成功
-                </Button>
-              </Tooltip>
-            )}
-            <Tooltip
-              title={
-                contactDisabled && !r.customFields?.customerRoomCode
-                  ? '请先在"工作微信"列选择微信'
-                  : r.customFields?.customerRoomCode
-                    ? '客户不喜欢 / 没要到微信就点这里（房间码单不用先选工作微信）'
-                    : undefined
-              }
-            >
-              <Button
-                danger
-                size="small"
-                disabled={contactDisabled && !r.customFields?.customerRoomCode}
-                onClick={async () => {
-                  try {
-                    await http.put(`/orders/${r.id}/contact`, {
-                      contactStatus: 'not_accepted',
-                      notes: r.customFields?.customerRoomCode ? '客户不喜欢 / 没给微信' : '客户一直没同意',
-                    });
-                    message.success('已标记添加失败');
-                    fetch();
-                  } catch (e: any) {
-                    message.error(extractErrorMessage(e, '操作失败'));
-                  }
-                }}
-              >
-                ❌ 添加失败
-              </Button>
-            </Tooltip>
-          </>
-        )}
-        {r.status === 'GRABBED' && r.contactStatus === 'not_accepted' && (
-          <>
-            <Tag color="orange">待客户同意</Tag>
-            {r.screenshotUrl && <Image src={r.screenshotUrl} width={40} style={{ marginLeft: 4, borderRadius: 4 }} />}
-            <Button
-              type="primary"
-              size="small"
-              style={{ background: SEMANTIC.success, borderColor: SEMANTIC.success }}
-              onClick={async () => {
-                try {
-                  await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                  message.success('已标记添加成功');
-                  fetch();
-                } catch (e: any) {
-                  message.error(extractErrorMessage(e, '操作失败'));
-                }
-              }}
-            >
-              添加成功
-            </Button>
-          </>
-        )}
-        {r.status === 'DONE' && (
-          <Button size="small" type="primary" onClick={() => {
-            setPreFill({
-              customerId: r.customerId,
-              companionId: user?.companionId,
-              coCompanionId: r.coCompanionId || undefined,
-              gameName: r.gameName,
-              amount: r.amount,
-              coAmount: r.coAmount,
-              dispatchType: 'DIRECT',
-            });
-            setCreateOpen(true);
-          }}>续单</Button>
-        )}
-      </>
-    );
-  };
 
   // Load companions for filter + reassign
   useEffect(() => {
@@ -957,8 +790,16 @@ const OrdersPage: React.FC = () => {
           </span>
         )}
         <span style={actionSlot(60)}>
-          {isCompanion && r.customFields?.customerRoomCode && (r.status === 'GRABBED' || r.status === 'CONFIRMED') ? (
-            <Tooltip title="房间码单：点一下只把你切成「接单中」（空闲时看门狗会把三角洲杀掉，切了才进得去游戏）。不记「添加成功」—— 要到客户微信了再去操作列点「添加成功」，客户不喜欢就点「添加失败」">
+          {isCompanion &&
+          r.customFields?.customerRoomCode &&
+          !r.customFields?.roomJoinedAt &&
+          (r.status === 'GRABBED' || r.status === 'CONFIRMED') ? (
+            // 房间码单、还没进过游戏（老板 2026-10-11 加；2026-10-17 改口径）：
+            // 这一格**只**把他切成「接单中」—— 空闲黑名单里挂着三角洲，不切他开游戏就被看门狗杀掉。
+            // **不算「添加成功」**（老板 2026-10-17：「进去之后客户不喜欢怎么办？也添加成功？」）：
+            // 点过之后 `roomJoinedAt` 一写上，这一格自动换成「添加成功」；
+            // 客户不喜欢 / 没要到微信就点右边那格「添加失败」，走跟别的单一样的补单审核。
+            <Tooltip title="房间码单：点一下只把你切成「接单中」（空闲时看门狗会把三角洲杀掉，切了才进得去游戏）。这一步不算「添加成功」—— 进游戏要到客户微信了，这一格就变成「添加成功」；客户不喜欢就点右边「添加失败」">
               <Button
                 size="small"
                 type="primary"
@@ -966,7 +807,7 @@ const OrdersPage: React.FC = () => {
                 onClick={async () => {
                   try {
                     await http.post(`/orders/${r.id}/room-join`);
-                    message.success('已切成「接单中」，游戏不会被关，可以进游戏对接了');
+                    message.success('已切成「接单中」，游戏不会被关 —— 进游戏对接吧，要到客户微信再点「添加成功」');
                     fetch();
                   } catch (e: any) {
                     message.error(extractErrorMessage(e, '操作失败'));
@@ -1020,7 +861,13 @@ const OrdersPage: React.FC = () => {
         </span>
         <span style={actionSlot(60)}>
           {contactState === 'pending' ? (
-            <Tooltip title="客户一直没加你 / 没同意就点这里：自己写清楚为什么（备注必填，乱写会被管理端驳回）+ 可粘贴「客户没同意」的截图，管理端审核补单申请时能看到">
+            <Tooltip
+              title={
+                r.customFields?.customerRoomCode
+                  ? '客户不喜欢 / 没要到微信就点这里（房间码单不用先选工作微信）：把原因写清楚（必填，乱写会被管理端驳回）+ 可粘贴截图，走跟别的单一样的补单审核'
+                  : '客户一直没加你 / 没同意就点这里：自己写清楚为什么（备注必填，乱写会被管理端驳回）+ 可粘贴「客户没同意」的截图，管理端审核补单申请时能看到'
+              }
+            >
               <Button
                 size="small"
                 danger
