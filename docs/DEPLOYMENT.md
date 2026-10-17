@@ -600,6 +600,9 @@ Electron 客户端 是运行在陪玩师电脑上的桌面客户端，通过 Web
 - **当前线上版本：`1.0.20261026`（2026-10-17 发布，`agent.latest_version`）**；发布前旧包备份在
   `uploads/chunlv-latest.zip.bak-20261017-2310` / `agent-setup.exe.bak-20261017-2310`，
   回滚时恢复文件并把 `agent.latest_version` 改回 `1.0.20261025`。
+- **更新包下发总带宽**：`apps/server/.env` 的 `UPDATE_DOWNLOAD_KBPS`（默认 300，按「所有正在下载的机器共享」算）。
+  统一客户端首轮铺开时多家店同时下载会把每路压到几十 KB/s，128MB 包会超过客户端 30 分钟下载超时；
+  2026-10-17 已调到 `1024`（约 1MB/s 总额度，8 路并发时每路约 128KB/s，单包约 17 分钟）。调整后需 `pm2 restart chunlv-server`。
 
 ### 5.1 编译 Agent
 
