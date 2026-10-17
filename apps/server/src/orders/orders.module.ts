@@ -3,6 +3,10 @@ import { WsModule } from '../ws/ws.module';
 import { StudiosModule } from '../studios/studios.module';
 import { CompanionsModule } from '../companions/companions.module';
 import { OrdersService } from './orders.service';
+import { OrderQueryService } from './order-query.service';
+import { OrderExceptionService } from './order-exception.service';
+import { OrderSessionService } from './order-session.service';
+import { OrderTransferService } from './order-transfer.service';
 import { CsFinanceService } from './cs-finance.service';
 import { OrdersController } from './orders.controller';
 import { OrderWorkflowService } from './order-workflow.service';
@@ -21,6 +25,10 @@ import { DirectAssignmentReminderService } from './direct-assignment-reminder.se
   controllers: [OrdersController],
   providers: [
     OrdersService,
+    OrderQueryService,
+    OrderExceptionService,
+    OrderSessionService,
+    OrderTransferService,
     // 客服微信收款 / 资金流水 / 对账（从 OrdersService 拆出的子域，OrdersService 门面委托）。
     CsFinanceService,
     OrderWorkflowService,
