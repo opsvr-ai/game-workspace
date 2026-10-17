@@ -39,6 +39,7 @@ vi.mock('./logger', () => ({
 vi.mock('./tray', () => ({
   startUpdateSpin: vi.fn(),
   stopUpdateSpin: vi.fn(),
+  restoreTrayTooltip: vi.fn(),
   updateTrayTooltip: vi.fn(),
 }));
 vi.mock('./config', () => ({ getServerUrl: vi.fn(() => 'http://127.0.0.1:3001') }));

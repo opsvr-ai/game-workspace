@@ -11,6 +11,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('credentials:save', creds),
   clearSavedCredentials: () => ipcRenderer.invoke('credentials:clear'),
   logout: () => ipcRenderer.invoke('auth:logout'),
+  /**
+   * 「连不上服务器」兜底页上的「立即重新加载」按钮（从客服端外壳移植）。
+   * 走主进程重新加载登录页，不整页刷新，重试计数不会被清零。
+   */
+  reloadApp: () => ipcRenderer.invoke('app:reload'),
   setAppPassword: (oldPassword: string, newPassword: string) =>
     ipcRenderer.invoke('app:set-password', oldPassword, newPassword),
   sessionWatch: (sessionId: string) => ipcRenderer.send('session:watch', sessionId),

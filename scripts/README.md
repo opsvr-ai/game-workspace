@@ -39,6 +39,11 @@ python scripts\_publish_client.py <版本号>
 python scripts\_publish_cs_client.py <版本号>
 ```
 
+> **2026-10-17 起客户端统一**：只发一个通用客户端（`_publish_client.py`，`apps/companion-electron`），
+> 登录什么角色就切什么能力。上面的第 4 步 `_publish_cs_client.py` **冻结为 legacy**，只用于老客服机紧急修复；
+> 存量客服机请用管理端「换端 → 通用客户端」迁移，不要继续发新的客服端版本。
+> 详见 `docs/DEPLOYMENT.md` 5.0。
+
 ## 运维 / 辅助
 
 | 脚本 | 用途 |

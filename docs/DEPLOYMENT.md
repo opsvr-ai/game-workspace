@@ -566,6 +566,38 @@ sudo certbot renew --dry-run   # 测试续期是否正常
 
 Electron 客户端 是运行在陪玩师电脑上的桌面客户端，通过 WebSocket 连接后端。
 
+### 5.0 统一客户端（2026-10-17 起：只发一个安装包）
+
+老板要求「陪玩端和客服端的客户端安装包整合成一个，根据用户登录的身份自动切换到对应角色的功能上，而不是用两个包」。
+现在**唯一客户端 = `apps/companion-electron`**（内部产品名 / 安装目录 / 升级通道 / 看门狗身份仍是 `companion`，
+这是为了不破坏存量机器的自动更新、换端与看门狗路径；用户可见的托盘 / 窗口标题 / 通知 / 桌面快捷方式已统一叫「蠢驴电竞」）。
+
+登录角色决定能力（网页登录 / 会话恢复时通过 `auth:setRole` 告诉外壳）：
+
+| 能力 | 陪玩（COMPANION） | 客服 / 店长 / 老板（CS/ADMIN/OWNER） |
+|---|---|---|
+| 工作记录截图 / 录屏 | 开 | 关 |
+| 「休息 = 整机休眠」、无操作自动休息 | 开 | **关**（不改电源设置） |
+| 进程黑名单 / 状态上报 / 抢单弹窗 | 开 | 关 |
+| 退出需管理员密码 | 开 | 关 |
+| 托盘「切换状态」 | 显示 | 不显示 |
+| 机器上报 / 远程任务 / 一键诊断 / 聊天窗口 | 开 | 开 |
+| 自动更新通道 | `agent.latest_version`（通用） | 同左 |
+
+- **旧客服端 `apps/cs-electron` 冻结为 legacy**：不再发新版本，只用于老客服机紧急修复。
+- **存量客服机迁移**：管理端「设置中心 → 客户端管理 → 电脑」里对那台机器点「换端 → 通用客户端」，
+  脚本会静默装通用包、校验落地、再清掉旧客服端目录 / 快捷方式 / 开机自启并搬账号密码（不用人到电脑跟前）。
+- **发布**：只跑 `python scripts/_publish_client.py <版本号>`；`_publish_cs_client.py` 默认不再使用。
+- **构建**（Windows，`cp`/`zip` 在纯 Windows shell 不可用，按下面拆开跑）：
+  ```powershell
+  cd apps/companion-electron
+  npx tsc -p tsconfig.electron.json --noEmit
+  node esbuild.electron.js
+  Copy-Item dist-electron/preload.js preload-dist/preload.js -Force
+  npx electron-builder
+  ```
+  安装包输出 `release/陪玩管理 Setup <版本>.exe`（artifact 名沿用旧名，避免改发布脚本/下载路径）。
+
 ### 5.1 编译 Agent
 
 #### Linux 编译

@@ -1,11 +1,24 @@
-import { Tray, Menu, nativeImage } from 'electron';
+import { Tray, Menu, nativeImage, app } from 'electron';
 import fs from 'fs';
 import path from 'path';
+
+import {
+  normalizeShellRole,
+  trayMenuTemplate,
+  trayTooltip,
+  type ShellRole,
+} from './role-policy';
 
 let tray: Tray | null = null;
 let onShowCallback: (() => void) | null = null;
 let onStatusChange: ((status: string) => void) | null = null;
 let onQuitCallback: (() => void) | null = null;
+/** 当前托盘按哪个角色画菜单：只有 COMPANION 出现「切换状态」。 */
+let currentRole: ShellRole = 'UNKNOWN';
+/** 托盘提示里带的工作室名（网页 setStudioName 写进来的）。 */
+let currentStudioName = '';
+/** 重新加载页面的回调由 main.ts 注入（掉线兜底，从客服端外壳移植）。 */
+let onReloadCallback: (() => void) | null = null;
 let spinTimer: ReturnType<typeof setInterval> | null = null;
 let spinIndex = 0;
 
@@ -13,12 +26,18 @@ interface TrayOptions {
   onShow: () => void;
   onStatusChange?: (status: string) => void;
   onQuit: () => void;
+  /** 初始角色：启动时先用上次登录 / UNKNOWN 起，避免未登录机器按陪玩画菜单。 */
+  role?: ShellRole | string;
+  /** 初始工作室名（store 里上一次的），让重启后标题不丢品牌。 */
+  studioName?: string;
 }
 
 export function createTray(opts: TrayOptions): Tray | null {
   onShowCallback = opts.onShow;
   onStatusChange = opts.onStatusChange || null;
   onQuitCallback = opts.onQuit;
+  currentRole = normalizeShellRole(opts.role);
+  currentStudioName = String(opts.studioName || '');
 
   const icon = createTrayIcon();
   // 托盘建不出来（图标读不到、系统托盘不可用等）时返回 null：
@@ -33,8 +52,8 @@ export function createTray(opts: TrayOptions): Tray | null {
   }
   tray = created;
 
-  created.setToolTip('陪玩管理');
-  created.setContextMenu(buildMenu());
+  created.setToolTip(trayTooltip(currentRole, currentStudioName, app.getVersion()));
+  created.setContextMenu(buildMenu(currentRole));
 
   created.on('double-click', () => {
     onShowCallback?.();
@@ -46,44 +65,41 @@ export function createTray(opts: TrayOptions): Tray | null {
   return created;
 }
 
-function buildMenu(): Menu {
-  return Menu.buildFromTemplate([
-    {
-      label: '显示主窗口',
-      click: () => onShowCallback?.(),
-    },
-    {
-      label: '切换状态',
-      submenu: [
-        {
-          label: '空闲',
-          click: () => {
-            if (onStatusChange) onStatusChange('AVAILABLE');
-          },
-        },
-        {
-          label: '接单',
-          click: () => {
-            if (onStatusChange) onStatusChange('BUSY');
-          },
-        },
-        {
-          label: '娱乐',
-          click: () => {
-            if (onStatusChange) onStatusChange('ENTERTAINMENT');
-          },
-        },
-        {
-          label: '休息',
-          click: () => {
-            if (onStatusChange) onStatusChange('RESTING');
-          },
-        },
-      ],
-    },
-    { type: 'separator' },
-    { label: '退出', click: () => onQuitCallback?.() },
-  ]);
+/** 注入「重新加载页面」的回调（掉线兜底页旁边的手动重试入口，来自客服端外壳）。 */
+export function setTrayReloadHandler(handler: (() => void) | null): void {
+  onReloadCallback = handler;
+  if (tray) tray.setContextMenu(buildMenu(currentRole));
+}
+
+function buildMenu(role: ShellRole): Menu {
+  const template = trayMenuTemplate(role, {
+    onShow: () => onShowCallback?.(),
+    onStatusChange: onStatusChange ? (status: string) => onStatusChange?.(status) : undefined,
+    onReload: onReloadCallback ? () => onReloadCallback?.() : undefined,
+    onQuit: () => onQuitCallback?.(),
+  });
+  // role-policy 里那份菜单结构就是按 MenuItemConstructorOptions 的形状写的，
+  // 这里只是为了不把 electron 类型引到纯函数文件里才做一次断言。
+  return Menu.buildFromTemplate(template as unknown as Electron.MenuItemConstructorOptions[]);
+}
+
+/**
+ * 角色变了 / 工作室名变了：统一刷新托盘提示 + 菜单。
+ *
+ * 这是「一个安装包按登录角色自适应」的托盘落点：
+ * 客服账号登进来时「切换状态」子菜单会消失，陪玩登进来时再出现。
+ */
+export function updateTrayRole(role: ShellRole | string, studioName?: string): void {
+  currentRole = normalizeShellRole(role);
+  if (studioName !== undefined) currentStudioName = String(studioName || '');
+  const tip = trayTooltip(currentRole, currentStudioName, app.getVersion());
+  tray?.setToolTip(tip);
+  if (tray) tray.setContextMenu(buildMenu(currentRole));
+}
+
+/** 恢复「正常」托盘提示（更新进度结束后用；会带上当前工作室名）。 */
+export function restoreTrayTooltip(): void {
+  tray?.setToolTip(trayTooltip(currentRole, currentStudioName, app.getVersion()));
 }
 
 export function updateTrayTooltip(text: string): void {
@@ -152,7 +168,8 @@ function createTrayIcon() {
   // 所以这里必须自己 existsSync + isEmpty() 双重判断，否则托盘图标会静默失踪。
   // 托盘图标是「绿色方块 + 白驴」（scripts/_make_tray_icons.py 生成）：老板 2026-10-15 报
   // 右下角两个驴图标长得一模一样、分不清哪个是陪玩哪个是客服 —— 现在陪玩是绿的、客服是蓝的。
-  // 老 donkey.png 留着兜底：万一新图没打进包，也不至于让托盘变成空白。
+  // 统一客户端后图标仍是绿色这套（安装包/资源路径不动），老 donkey.png 留着兜底：
+  // 万一新图没打进包，也不至于让托盘变成空白。
   const candidates = [
     process.resourcesPath ? path.join(process.resourcesPath, 'tray-companion.png') : '',
     path.join(__dirname, '../public/tray-companion.png'),

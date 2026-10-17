@@ -2,6 +2,7 @@ import { BrowserWindow, app, screen, Notification } from 'electron';
 import { store } from './store';
 import { logger } from './logger';
 import { emitStatus } from './websocket';
+import { SHELL_BRAND } from './role-policy';
 import { execFile } from 'child_process';
 
 let lockWindow: BrowserWindow | null = null;
@@ -146,7 +147,7 @@ export function hibernatePc(): void {
         logger.warn('Hibernate failed, falling back to screen lock', { error: err?.message || String(err) });
         try {
           new Notification({
-            title: '陪玩管理',
+            title: SHELL_BRAND,
             body: '休眠失败，已改为锁屏。请联系管理员确认这台电脑已开启休眠。',
           }).show();
         } catch {}

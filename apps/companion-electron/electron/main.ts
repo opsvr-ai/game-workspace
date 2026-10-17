@@ -9,8 +9,17 @@ import { getServerUrl } from './config';
 import { logger } from './logger';
 import { connectWebSocket, disconnectWebSocket, emitStatus, onWsEvent, isConnected } from './websocket';
 import { handleUpdateCommand, checkForUpdates } from './updater';
-import { createTray, updateTrayTooltip } from './tray';
+import { createTray, setTrayReloadHandler, updateTrayRole } from './tray';
 import { PAGE_BUSY_PROBE, decidePageReload } from './reload-policy';
+import {
+  SHELL_BRAND,
+  isCompanionRole,
+  isStaffRole,
+  normalizeShellRole,
+  shellTitle,
+  shouldStartCapture,
+  type ShellRole,
+} from './role-policy';
 import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending, pauseCapture, resumeCapture } from './capture';
 import { handleStatusChanged, ensureHibernateEnabled, setAppPassword, getAppPassword } from './screen-lock';
 import {
@@ -27,7 +36,12 @@ const { createMachineAgent } = require('./machine-agent');
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
-let currentRole = 'COMPANION';
+// 统一客户端（2026-10-17）：一个安装包按网页登录角色自适应，不再按包名写死身份。
+// 初始必须是 UNKNOWN —— 老代码写死 'COMPANION'，未登录/会话过期的机器会被当成陪玩
+// 去改电源设置、开截图、按陪玩口径上报。真实角色由网页 auth:setRole 写进来。
+let currentRole: ShellRole = 'UNKNOWN';
+// 网页 setStudioName 写进来的工作室名（持久化，重启后标题仍能带品牌）。
+let currentStudioName = '';
 // 托盘实例：托盘没建起来（返回 null）时不能走「关窗口=隐藏」，否则窗口再也叫不回来。
 let companionTray: ReturnType<typeof createTray> = null;
 
@@ -53,6 +67,53 @@ function clearAuthState(): void {
   store.set('lastStatus', '');
   store.set('screenLocked', '');
   disconnectWebSocket();
+}
+
+/** 角色 / 工作室名变化后刷新所有用户可见的品牌文案（中性「蠢驴电竞」）。 */
+function refreshShellUi(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setTitle(shellTitle(currentRole, currentStudioName, app.getVersion()));
+  }
+  updateTrayRole(currentRole, currentStudioName);
+}
+
+/**
+ * 把「当前角色」应用到整个外壳：持久化、窗口标题、托盘提示/菜单、陪玩专属能力。
+ *
+ * 统一客户端的角色切换**全部**走这一个入口：网页 auth:setRole、退出登录（→ UNKNOWN）、
+ * 启动恢复。客服账号登进来时，陪玩专属能力（休眠/截图/状态托盘/退出密码）一条都不会挂上。
+ */
+function applyRole(role: unknown, opts: { persist?: boolean } = {}): void {
+  const previous = currentRole;
+  const next = normalizeShellRole(role);
+  currentRole = next;
+  if (opts.persist !== false) store.set('currentRole', next);
+  refreshShellUi();
+  if (isCompanionRole(next)) {
+    // 「休息 = 整机休眠」是陪玩专属：只有真正登进来的陪玩才动这台机器的电源设置。
+    // 以前这段在 whenReady 里无条件执行，客服机器也被一起改了（老板 2026-10-17 统一客户端）。
+    // 只在角色真的变化时执行，页面热更/会话续期重复调 setRole 时不必反复跑 powercfg。
+    if (previous !== next) ensureHibernateEnabled();
+  } else if (isCompanionRole(previous)) {
+    // 从陪玩切成员工 / 未登录：立刻停掉工作记录截图，别让客服机器继续录屏；
+    // 已经截下的按正常流程补传，不留脏数据。
+    void stopCaptureAndFlush();
+  }
+  logger.info('Shell role applied', { role: next, previous, persisted: opts.persist !== false });
+}
+
+/**
+ * 启动时恢复上次的角色（只恢复「安全的部分」）。
+ *
+ * - 上次是客服 / 店长 / 老板：直接按员工角色起 —— 本来就没有陪玩能力，安全；
+ * - 上次是陪玩、或没有记录：先按 UNKNOWN（中性）起，等网页 auth:setRole 再打开陪玩能力。
+ *   不能让「还没登录 / 会话已过期」的机器被当成陪玩去改电源设置、开截图。
+ */
+function restoreShellState(): void {
+  currentStudioName = String(store.get('studioName') || '');
+  const lastRole = normalizeShellRole(store.get('currentRole'));
+  currentRole = isStaffRole(lastRole) ? lastRole : 'UNKNOWN';
+  logger.info('Shell role restored at startup', { stored: lastRole, effective: currentRole });
 }
 
 // WebSocket 优先用 7 天有效期的 refreshToken，避免 accessToken 过期后主进程连不上
@@ -113,6 +174,114 @@ function getLoginUrl(): string {
   return `${base}?v=${app.getVersion()}&t=${Date.now()}`;
 }
 
+// ── 连不上服务器时的兜底（2026-10-17 从客服端外壳移植）─────────────────────
+// 老板报过「客服端窗口整片深蓝，一个字都没有」：那是页面根本没加载成功，
+// 老客户端什么都不显示，看着像电脑坏了。现在补三件事（和客服端保持同一套行为）：
+//   ① 每次登录页加载失败/超时都写日志 + 回传 /api/agent/client-error，以后有据可查；
+//   ② 窗口里直接显示人话（连不上服务器 + 原因 + 重试按钮），不再是空白窗口；
+//   ③ 每 10 秒自动重试一次，托盘里也能点「重新加载页面」。
+// 关键约束：**只在登录页加载失败时动手**，正常页面（含正在使用的页面）一律不打断。
+let loadAttempts = 0;
+let loadOk = false;
+// Chromium 失败时也会提交一张错误页并触发 did-finish-load，而 getURL() 还报着原地址 ——
+// 只看 URL 会把失败当成功，把重试计数和自动重试一起清掉。
+let loadFailed = false;
+let loadWatchdog: ReturnType<typeof setTimeout> | null = null;
+let autoRetryTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 把「登录页加载失败」回传服务端，落到 client-errors/（客服端同款接口，公开不用令牌）。 */
+function reportLoadFailure(desc: string, code: number | string): void {
+  try {
+    const base = getServerUrl().replace(/\/$/, '');
+    const payload = {
+      ip: '',
+      user: String(store.get('currentUsername') || ''),
+      // 统一客户端：这里报真实角色（未登录/旧网页不报时才落 UNKNOWN）。
+      role: currentRole,
+      appVersion: app.getVersion(),
+      page: 'companion-shell',
+      url: getLoginUrl(),
+      phase: 'companion-page-load',
+      status: code === 'timeout' ? null : typeof code === 'number' ? code : null,
+      message: String(desc || ''),
+      detail: `attempts=${loadAttempts} code=${code}`,
+      ua: '',
+    };
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    fetch(`${base}/api/agent/client-error`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: ctl.signal,
+    })
+      .catch(() => {})
+      .finally(() => clearTimeout(timer));
+  } catch {
+    /* 上报失败不影响兜底页 */
+  }
+}
+
+/**
+ * 兜底页：深蓝底 + 人话 + 重试按钮（点按钮走 IPC app:reload，不整页刷新）。
+ * 文案用中性品牌「蠢驴电竞客户端」，不再写「陪玩 / 客服」。
+ */
+function buildLoadErrorHtml(detail: string): string {
+  const serverUrl = getServerUrl().replace(/\/$/, '');
+  const loginUrl = `${serverUrl}/login`;
+  const html =
+    '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">' +
+    '<title>蠢驴电竞客户端 · 连不上服务器</title><style>' +
+    'body{margin:0;height:100vh;background:#0B1024;color:#e6e9f5;font-family:"Microsoft YaHei","微软雅黑",Arial,sans-serif;display:flex;align-items:center;justify-content:center}' +
+    '.box{max-width:640px;padding:0 28px;text-align:center}' +
+    '.icon{font-size:44px}h1{font-size:20px;margin:14px 0 10px;font-weight:600}' +
+    'p{font-size:13px;line-height:1.9;color:#aeb6d4;margin:6px 0}' +
+    'code{color:#8fb2ff;word-break:break-all}' +
+    'button{margin-top:18px;padding:10px 26px;font-size:15px;border:0;border-radius:8px;background:#1677ff;color:#fff;cursor:pointer}' +
+    'button:hover{background:#0958d9}' +
+    '.tip{margin-top:18px;font-size:12px;color:#7b83a3;line-height:1.9}' +
+    '</style></head><body><div class="box"><div class="icon">📡</div>' +
+    '<h1>连不上服务器，页面没打开</h1>' +
+    '<p>服务器地址：<code>' + escapeHtml(loginUrl) + '</code></p>' +
+    '<p>原因：' + escapeHtml(detail || '未知') + '</p>' +
+    '<p>已经重试 <b>' + loadAttempts + '</b> 次，每 10 秒会自动再试一次。</p>' +
+    '<button id="r">立即重新加载</button>' +
+    '<div class="tip">先确认这台电脑能上网、把 VPN / 代理（v2rayN、加速器之类）关掉再点重试。<br>' +
+    '一直不行就把这张页面拍给管理员，或在这台电脑上重装一次蠢驴电竞客户端。</div>' +
+    '<script>document.getElementById("r").onclick=function(){if(window.electronAPI&&window.electronAPI.reloadApp){window.electronAPI.reloadApp();}};</script>' +
+    '</div></body></html>';
+  return 'data:text/html;charset=utf-8;base64,' + Buffer.from(html, 'utf-8').toString('base64');
+}
+
+/** 加载登录页（启动 / 重试 / 托盘 / 兜底页按钮 / 退出登录都走这里）。 */
+function loadLoginPage(reason: string): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  loadOk = false;
+  loadFailed = false;
+  if (loadWatchdog) clearTimeout(loadWatchdog);
+  // 30 秒还没加载完就当成失败（服务器没响应时 Chromium 可能一直转圈、不报错）。
+  loadWatchdog = setTimeout(() => {
+    if (!mainWindow || mainWindow.isDestroyed() || loadOk) return;
+    onPageLoadFailure('页面加载超时（服务器没响应）', 'timeout');
+  }, 30000);
+  logger.info('Load login page', { reason, attempt: loadAttempts });
+  mainWindow.loadURL(getLoginUrl());
+}
+
+/** 登录页加载失败：记日志 / 上报 / 显示兜底页 / 10 秒后自动重试。 */
+function onPageLoadFailure(desc: string, code: number | string): void {
+  loadAttempts += 1;
+  loadFailed = true;
+  if (loadWatchdog) clearTimeout(loadWatchdog);
+  logger.warn('Login page load failed', { attempt: loadAttempts, code, desc });
+  reportLoadFailure(desc, code);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.loadURL(buildLoadErrorHtml(`${desc}（${code}）`));
+  }
+  if (autoRetryTimer) clearTimeout(autoRetryTimer);
+  autoRetryTimer = setTimeout(() => loadLoginPage('auto-retry'), 10000);
+}
+
 /**
  * 陪玩接单中不自动更新，避免更新时退出进程打断服务计时/截图。
  * 但别再像以前那样「接单中直接跳过整轮检查」：开机时正好在接单的话，这一轮就不查了，
@@ -125,9 +294,10 @@ function maybeCheckUpdates(): void {
 
 // 更新流程是由看门狗把 zip 直接覆盖解压到 C:\Program Files\陪玩管理，
 // 不会再跑一次 NSIS 安装器。老机器如果桌面快捷方式还指向旧目录
-// （蠢驴电竞 / @chunlvcompanion-electron），更新后快捷方式就会变成空白或消失。
-// 因此客户端每次启动时，都在当前用户桌面重建/校正「陪玩管理」快捷方式，
+// （陪玩管理 / 客服管理 / 蠢驴电竞 / @chunlvcompanion-electron），更新后快捷方式就会变空白或消失。
+// 因此客户端每次启动时，都在当前用户桌面重建/校正「蠢驴电竞」快捷方式，
 // 确保它永远指向本次正在运行的 exe。
+// 注意：安装目录 / productName 不动（看门狗和自动更新都用它），这里只改用户能看见的名字。
 function ensureDesktopShortcut(): void {
   // 开发模式（electron.exe）不创建快捷方式，避免污染开发机桌面。
   if (!app.isPackaged) return;
@@ -146,10 +316,11 @@ function ensureDesktopShortcut(): void {
   } catch {
     return;
   }
-  const lnk = path.join(desktop, '陪玩管理.lnk');
+  // 统一客户端只保留一个中性品牌：桌面图标叫「蠢驴电竞」。
+  const lnk = path.join(desktop, '蠢驴电竞.lnk');
   const dir = path.dirname(target);
   // 老版本 perMachine 安装器会把快捷方式放到「公共桌面」，当前用户桌面也会有我们新建的图标；
-  // 两个桌面都要清理，否则会同时出现「陪玩管理」和「蠢驴电竞」两个图标。
+  // 两个桌面都要清理，否则会同时出现「陪玩管理」「客服管理」「蠢驴电竞」好几个图标。
   let publicDesktop = '';
   try {
     publicDesktop = path.join(path.dirname(app.getPath('home')), 'Public', 'Desktop');
@@ -164,15 +335,16 @@ function ensureDesktopShortcut(): void {
     `$s.TargetPath=${q(target)}`,
     `$s.WorkingDirectory=${q(dir)}`,
     `$s.IconLocation=${q(`${target},0`)}`,
-    `$s.Description='陪玩管理'`,
+    `$s.Description='蠢驴电竞'`,
     `$s.Save()`,
     // 清理旧名称/旧目录造成的失效或重复快捷方式，避免桌面出现空白图标或三四个一样的图标。
+    // 旧名字包含：陪玩管理（老陪玩端）、客服管理（客服端）、蠢驴电竞（更老的品牌）、chunlv（旧目录名）。
     // 注意：枚举桌面快捷方式必须用 -Path，不能用 -LiteralPath，否则 *.lnk 不会被展开，
     // 旧快捷方式就一直删不掉，才会出现桌面上两个图标。
     `$desktops = @(${q(desktop)}${publicDesktop ? `,${q(publicDesktop)}` : ''})`,
     `foreach($d in $desktops){`,
     `  Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {`,
-    `    if ($_.Name -notmatch '陪玩管理|蠢驴电竞|chunlv') { return }`,
+    `    if ($_.Name -notmatch '陪玩管理|客服管理|蠢驴电竞|chunlv') { return }`,
     `    if ($_.FullName -eq ${q(lnk)}) { return }`,
     `    $t=$w.CreateShortcut($_.FullName).TargetPath`,
     `    if (-not $t -or -not (Test-Path -LiteralPath $t) -or ($t -ieq ${q(target)})) { Remove-Item -LiteralPath $_.FullName -Force }`,
@@ -284,6 +456,10 @@ const STORE_KEYS = new Set([
   'companionId',
   'currentUserId',
   'currentUsername',
+  // 统一客户端：上次登录角色 + 上次的工作室名（重启后先恢复品牌文案用）。
+  // 角色只决定「UI/能力口径」，真正的陪玩能力仍要等网页 auth:setRole 确认。
+  'currentRole',
+  'studioName',
   'appPassword',
   'notificationPrefs',
   'notifSound',
@@ -380,7 +556,7 @@ function popupNotice(title: string, body: string, icon: string, hint?: string, s
       error: (err as Error)?.message,
     });
     try {
-      new Notification({ title: '陪玩管理', body }).show();
+      new Notification({ title: SHELL_BRAND, body }).show();
     } catch {}
   }
 }
@@ -1608,21 +1784,27 @@ function setupIPC(): void {
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  // 「连不上服务器」兜底页上的「立即重新加载」按钮（从客服端外壳移植）。
+  // 走主进程重新加载登录页，不整页刷新 —— 重试计数从 0 重新算，页面不会把兜底页当成加载成功。
+  ipcMain.handle('app:reload', () => {
+    loadAttempts = 0;
+    loadLoginPage('manual-reload');
+    return true;
+  });
   ipcMain.on('auth:setCurrentUser', (_e, userId: string, username: string) => {
     if (typeof userId === 'string' && userId) store.set('currentUserId', userId);
     if (typeof username === 'string' && username) store.set('currentUsername', username);
   });
+  // 网页登录 / 会话恢复时把真实角色告诉外壳（老板 2026-10-17「登录什么就是什么」）。
+  // 统一客户端的所有陪玩能力都挂在 applyRole 这一条路上，客服账号登进来时自动关掉。
   ipcMain.on('auth:setRole', (_e, role: string) => {
-    if (typeof role === 'string' && role) {
-      currentRole = role;
-    }
+    applyRole(role);
   });
   ipcMain.on('auth:setStudioName', (_e, name: string) => {
-    if (typeof name === 'string' && name.trim()) {
-      const clean = name.trim();
-      mainWindow?.setTitle(`${clean} v${app.getVersion()}`);
-      updateTrayTooltip(clean);
-    }
+    if (typeof name !== 'string') return;
+    currentStudioName = name.trim();
+    store.set('studioName', currentStudioName);
+    refreshShellUi();
   });
   ipcMain.handle('folder:open', (_e, path: string) => {
     if (typeof path !== 'string' || !path.trim()) return { success: false };
@@ -1638,14 +1820,24 @@ function setupIPC(): void {
   });
   ipcMain.on('companion:status', (_e, status: string) => {
     if (typeof status !== 'string') return;
+    // 陪玩状态 / 锁屏 / 「休息=休眠」都是陪玩专属：客服、店长、老板、未登录一律不处理，
+    // 也不往 WebSocket 上报（以前客服账号在陪玩壳里会把状态推给服务端，台账认错端）。
+    if (!isCompanionRole(currentRole)) {
+      logger.info('Ignore companion status: shell role is not COMPANION', {
+        role: currentRole,
+        status,
+      });
+      return;
+    }
     emitStatus(status);
-    if (currentRole === 'COMPANION') handleStatusChanged(status);
+    handleStatusChanged(status);
   });
   ipcMain.handle('auth:logout', () => {
+    // 先切回 UNKNOWN 再清令牌：applyRole 从陪玩切走时会停截图并把已截的补传，
+    // 那时令牌还在，能正常传完；先清令牌的话这批截图只能等下次登录再补传。
+    applyRole('UNKNOWN');
     clearAuthState();
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(getLoginUrl());
-    }
+    loadLoginPage('logout');
     return { success: true };
   });
   ipcMain.handle('app:set-password', (_e, oldPassword: string, newPassword: string) => {
@@ -1658,14 +1850,20 @@ function setupIPC(): void {
     setAppPassword(newPassword);
     return { success: true };
   });
-  // 工作记录截图
+  // 工作记录截图（陪玩专属）：客服 / 店长 / 老板登录时，网页即使误调也不录屏。
   ipcMain.on('session:watch', (_e, sessionId: string) => {
+    if (!shouldStartCapture(currentRole)) {
+      logger.info('Ignore session:watch: shell role is not COMPANION', { role: currentRole });
+      return;
+    }
     void startCapture(sessionId);
   });
   ipcMain.on('session:pause', () => {
+    if (!shouldStartCapture(currentRole)) return;
     pauseCapture();
   });
   ipcMain.on('session:resume', () => {
+    if (!shouldStartCapture(currentRole)) return;
     resumeCapture();
   });
   // 停止并等待全部截图上传完成
@@ -1680,7 +1878,7 @@ function setupIPC(): void {
   // 系统通知：陪玩端最小化/在打游戏时也能弹出 Windows 通知（搭档邀请、订单提醒等）。
   ipcMain.on('notify', (_e, title: string, body: string) => {
     try {
-      new Notification({ title: String(title || '陪玩管理'), body: String(body || '') }).show();
+      new Notification({ title: String(title || SHELL_BRAND), body: String(body || '') }).show();
     } catch {}
   });
 
@@ -1822,7 +2020,8 @@ function isIdleRestableStatus(status: unknown): boolean {
 
 async function idleRestTick(): Promise<void> {
   if (idleRestInFlight) return;
-  if (currentRole !== 'COMPANION') return;
+  // 「无操作自动休息」是陪玩专属；客服/店长/老板/未登录一律不跑。
+  if (!isCompanionRole(currentRole)) return;
   if (!store.get('token')) return;
   if (!isIdleRestableStatus(store.get('lastStatus'))) return;
 
@@ -1901,7 +2100,7 @@ async function handleSystemResume(): Promise<void> {
   // 先重置「无操作」基线：不重置的话唤醒后 1 分钟内就会再自动休眠一次。
   idleBaselineMs = powerMonitor.getSystemIdleTime() * 1000;
   idleRestSettled = false;
-  const wasResting = currentRole === 'COMPANION' && store.get('lastStatus') === 'RESTING';
+  const wasResting = isCompanionRole(currentRole) && store.get('lastStatus') === 'RESTING';
   if (wasResting) {
     store.set('lastStatus', 'AVAILABLE');
     try { emitStatus('AVAILABLE'); } catch { /* WS 没连上不影响 */ }
@@ -1965,8 +2164,10 @@ const machineAgent = createMachineAgent({
     // 老板 2026-10-17：「登录什么就是什么」—— 以前这里写死 COMPANION，
     // 客服账号登在陪玩端壳里也报「陪玩」，台账/统计全认错端，只能靠「换端」去补。
     // currentRole 是登录 / 会话恢复时网页调的 auth:setRole 写进来的（见上面 ipcMain.on）。
-    // 没人登录时按陪玩端（老机器行为不变）。
-    const role = String(currentRole || 'COMPANION');
+    // 还没登录 / 老网页没报角色（UNKNOWN）时沿用老行为按陪玩端上报：
+    // machine-agent 的 clientType 是「包类型 / 升级通道」，这里只是台账上的 loginRole，
+    // 不能把 UNKNOWN 这个内部状态推进统计里。
+    const role = normalizeShellRole(currentRole) === 'UNKNOWN' ? 'COMPANION' : currentRole;
     return username ? { username, role } : null;
   },
   log: (msg: string) => logger.info(`[machine-agent] ${msg}`),
@@ -1975,10 +2176,14 @@ const machineAgent = createMachineAgent({
 app.whenReady().then(() => {
   // Windows 通知需要 AppUserModelID，否则右下角系统通知弹不出来（搭档邀请、订单提醒等）。
   app.setAppUserModelId('com.chunlv.companion');
+  // 先恢复上次角色（员工角色直接认；陪玩/未知先按 UNKNOWN 中性起），再建窗口/托盘，
+  // 保证第一帧就是中性品牌，未登录机器不会被当成陪玩。
+  restoreShellState();
   ensureDesktopShortcut();
   writeHealthMarker();
   setInterval(writeHealthMarker, 60 * 1000);
-  ensureHibernateEnabled();
+  // 「休息=整机休眠」只在 applyRole 里、确认是 COMPANION 之后才开（原来这里无条件执行，
+  // 客服机器也会被改电源设置）。见 applyRole。
   startIdleRestWatcher();
   setupApplicationMenu();
   app.setLoginItemSettings({ openAtLogin: true });
@@ -2015,7 +2220,8 @@ app.whenReady().then(() => {
     ...(savedBounds.y != null ? { y: savedBounds.y } : {}),
     minWidth: 900,
     minHeight: 600,
-    title: `陪玩管理 v${app.getVersion()}`,
+    // 中性品牌标题（统一客户端）：未登录/客服/陪玩看到的是同一个「蠢驴电竞 vX」。
+    title: shellTitle(currentRole, currentStudioName, app.getVersion()),
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
@@ -2023,6 +2229,12 @@ app.whenReady().then(() => {
       nodeIntegration: false,
       preload: path.join(__dirname, '../preload-dist/preload.js'),
     },
+  });
+  // 网页 index.html 自己带着 <title>陪玩管理系统</title>，页面一加载完就会覆盖窗口标题。
+  // 统一客户端要求用户只看到中性品牌，所以这里拦住页面改标题，始终用外壳这一份。
+  mainWindow.on('page-title-updated', (event) => {
+    event.preventDefault();
+    refreshShellUi();
   });
   const allowedOrigin = new URL(getServerUrl()).origin;
   mainWindow.webContents.on('will-navigate', (event, url) => {
@@ -2045,9 +2257,7 @@ app.whenReady().then(() => {
     callback(['media', 'notifications', 'clipboard-read', 'clipboard-sanitized-write'].includes(permission));
   });
   void clearSessionCache().then(() => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(getLoginUrl());
-    }
+    loadLoginPage('startup');
   });
   mainWindow.on('resize', () => scheduleSaveWindowBounds(mainWindow!));
   mainWindow.on('move', () => scheduleSaveWindowBounds(mainWindow!));
@@ -2057,19 +2267,30 @@ app.whenReady().then(() => {
       mainWindow?.hide();
     }
   });
-  // 只在「登录页自己加载失败」时重试。以前是窗口里任何一次加载失败都会把整个
-  // 窗口强行 loadURL 回登录页，陪玩/客服正用着会突然掉到登录界面。
+  // 只在「登录页自己加载失败」时展示兜底页（从客服端外壳移植）。
+  // 以前是窗口里任何一次加载失败都会把整个窗口强行 loadURL 回登录页，
+  // 陪玩/客服正用着会突然掉到登录界面 —— 现在正常页面失败一律不打断。
   mainWindow.webContents.on('did-fail-load', (_e, code, desc, failedUrl, isMainFrame) => {
-    if (!isMainFrame) return;
-    logger.warn('Page failed to load', { code, desc, failedUrl });
-    if (code === -3 || isQuitting) return;
+    if (!isMainFrame) return; // 子框架 / 资源失败不理会
+    if (code === -3) return; // ERR_ABORTED：正常的中断，不算失败
+    if (isQuitting) return;
+    // 兜底页自己（data: URL）加载失败不要再套娃。
+    if (String(failedUrl || '').startsWith('data:')) return;
     const loginPath = getLoginUrl().split('?')[0];
-    if (!String(failedUrl || '').startsWith(loginPath)) return;
-    setTimeout(() => {
-      if (mainWindow && !mainWindow.isDestroyed() && !isQuitting && !mainWindow.webContents.isLoading()) {
-        mainWindow.loadURL(getLoginUrl());
-      }
-    }, 3000);
+    if (!String(failedUrl || '').startsWith(loginPath)) return; // 不是登录页就别动
+    onPageLoadFailure(desc || '加载失败', code);
+  });
+  // 真的加载成功才把重试计数清零（兜底页也是一次成功的加载，所以必须按 URL 判断）。
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (loadFailed) return; // 这是失败后 Chromium 自己那张错误页，不是真加载成功
+    const url = mainWindow.webContents.getURL();
+    if (!url.startsWith(getServerUrl().replace(/\/$/, ''))) return;
+    loadOk = true;
+    loadAttempts = 0;
+    if (loadWatchdog) clearTimeout(loadWatchdog);
+    if (autoRetryTimer) clearTimeout(autoRetryTimer);
+    logger.info('Page loaded ok', { url: url.slice(0, 120) });
   });
 
   // 系统唤醒（睡眠 / 休眠恢复）：
@@ -2081,14 +2302,19 @@ app.whenReady().then(() => {
   });
 
   companionTray = createTray({
+    // 启动按恢复出来的角色/工作室名画托盘：只有陪玩才出现「切换状态」。
+    // 说明：「切换状态」子菜单在陪玩端历来没接主进程回调（点了不发请求），
+    // 本次只做「按角色收敛」（客服不显示），不擅自改陪玩端既有语义。
+    role: currentRole,
+    studioName: currentStudioName,
     onShow: () => {
       mainWindow?.show();
       mainWindow?.focus();
     },
     onQuit: async () => {
-      // 只有陪玩需要密码退出；客服/店长/老板直接退出。
+      // 退出密码只有陪玩要（管理员密码）；客服/店长/老板直接退出。
       // 但所有角色退出时都要通知看门狗，否则看门狗会把程序自动拉起来（管理端不该被保活）。
-      if (currentRole === 'COMPANION') {
+      if (isCompanionRole(currentRole)) {
         try {
           const ok = await promptPassword('退出确认');
           if (!ok) return;
@@ -2103,6 +2329,12 @@ app.whenReady().then(() => {
       isQuitting = true;
       app.quit();
     },
+  });
+  // 托盘里的「重新加载页面」（客服端外壳同款兜底）：服务器恢复后不用等看门狗，人点一下就能回来。
+  setTrayReloadHandler(() => {
+    loadAttempts = 0;
+    mainWindow?.show();
+    loadLoginPage('tray');
   });
 
   // Auto-relaunch when any child process (renderer/GPU) is killed
@@ -2134,15 +2366,18 @@ app.whenReady().then(() => {
     }
     else if (data.command === 'kick') {
       // 被管理员踢出/离职：清空本地登录并回到登录页，避免下次开机自动登录。
+      // 角色同时回到 UNKNOWN：被踢掉之后这台机器不再是「陪玩在线」。
+      // 顺序同退出登录：先停截图（令牌还在，能把已截的补传掉）再清登录态。
+      applyRole('UNKNOWN');
       clearAuthState();
-      if (mainWindow) mainWindow.loadURL(getLoginUrl());
+      loadLoginPage('kick');
     }
     else if (data.command === 'shutdown') {
       execFile('shutdown', ['/s', '/t', '0'], () => {});
     }
   });
   onWsEvent('blacklist:update', (data: any) => {
-    if (currentRole !== 'COMPANION') return;
+    if (!isCompanionRole(currentRole)) return;
     const prevStatus = store.get('lastStatus');
     // 状态和名单必须成对处理：服务端下发的名单是照着「它以为的状态」算的
     // （空闲＝杀游戏、娱乐＝杀 python……）。本地一旦拒绝服务端的状态，
@@ -2186,7 +2421,8 @@ app.whenReady().then(() => {
   // 在窗口被游戏挡住 / 缩到托盘时根本看不见，一单就这样错过了。
   // 现在：窗口就在眼前只闪任务栏（不打扰玩游戏的）；窗口不在前面，就自己画一个置顶小窗。
   onWsEvent('order:urgent', (data: any) => {
-    if (currentRole !== 'COMPANION') return;
+    // 抢单弹窗是陪玩专属：客服/店长/老板/未登录不弹（客服自己是发单方）。
+    if (!isCompanionRole(currentRole)) return;
     try {
       // 老板 2026-10-01：新单统一只弹 Windows 横幅（窗口在前面也照弹，
       // 软件里那张右下角卡片不再弹）；顺手闪一下任务栏也不误事。

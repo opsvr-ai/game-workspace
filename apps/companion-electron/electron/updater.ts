@@ -6,7 +6,8 @@ import { logger } from './logger';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
-import { startUpdateSpin, stopUpdateSpin, updateTrayTooltip } from './tray';
+import { startUpdateSpin, stopUpdateSpin, restoreTrayTooltip, updateTrayTooltip } from './tray';
+import { SHELL_BRAND } from './role-policy';
 
 // 更新信号：陪玩端（普通权限）写入，SystemHelper 服务（系统权限）轮询并执行下载解压。
 // 看门狗把「装上就把客户端搞坏、已经回滚掉」的版本写进 blocked-versions.json。
@@ -188,9 +189,10 @@ export const __test__ = {
   MIN_FREE_DISK_BYTES,
 };
 
-// 更新进度不再弹窗，改为更新托盘提示文字（配合托盘图标转圈）
+// 更新进度不再弹窗，改为更新托盘提示文字（配合托盘图标转圈）。
+// 品牌用中性的「蠢驴电竞」（统一客户端，不再叫「陪玩管理」）。
 function setUpdateProgress(percent: number): void {
-  updateTrayTooltip(`陪玩管理 · 正在更新 ${percent}%`);
+  updateTrayTooltip(`${SHELL_BRAND} · 正在更新 ${percent}%`);
 }
 
 function downloadZipWithProgress(
@@ -385,7 +387,7 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
       logger.error('Download failed', { error: err?.message });
       await releaseUpdateSlot(serverUrl, token);
       stopUpdateSpin();
-      updateTrayTooltip('陪玩管理');
+      restoreTrayTooltip();
       // 兜底把包交给看门狗去下也要退出重启（一样会打断接单），所以只在**没在接单**时走；
       // 正在接单这一轮就先算了 —— sameVersionTriedRecently 也会挡住 30 分钟内重下同一版，
       // 不会变成「下载失败 → 退出重启 → 又失败」的循环。
@@ -405,7 +407,7 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
     }
     await releaseUpdateSlot(serverUrl, token);
     stopUpdateSpin();
-    updateTrayTooltip('陪玩管理');
+    restoreTrayTooltip();
   }
   // 包已经在本地了（备货标记还在）。到这一步才需要「别打断接单」：
   // 陪玩空闲就直接换版；正在接单就等这一单打完（见 mayApplyUpdateNow）。
