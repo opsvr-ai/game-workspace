@@ -1,47 +1,34 @@
 // craftsman-ignore: TS001,TS002
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Tag, Modal, Badge, Popover, notification, Form, Input } from 'antd';
-import { message } from '../utils/feedback';
+import { Layout, Menu, Button, Typography, Space, Tag, Badge } from 'antd';
 import type { MenuProps } from 'antd';
-import { useSocket } from '../hooks/useSocket';
 import { useMenuBadges } from '../hooks/useMenuBadges';
 import http from '../api/client';
 import { configApi } from '../api/config';
-import { ordersApi } from '../api/orders';
 // useChatNotification → now handled by ChatProvider
 import ErrorBoundary from '../components/ErrorBoundary';
 import LoadingState from '../components/LoadingState';
-import UrgentOrderPopup from '../components/UrgentOrderPopup';
 import { ChatProvider } from '../components/chat/ChatProvider';
 import { commander } from '../styles/commander';
-import ChatModal from '../components/ChatModal';
-import { openChatWindow } from '../utils/chatWindow';
-import IncomingCallModal from '../components/IncomingCallModal';
-import VoiceCallBar from '../components/VoiceCallBar';
-import { useVoiceCall } from '../hooks/useVoiceCall';
-import { showSystemNotification, showBannerNotification, playNotificationSound } from '../utils/notify';
-import { notifyNotice, recordNotice } from '../utils/notice';
-import { noticePath } from '../stores/notifStore';
-import { usePartnerInviteStore } from '../stores/partnerInviteStore';
 import { decideBuildRefresh } from '../utils/buildRefresh';
 import { installUnloadGuard, isAnyBusy } from '../utils/busyGuard';
-import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
 import NotificationPanel from '../components/shell/NotificationPanel';
 import NoticePathBanner from '../components/shell/NoticePathBanner';
-import LeftMessagePanel from '../components/LeftMessagePanel';
+import VoiceCallHost from '../components/shell/VoiceCallHost';
+import { MessageDock, ChatModalHost } from '../components/shell/ChatDock';
+import { PartnerInvitePopover, TransferRequestPopover, ShellBanners } from '../components/shell/ShellBanners';
+import { useShellChat } from '../hooks/useShellChat';
+import { useShellBanners } from '../hooks/useShellBanners';
+import { useShellRealtime } from '../hooks/useShellRealtime';
+import { useVoiceCall } from '../hooks/useVoiceCall';
 import SalaryDetailModal from '../components/SalaryDetailModal';
 import GrabSuccessModal from '../components/GrabSuccessModal';
-import { BG, BORDER, BRAND, SEMANTIC, TEXT, badgeGlow } from '../styles/tokens';
+import { noticePath } from '../stores/notifStore';
+import { BG, BRAND, SEMANTIC, TEXT, badgeGlow } from '../styles/tokens';
 import { installWindowNavListener } from '../utils/windowNav';
-import {
-  clearVoiceCallState,
-  installVoiceCallCommandListener,
-  installVoiceCallRequestListener,
-  publishVoiceCallState,
-  setVoiceOwner,
-} from '../utils/voiceCallWindow';
+import { notifyNotice } from '../utils/notice';
 import { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, makeTitlesClickable, rolePage, IconLogout, IconFold, IconUnfold } from '../config/roleMenus';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
@@ -80,17 +67,6 @@ import { useOrderStore } from '../stores/orderStore';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
-
-const InviteCountdown: React.FC<{ seconds: number }> = ({ seconds }) => {
-  const [left, setLeft] = React.useState(seconds);
-  React.useEffect(() => {
-    const t = setInterval(() => setLeft((v) => (v <= 1 ? 0 : v - 1)), 1000);
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <span style={{ color: SEMANTIC.danger, fontWeight: 600 }}>⏳ {left} 秒后自动取消</span>
-  );
-};
 
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
@@ -291,63 +267,14 @@ const AppLayout: React.FC = () => {
 
   // Notification bell
   const [notifOpen, setNotifOpen] = React.useState(false);
-  // Global chat modal (opened from notification bell)
-  const [globalChatPartner, setGlobalChatPartner] = React.useState<{
-    conversationId: string;
-    participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
-    orderInfo?: string | null;
-  } | null>(null);
-  // Chat 3.0: notification handled by ChatProvider
-
-  // 打开一个聊天窗口：优先开成「独立的系统窗口」（陪玩端 / 客服端是真的应用窗口，任务栏有
-  // 按钮、能原生最小化；浏览器里是弹窗），弹窗被浏览器拦了才退回页内那个全局浮窗。
-  // 同一个人只会有一个窗口：Electron 主进程按 userId 去重，浏览器按窗口名去重。
-  const openChatTarget = useCallback((target: any) => {
-    setNotifOpen(false);
-    if (target?.conversationId && openChatWindow(target)) return;
-    setGlobalChatPartner(target);
-  }, []);
-
-  // Listen for open-chat-modal event from CSDispatchView / 订单页 / 客户页 / 订单池
-  useEffect(() => {
-    const handler = (e: CustomEvent) => openChatTarget(e.detail);
-    window.addEventListener('open-chat-modal', handler as EventListener);
-    return () => window.removeEventListener('open-chat-modal', handler as EventListener);
-  }, [openChatTarget]);
-
-  // 打开和某个人的私聊：左侧消息面板点人、订单/客户页点「沟通」都走这里
-  const openDirectChat = useCallback((conversationId: string, participantName: string) => {
-    const conv = useChatStore.getState().conversations[conversationId];
-    setNotifOpen(false);
-    openChatTarget({
-      conversationId,
-      participant: conv?.participant || {
-        // 未知对方时不要用 roomId 冒充 userId，否则会在服务端建出幽灵会话。
-        userId: '',
-        username: participantName,
-        role: '',
-      },
-      // 从铃铛进入时不要主动清掉已有订单上下文；若是从订单沟通发起的会话，双方仍应看到该订单信息。
-      orderInfo: conv?.orderInfo,
-    });
-    useChatStore.getState().markRead(conversationId);
-  }, [openChatTarget]);
-
-  // Open the studio group chat from the persistent left-side message panel.
-  const openGroupChat = useCallback((conversationId: string, groupName: string) => {
-    const conv = useChatStore.getState().conversations[conversationId];
-    openChatTarget({
-      conversationId,
-      participant: conv?.participant || {
-        userId: '',
-        username: groupName,
-        displayName: groupName,
-        role: 'GROUP',
-      },
-    });
-    useChatStore.getState().markRead(conversationId);
-  }, [openChatTarget]);
-
+  // 聊天浮窗系统（全局聊天弹窗 / 私聊·群聊打开 / 独立聊天窗口编排）在 hooks/useShellChat。
+  const closeNotif = React.useCallback(() => setNotifOpen(false), []);
+  const {
+    globalChatPartner,
+    setGlobalChatPartner,
+    openDirectChat,
+    openGroupChat,
+  } = useShellChat({ closeNotif });
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -395,108 +322,26 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ── Urgent order + dual-companion popup ──
-  const [urgentOrder, setUrgentOrder] = React.useState<any>(null);
-  const [urgentGrabbed, setUrgentGrabbed] = React.useState<any>(null);
-  // 待处理搭档邀请（老板 2026-10-03）：状态放共享 store，右下角「客服广播那种横幅」点一下
-  // → 订单管理页，在最上面那张卡片里同意 / 拒绝；不再弹软件内模态框。
-  // 右上角铃铛只留作兜底入口。
-  const [partnerInviteOpen, setPartnerInviteOpen] = React.useState(false);
-  const partnerInvites = usePartnerInviteStore((s) => s.invites);
-  const addPartnerInvite = usePartnerInviteStore((s) => s.add);
-  const removePartnerInvite = usePartnerInviteStore((s) => s.remove);
-  const prunePartnerInvites = usePartnerInviteStore((s) => s.prune);
-  // 待我确认的订单转让申请（老板 2026-10-03：「想转让的订单，需要被转让方同意才能过来，要不然乱套了」）：
-  // 主入口是**订单列表里那一行的「接手 / 拒绝」**（老板 2026-10-03 否掉了自动弹窗：
-  // 「放在订单列表那一行点转让或者点接受不行么」）；顶栏这个铃铛只是再留一份，
-  // 方便在别的页面也能一眼看到有几单在等我确认。
-  const [transferReqs, setTransferReqs] = React.useState<any[]>([]);
-  const [transferReqOpen, setTransferReqOpen] = React.useState(false);
-
-  // 点 Windows 新单横幅 → 跳到抢单池并把这一单标出来（老板 2026-10-01：「跳转进池子再抢」）。
-  // 不直接抢：正在打游戏的人万一误点了，会把不该报的单抢到手里。
-  React.useEffect(() => {
-    const api = (window as any).electronAPI;
-    if (!api?.onOrderPoolFocus) return;
-    const off = api.onOrderPoolFocus((p: any) => {
-      const orderId = String(p?.orderId || '');
-      const path = rolePage(user?.role, 'pool') || '/companion/pool';
-      window.dispatchEvent(new CustomEvent('chunlv:order-focus', { detail: { orderId } }));
-      navigate(path, { state: { highlightOrderId: orderId } });
-    });
-    return () => {
-      try {
-        off?.();
-      } catch {
-        /* 已经卸载了 */
-      }
-    };
-  }, [navigate, user?.role]);
-
-  // 点横幅上的动作 → 打开对应界面（老板 2026-10-03：「所有涉及弹窗或者邀请的，
-  // 都给我做成客服发布订单时广播那个效果，点了能直接跳转」）。
-  // 跟新单横幅那条 order-pool-focus 同一套：主进程先把窗口拉到前台，再把动作回执给界面。
-  React.useEffect(() => {
-    const api = (window as any).electronAPI;
-    if (!api?.onBannerAction) return;
-    const off = api.onBannerAction((msg: any) => {
-      const action = String(msg?.action || '');
-      const payload = msg?.payload || {};
-      try {
-        if (action === 'open-transfer') {
-          setTransferReqOpen(true);
-        } else if (action === 'open-orders') {
-          navigate(rolePage(user?.role, 'orders') || '/companion/orders');
-        } else if (action === 'open-billing') {
-          navigate(rolePage(user?.role, 'billing') || '/companion/orders');
-        } else if (action === 'open-pool') {
-          navigate(rolePage(user?.role, 'pool') || '/companion/pool');
-        } else if (action === 'open-chat') {
-          const convId = String(payload?.conversationId || '');
-          if (convId) {
-            if (payload?.isGroup) openGroupChat(convId, String(payload?.groupName || '工作室群聊'));
-            else openDirectChat(convId, String(payload?.participantName || '会话'));
-          }
-        }
-      } catch {
-        /* 打不开也不影响接单主流程 */
-      }
-    });
-    return () => {
-      try {
-        off?.();
-      } catch {
-        /* 已经卸载了 */
-      }
-    };
-  }, [navigate, user?.role, openDirectChat, openGroupChat]);
-
-  // 主进程通知：这台电脑全屏打游戏时会被弹窗顶出游戏，已自动改成「只响提示音 + 闪任务栏」
-  // （老板 2026-10-08 童祥瑞那台）。跟主进程那套「压住横幅」配套 —— 得让人知道这台机器为什么
-  // 以后打游戏时不弹了，以及去哪儿改回来。
-  React.useEffect(() => {
-    const api = (window as any).electronAPI;
-    if (!api?.onBannerFsAdapted) return;
-    const off = api.onBannerFsAdapted(() => {
-      message.info(
-        '这台电脑全屏打游戏时会被弹窗顶出游戏，已自动改成「只响提示音 + 闪任务栏」，退出全屏后补弹；想改回去「设置 → 通知设置」里选',
-        8,
-      );
-      recordNotice({
-        icon: '🖥️',
-        title: '全屏打游戏时已自动不弹窗',
-        desc: '检测到本机被弹窗顶出过游戏，已自动改成响提示音 + 闪任务栏（退出全屏后补弹），可在「设置 → 通知设置」改回',
-        href: '/companion',
-      });
-    });
-    return () => {
-      try {
-        off?.();
-      } catch {
-        /* 已经卸载了 */
-      }
-    };
-  }, []);
+  // ── 横幅 / 搭档邀请 / 转让申请（UrgentOrderPopup、顶栏两个 Popover、主进程横幅动作）──
+  // state / 拉取 / 轮询 / 主进程事件，全部在 hooks/useShellBanners（原样搬出，行为不变）。
+  const {
+    urgentOrder,
+    urgentGrabbed,
+    setUrgentOrder,
+    setUrgentGrabbed,
+    partnerInviteOpen,
+    setPartnerInviteOpen,
+    partnerInvites,
+    removePartnerInvite,
+    addPartnerInvite,
+    transferReqOpen,
+    setTransferReqOpen,
+    transferReqs,
+    acceptTransferReq,
+    rejectTransferReq,
+    addTransferReq,
+    removeTransferReq,
+  } = useShellBanners({ user, navigate, openDirectChat, openGroupChat });
 
   // 「独立聊天窗口」里点「查看订单」→ 让**主程序这个窗口**跳到订单管理并把那一单标出来
   // （老板 2026-10-08：「直接跳到订单管理不行？为啥还得搞窗口？」）。跨窗口用的是
@@ -513,883 +358,30 @@ const AppLayout: React.FC = () => {
     return () => window.removeEventListener('chunlv:notice-goto', onNoticeGoto as EventListener);
   }, [navigate]);
 
-  const addTransferReq = React.useCallback((req: any) => {
-    setTransferReqs((prev) => {
-      const key = req?.requestId || req?.id;
-      if (!key || prev.some((p) => (p.requestId || p.id) === key)) return prev;
-      return [...prev, req];
-    });
-  }, []);
-
-  const removeTransferReq = React.useCallback((requestId: string) => {
-    setTransferReqs((prev) => prev.filter((p) => (p.requestId || p.id) !== requestId));
-  }, []);
-
-  const acceptTransferReq = React.useCallback(
-    async (req: any) => {
-      const requestId = req?.requestId || req?.id;
-      if (!requestId) return;
-      try {
-        await ordersApi.acceptTransfer(requestId);
-        message.success('已同意转让，这张单现在归你了');
-        removeTransferReq(requestId);
-        window.dispatchEvent(new Event('chunlv:transfer-updated'));
-        window.dispatchEvent(new Event('chunlv:order-pool-updated'));
-      } catch (e: any) {
-        message.error(e?.response?.data?.message || '同意失败');
-      }
-    },
-    [removeTransferReq],
-  );
-
-  const rejectTransferReq = React.useCallback(
-    async (req: any) => {
-      const requestId = req?.requestId || req?.id;
-      if (!requestId) return;
-      try {
-        await ordersApi.rejectTransfer(requestId);
-        message.success('已拒绝，这张单还在对方名下');
-      } catch (e: any) {
-        message.error(e?.response?.data?.message || '拒绝失败');
-      }
-      removeTransferReq(requestId);
-      window.dispatchEvent(new Event('chunlv:transfer-updated'));
-    },
-    [removeTransferReq],
-  );
-
-  // 转让申请有 30 分钟有效期：过期自己从铃铛里消失。
-  useEffect(() => {
-    const t = setInterval(() => {
-      setTransferReqs((prev) => {
-        const now = Date.now();
-        const next = prev.filter((p) => !p.expiresAt || p.expiresAt > now);
-        return next.length === prev.length ? prev : next;
-      });
-    }, 3000);
-    return () => clearInterval(t);
-  }, []);
-
-  // 刷新 / 断线重连后把还没处理的转让申请补回来（WS 只在发生时推一次）。
-  useEffect(() => {
-    if (!user?.companionId) return;
-    const load = () => {
-      ordersApi
-        .myTransferRequests()
-        .then((res: any) => {
-          const incoming = res?.data?.data?.incoming || [];
-          setTransferReqs(incoming.filter((r: any) => r.valid !== false));
-        })
-        .catch(() => {});
-    };
-    load();
-    const onUpdated = () => load();
-    window.addEventListener('chunlv:transfer-updated', onUpdated);
-    return () => window.removeEventListener('chunlv:transfer-updated', onUpdated);
-  }, [user?.companionId]);
-
-  // 自动清理已过期的搭档邀请，避免铃铛里残留（订单管理页那张卡片里也会兜底清理）。
-  useEffect(() => {
-    const t = setInterval(prunePartnerInvites, 3000);
-    return () => clearInterval(t);
-  }, [prunePartnerInvites]);
-
   useEffect(() => {
     if (!user && isAuthenticated) {
       fetchUser();
     }
   }, []);
 
-  // WebSocket connection for real-time updates
-  const voiceSocketRef = useSocket({
-    onOrderNew: (data: any) => {
-      if (data?.type !== 'DUAL_INVITE') {
-        // 非搭档邀请的 order:new 通常就是“新订单进池/广播”，
-        // 让已挂载的订单池页面立即刷新，和弹窗保持同步。
-        if (data?.dispatchType === 'POOL' || data?.dispatchType === 'BROADCAST' || data?._notify) {
-          window.dispatchEvent(new Event('chunlv:order-pool-updated'));
-        }
-        return;
-      }
-      if (!user?.companionId || data?.coCompanionId !== user.companionId) return;
-      const inviter = data.inviterName || '有陪玩';
-      const desc = `${inviter}邀请你搭档服务：${data.gameName || ''} · 搭档金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`;
-      const ttl = data.expiresInSec ?? 15;
-      addPartnerInvite({
-        sessionId: data.id,
-        inviterName: inviter,
-        gameName: data.gameName || '',
-        amount: Number((data.coAmount ?? data.amount) || 0),
-        duration: data.duration || 1,
-        expiresAt: Date.now() + ttl * 1000,
-      });
-      recordNotice({
-        kind: 'invite',
-        icon: '🤝',
-        title: `搭档邀请 · ${inviter}`,
-        desc,
-        dedupeKey: `partner-invite:${data.id}`,
-        dedupeMs: 60_000,
-      });
-      // 老板 2026-10-03：删掉 Windows 弹窗，只留「客服广播那种」置顶横幅 ——
-      // 点一下直接打开「订单管理」，在最上面那张卡片里同意 / 拒绝。
-      showBannerNotification({
-        title: '🤝 搭档邀请',
-        body: desc,
-        icon: '🤝',
-        seconds: 20,
-        hint: '点这里 → 打开订单管理，同意搭档邀请',
-        action: 'open-orders',
-        actionPayload: { sessionId: data.id },
-      });
-      playNotificationSound();
-    },
-    onOrderTransferred: (data: any) => {
-      // 有人把单转给我（老板 2026-09-29）：弹一条提醒并刷新接单记录，
-      // 别让陪玩端着电脑还不知道自己名下来了单。
-      if (data?.toCompanionId && user?.companionId && data.toCompanionId !== user.companionId) return;
-      notifyNotice({
-        kind: 'order',
-        icon: '🔁',
-        title: '🔁 有人把订单转让给你',
-        desc: `${data?.fromName || '同事'}把「${data?.gameName || ''}」转给了你，去「接单记录」看`,
-        href: rolePage(user?.role, 'orders'),
-        toast: 'info',
-        duration: 6,
-      });
-      try {
-        playNotificationSound();
-      } catch {
-        /* 声音播不出来不影响提醒 */
-      }
-      window.dispatchEvent(new Event('chunlv:order-pool-updated'));
-    },
-    onTransferRequested: (data: any) => {
-      // 有人想把单转给我：先问我要不要（老板 2026-10-03，转让必须经被转让方同意）。
-      if (!user?.companionId || !data?.requestId) return;
-      const fromName = data.fromName || '同事';
-      const expiresAt = Date.now() + (Number(data.expiresInSec) || 1800) * 1000;
-      addTransferReq({ ...data, fromName, expiresAt });
-      const desc = `${data.orderCode || ''} ${data.gameName || ''} · ¥${Number(data.amount || 0).toFixed(1)}${
-        data.reason ? ` · ${data.reason}` : ''
-      }`;
-      recordNotice({
-        kind: 'invite',
-        icon: '🔁',
-        title: `🔁 ${fromName} 想把订单转给你`,
-        desc,
-        dedupeKey: `transfer-req:${data.requestId}`,
-        dedupeMs: 60_000,
-      });
-      showBannerNotification({
-        title: '🔁 订单转让',
-        body: `${fromName} 想把「${data.gameName || '订单'}」转给你`,
-        icon: '🔁',
-        seconds: 20,
-        hint: '点这里 → 打开「待我确认的转让」',
-        action: 'open-transfer',
-        actionPayload: { requestId: data.requestId },
-      });
-      playNotificationSound();
-    },
-    onTransferAccepted: (data: any) => {
-      notifyNotice({
-        kind: 'order',
-        icon: '✅',
-        title: '✅ 转让已被同意',
-        desc: `${data?.toName || '对方'} 同意了，这张单已经转到他名下`,
-        href: rolePage(user?.role, 'orders'),
-        toast: 'success',
-        duration: 5,
-      });
-      window.dispatchEvent(new Event('chunlv:transfer-updated'));
-      window.dispatchEvent(new Event('chunlv:order-pool-updated'));
-    },
-    onTransferRejected: (data: any) => {
-      notifyNotice({
-        kind: 'order',
-        icon: '🙅',
-        title: '🙅 转让被拒绝',
-        desc: `${data?.byName || '对方'} 没接这张单${data?.reason ? `（${data.reason}）` : ''}，单还在你名下`,
-        href: rolePage(user?.role, 'orders'),
-        toast: 'warning',
-        duration: 6,
-      });
-      window.dispatchEvent(new Event('chunlv:transfer-updated'));
-    },
-    onTransferCancelled: (data: any) => {
-      // 两条路都走这里：对方撤回了申请，或我重新发起把旧申请顶掉了。
-      if (data?.requestId) removeTransferReq(data.requestId);
-      window.dispatchEvent(new Event('chunlv:transfer-updated'));
-    },
-    onTransferExpired: (data: any) => {
-      if (data?.requestId) removeTransferReq(data.requestId);
-      notifyNotice({
-        kind: 'order',
-        icon: '⏰',
-        title: '⏰ 转让申请已作废',
-        desc: data?.message || '这条转让申请长时间没人确认，已自动作废',
-        toast: 'info',
-        duration: 5,
-      });
-      window.dispatchEvent(new Event('chunlv:transfer-updated'));
-    },
-    onFeedbackChase: (data: any) => {
-      // 发单那边的客服在催这一单的结果（老板 2026-09-30：「待反馈……看得见、催得动」）。
-      // 这条推给**接单工作室**（桥接店 / 线上俱乐部）的客服和店长：提醒他们去「接单看板」记结果。
-      notification.warning({
-        message: '📣 对方在催这一单的结果',
-        description: `${data?.fromName || '发单客服'} 催「${data?.orderCode || ''} ${data?.gameName || ''}」的接单结果${
-          data?.chaseCount ? `（已催 ${data.chaseCount} 次）` : ''
-        }，去「客服提成 · 今日看板 → 今天我们店接的单」记一下成功 / 不成功`,
-        placement: 'bottomRight',
-        duration: 10,
-      });
-      try {
-        playNotificationSound();
-      } catch {
-        /* 声音播不出来不影响提醒 */
-      }
-      window.dispatchEvent(new Event('chunlv:received-board-updated'));
-    },
-    onPartnerAccepted: (data: any) => {
-      notifyNotice({
-        kind: 'invite',
-        icon: '✅',
-        title: '✅ 搭档已同意',
-        desc: '开始计时，进入接单中，用心服务',
-        toast: 'success',
-        duration: 4,
-      });
-      (window as any).electronAPI?.sessionWatch?.(data.sessionId);
-      window.dispatchEvent(new Event('chunlv:service-started'));
-    },
-    onPartnerRejected: (data: any) => {
-      notifyNotice({
-        kind: 'invite',
-        icon: '🙅',
-        title: '🙅 搭档已拒绝',
-        desc: `${data?.partnerName || '搭档'} 拒绝了你的搭档邀请`,
-        toast: 'warning',
-        duration: 4,
-      });
-      window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
-    },
-    onPartnerTimeout: (data: any) => {
-      notifyNotice({
-        kind: 'invite',
-        icon: '⏰',
-        title: '⏰ 搭档未回应',
-        desc: '搭档在倒计时内未回应，邀请已自动取消',
-        toast: 'info',
-        duration: 4,
-      });
-      window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
-    },
-    onDualInvite: (data: any) => {
-      // 广播找搭档：主陪未指定搭档，工作室任意陪玩可接受，第一个接受者成为搭档
-      if (!user?.companionId || !data?.sessionId) return;
-      if (data?.companionId === user.companionId) return; // 主陪自己不看自己的广播
-      const inviter = data.inviterName || '有陪玩';
-      const desc = `${inviter}广播找搭档：${data.gameName || ''} · 搭档金额 ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`;
-      const ttl = data.expiresInSec ?? 15;
-      addPartnerInvite({
-        sessionId: data.sessionId,
-        inviterName: inviter,
-        gameName: data.gameName || '',
-        amount: Number(data.amount || 0),
-        duration: data.duration || 1,
-        expiresAt: Date.now() + ttl * 1000,
-      });
-      recordNotice({
-        kind: 'invite',
-        icon: '📣',
-        title: '📣 广播找搭档',
-        desc,
-        dedupeKey: `dual-invite:${data.sessionId}`,
-        dedupeMs: 60_000,
-      });
-      showBannerNotification({
-        title: '📣 广播找搭档',
-        body: desc,
-        icon: '📣',
-        seconds: 20,
-        hint: '点这里 → 打开订单管理，同意搭档邀请',
-        action: 'open-orders',
-        actionPayload: { sessionId: data.sessionId },
-      });
-      playNotificationSound();
-    },
-    onDualInviteExpired: (data: any) => {
-      const sid = data?.sessionId;
-      if (sid) {
-        notification.destroy(`dual-invite-${sid}`);
-        notification.destroy(`dual-broadcast-${sid}`);
-        removePartnerInvite(sid);
-      }
-      window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
-    },
-    onServiceHandoff: (data: any) => {
-      // 换主陪：原主陪把订单交给自己启动，这里开启自己的计时和工作记录
-      notifyNotice({
-        kind: 'order',
-        icon: '🤝',
-        title: '🤝 有陪玩把订单交给你',
-        desc: '已进入接单中，用心服务',
-        href: rolePage(user?.role, 'orders'),
-        toast: 'success',
-        duration: 4,
-      });
-      (window as any).electronAPI?.sessionWatch?.(data?.sessionId);
-      window.dispatchEvent(new Event('chunlv:service-started'));
-    },
-    onSegmentFinished: (data: any) => {
-      const amount = Number(data?.amount || 0).toFixed(1);
-      const desc = data?.message || `你这一段服务已结束，本段计入业绩 ¥${amount}`;
-      notifyNotice({
-        kind: 'order',
-        icon: '🏁',
-        title: '🏁 这一段服务已结束',
-        desc,
-        href: rolePage(user?.role, 'orders'),
-        toast: 'info',
-        duration: 6,
-      });
-      showBannerNotification({
-        title: '🏁 这一段服务已结束',
-        body: desc,
-        icon: '🏁',
-        seconds: 12,
-        hint: '点这里 → 去接单记录看',
-        action: 'open-orders',
-      });
-    },
-    onServiceDurationReminder: (data: any) => {
-      // 老板 2026-10-05：「不点结束不会计入影响评分增加，让他们主动点」——
-      // 这条提醒现在带「不点结束不计业绩/不算分」，而且服务端每 30 分钟会再推一次（没结束就一直提醒）。
-      const desc =
-        data?.message ||
-        '服务时间已到，请引导客户续单；打完记得点「结束服务」，不点结束这一单不算业绩也不算分';
-      const overdue = Number(data?.overdueMin) || 0;
-      const title = overdue >= 5 ? '⏰ 还没点「结束服务」' : '⏰ 时间到了';
-      notifyNotice({
-        kind: 'order',
-        icon: '⏰',
-        title,
-        desc,
-        href: rolePage(user?.role, 'orders'),
-        toast: 'warning',
-        duration: 8,
-        // 同一段服务 30 分钟内只在铃铛里留一条，别把通知中心刷满
-        dedupeKey: `duration-reminder:${data?.sessionId || ''}`,
-        dedupeMs: 30 * 60 * 1000,
-      });
-      showBannerNotification({
-        title,
-        body: desc,
-        icon: '⏰',
-        seconds: 20,
-        hint: '点这里 → 去接单记录点「结束服务」',
-        action: 'open-orders',
-      });
-    },
-    onOrderPoolUpdated: () => {
-      window.dispatchEvent(new Event('chunlv:order-pool-updated'));
-    },
-    // 群聊广播：客服/店长发广播后，陪玩电脑右下角弹 Windows 提醒，5 秒后自动消失
-    onChatBroadcast: (data: any) => {
-      if (user?.role !== 'COMPANION') return;
-      const senderName = data?.senderName || '客服';
-      const content = String(data?.content || '').trim();
-      if (!content) return;
-      const title = `📢 ${senderName} 广播`;
-      const electronApi = (window as any).electronAPI;
-      if (electronApi?.broadcastPopup) {
-        // 陪玩端：交给 Electron 主进程画一个置顶窗口，最小化/全屏时也能看到
-        try {
-          electronApi.broadcastPopup({ title, body: content });
-        } catch {
-          /* ignore */
-        }
-      } else {
-        // 浏览器里打开时的兜底
-        notification.warning({
-          message: title,
-          description: content,
-          placement: 'bottomRight',
-          duration: 5,
-        });
-      }
-      playNotificationSound();
-    },
-    onOrderUrgent: (data: any) => {
-      if (user?.role === 'COMPANION') {
-        // 老板 2026-10-01：新单只弹 Windows 桌面横幅（15 秒），软件里那张右下角卡片不再弹。
-        // 横幅只在陪玩客户端里有；浏览器里打开时没有横幅，保留卡片兑底，免得什么都看不见。
-        if (!(window as any).electronAPI?.orderBannerClick) setUrgentOrder(data);
-        window.dispatchEvent(new Event('chunlv:order-pool-updated'));
-        // 老板 2026-09-22 报「邵泽慧发广播单，所有人都没弹窗提示」：
-        // 以前只有窗口里那张右下角卡片，窗口被游戏挡住 / 缩到托盘时看不到也听不到，
-        // 一单就这么错过了。这里补上提示音 + Windows 系统通知，后台也能被叫到。
-        playNotificationSound();
-        const urgentDesc = `${data?.gameName || '新订单'} · ¥${Number(data?.amount || 0).toFixed(0)} · ${
-          data?.duration || 1
-        }h · ${data?._createdBy || '系统'} 发布，快去抢`;
-        recordNotice({
-          kind: 'order',
-          icon: data?._direct ? '🎯' : '⚡',
-          title: data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
-          desc: urgentDesc,
-          href: '/companion/pool',
-          dedupeKey: `urgent:${data?.id || data?.orderCode || urgentDesc}`,
-          dedupeMs: 5 * 60_000,
-        });
-        // 陪玩客户端里，主进程收到 order:urgent 已经画了那张能点的桌面横幅（见 electron/main.ts），
-        // 这里不再补一条「点了没反应、还容易被系统吞掉」的系统通知；只有浏览器里打开时才兜底。
-        if (!(window as any).electronAPI?.broadcastPopup) {
-          showBannerNotification({
-            title: data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
-            body: urgentDesc,
-            icon: data?._direct ? '🎯' : '⚡',
-            seconds: 15,
-            hint: '点这里 → 去抢单池看这单',
-            action: 'open-pool',
-          });
-        }
-      }
-    },
-    onScheduledReminder: (data: any) => {
-      if (user?.role === 'CS' || user?.role === 'ADMIN' || user?.role === 'OWNER') {
-        const text = data.message || '你发布的预约单已超时未接，请跟进对接客户';
-        message.warning({ content: text, duration: 10 });
-        recordNotice({
-          kind: 'order',
-          icon: '⏰',
-          title: '预约单超时未接',
-          desc: text,
-          href: rolePage(user?.role, 'orders'),
-        });
-      }
-    },
-    onWalletReviewed: (data: any) => {
-      const text = data.message || `支取 ¥${data.amount} ${data.status === 'APPROVED' ? '已通过' : '已拒绝'}`;
-      message.info(text);
-      recordNotice({
-        kind: 'finance',
-        icon: '💰',
-        title: data.status === 'APPROVED' ? '支取已通过' : '支取被拒绝',
-        desc: text,
-        href: rolePage(user?.role, 'billing'),
-      });
-    },
-    onUserAuthorized: (data: any) => {
-      const text = data.message || '注册申请已通过审核';
-      message.success(text, 6);
-      recordNotice({ kind: 'audit', icon: '✅', title: '注册申请已通过审核', desc: text });
-    },
-    onUserRejected: (data: any) => {
-      const text = data.message || '注册申请未通过审核';
-      message.warning(text, 6);
-      recordNotice({ kind: 'audit', icon: '⛔', title: '注册申请未通过审核', desc: text });
-    },
-    onWorkWechatRequest: (data: any) => {
-      // 陪玩自己填了工作微信，等管理端审核（老板 2026-10-02）
-      const text = data?.wechatId
-        ? `有陪玩提交了工作微信「${data.wechatId}」，待审核`
-        : '有陪玩提交了工作微信，待审核';
-      message.info(text, 8);
-      recordNotice({
-        kind: 'audit',
-        icon: '📱',
-        title: '待审核：陪玩提交的工作微信',
-        desc: text,
-        href: rolePage(user?.role, 'work-wechats'),
-      });
-      // 左侧「陪玩工作微信」的数字直接按服务端待审数刷新，不靠这条消息本身“活着”。
-      window.dispatchEvent(new Event('chunlv:work-wechat-refresh'));
-    },
-    onSupplementRequest: (data: any) => {
-      // 陪玩点了「添加失败」提交补单申请（老板 2026-10-04：这种交互双方都要有提示）
-      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
-      if (!isMgmt) return;
-      const text = data?.message || '有陪玩提交了补单申请，待审核';
-      message.info(text, 8);
-      recordNotice({
-        kind: 'audit',
-        icon: '🧾',
-        title: '待审核：补单申请',
-        desc: text,
-        href: rolePage(user?.role, 'orders'),
-        dedupeKey: `supplement-req-${data?.orderId || data?.companionId || ''}`,
-        dedupeMs: 60 * 1000,
-      });
-      // 让「订单管理 → 补单审核」的红点立刻刷新（否则要等它自己的 60 秒轮询）
-      window.dispatchEvent(new CustomEvent('supplement:refresh'));
-    },
-    onSupplementDecided: (data: any) => {
-      // 管理端同意 / 驳回补单 → 实时告诉陪玩本人（老板 2026-10-04）
-      if (user?.role !== 'COMPANION') return;
-      const approved = data?.approved !== false;
-      const text =
-        data?.message || (approved ? '管理端已同意补单，你的抢单次数 +1' : '管理端驳回了补单申请');
-      if (approved) message.success(text, 8);
-      else message.warning(text, 8);
-      recordNotice({
-        kind: 'audit',
-        icon: approved ? '✅' : '⛔',
-        title: approved ? '补单已同意：抢单次数 +1' : '补单被驳回',
-        desc: data?.note ? `${text}（备注：${data.note}）` : text,
-        href: rolePage(user?.role, 'orders'),
-      });
-    },
-    onOrderContactReminder: (data: any) => {
-      // 抢单后迟迟没标「添加成功 / 添加失败」→ 定期提醒陪玩本人（老板 2026-10-04）
-      const text = data?.message || '订单还没标记「添加成功 / 添加失败」，记得处理';
-      const stage = Number(data?.stage) || 1;
-      const title = stage > 1 ? `🔔 再次提醒（第 ${stage} 次）` : '🔔 记得标记客户微信';
-      notifyNotice({
-        kind: 'order',
-        icon: '🔔',
-        title,
-        desc: text,
-        href: rolePage(user?.role, 'orders'),
-        toast: 'warning',
-        duration: 8,
-      });
-      showBannerNotification({
-        title,
-        body: text,
-        icon: '🔔',
-        seconds: 15,
-        hint: '点这里 → 去订单管理标记',
-        action: 'open-orders',
-      });
-    },
-    onReviewNotice: (data: any) => {
-      // 通用「审核 / 交互」提醒（老板 2026-10-04）：
-      // 报账 / 支取 / 战绩图 / 客户删除申请 / 封存解封 / 桥接 / 注册 —— 提交方和审核方双方都能收到。
-      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
-      const isCompanion = user?.role === 'COMPANION';
-      const audience = data?.audience;
-      if (audience === 'MGMT' && !isMgmt) return;
-      if (audience === 'COMPANION' && !isCompanion) return;
-      notifyNotice({
-        kind: data?.kind || 'audit',
-        icon: data?.icon || '🔔',
-        title: data?.title || '有新的待办',
-        desc: data?.desc || '',
-        href: rolePage(user?.role, data?.hrefKey || 'orders'),
-        toast: data?.toast || 'info',
-        duration: 8,
-        dedupeKey: data?.dedupeKey,
-        dedupeMs: data?.dedupeMs || 60 * 1000,
-      });
-    },
-    onOrderContactReminderAdmin: (data: any) => {
-      // 客户微信满 3 天 / 满 7 天没处理（老板 2026-10-04）：
-      // 只落进「待办」（右上角铃铛，带红点角标），不弹窗打扰；
-      // 人工去对应的小红书账号私信问问客户还加不加，客户也不回就把客户封存起来。
-      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
-      if (!isMgmt) return;
-      const long = data?.kind === 'LONG_PENDING';
-      const count = Number(data?.count) || 0;
-      const text =
-        data?.message ||
-        (long ? '有客户挂满 7 天还没通过，请核实' : '有客户 3 天没标记「添加成功 / 添加失败」，请核实');
-      recordNotice({
-        kind: 'order',
-        icon: long ? '🧊' : '🧹',
-        title: long
-          ? `长期挂起客户${count ? ` ${count} 个` : ''}：去小红书问问 / 该封存了`
-          : `客户微信没标记${count ? ` ${count} 个` : ''}：去核实`,
-        desc: text,
-        href: rolePage(user?.role, 'customers'),
-        dedupeKey: `contact-reminder-${data?.kind || 'unknown'}`,
-        dedupeMs: 12 * 60 * 60 * 1000,
-      });
-    },
-    onOrderUnstartedReminder: (data: any) => {
-      // 老板 2026-10-06：「次日弹一次、后边第七天弹一次，然后进历史记录。」
-      // 抢了单一直没点「开始首单」、也没报结果的，服务端只在满 24 小时、满 7 天各催一次（共 2 次）。
-      const text =
-        data?.message ||
-        '你有订单抢到手还没点「开始首单」也没报结果：打成了就点「开始首单」；没打成请点「报结果」，选原因 + 贴截图';
-      const count = Number(data?.count) || 0;
-      const stage = Number(data?.stage) || 1;
-      const maxReminders = Number(data?.maxReminders) || 2;
-      const what = count > 1 ? `有 ${count} 单抢了还没点「开始首单」` : '抢了单还没点「开始首单」';
-      const title = stage >= maxReminders ? `🔔 最后一次提醒：${what}` : `🔔 ${what}`;
-      notifyNotice({
-        kind: 'order',
-        icon: '🔔',
-        title,
-        desc: text,
-        href: rolePage(user?.role, 'orders'),
-        toast: 'warning',
-        duration: 8,
-        // 同一个人半天内只在铃铛里留一条，别把通知中心刷满
-        dedupeKey: `unstarted-reminder:${user?.id || 'me'}`,
-        dedupeMs: 12 * 60 * 60 * 1000,
-      });
-      showBannerNotification({
-        title,
-        body: text,
-        icon: '🔔',
-        seconds: 15,
-        hint: '点这里 → 去订单管理点「报结果」',
-        action: 'open-orders',
-      });
-    },
-    onOrderOutcomeReport: (data: any) => {
-      // 接单方报了结果（老板 2026-10-06）：成功 → 计入考核；不成功 → 先由发单客服跟接单方核对，
-      // 核对完才轮到店长拍板。所以失败这条只找发单客服（服务端就只推给他）。
-      const failed = data?.outcome === 'FAILED';
-      const code = data?.orderCode || '这一单';
-      const text =
-        data?.message ||
-        (failed ? `接单方报了「不成功」（${code}），先跟接单方核对一下` : `接单方报了「成功」（${code}）`);
-      const title = failed ? `🔔 先跟接单方核对：${code}` : `✅ 接单方报了成功：${code}`;
-      notifyNotice({
-        kind: 'order',
-        icon: failed ? '🔔' : '✅',
-        title,
-        desc: text,
-        href: rolePage(user?.role, 'orders'),
-        toast: failed ? 'warning' : 'success',
-        duration: 8,
-        dedupeKey: `outcome-report:${data?.orderId || code}`,
-        dedupeMs: 6 * 60 * 60 * 1000,
-      });
-      if (failed && user?.role !== 'COMPANION') {
-        // 陪玩没有「成交核对」页（发单人不是他时不该弹），所以横幅只给客服 / 店长 / 老板。
-        showBannerNotification({
-          title,
-          body: text,
-          icon: '🔔',
-          seconds: 15,
-          hint: '点这里 → 去「订单管理 → 成交核对」核对',
-          action: 'open-orders',
-        });
-      }
-    },
-    onOrderOutcomeCsConfirmed: (data: any) => {
-      // 客服核对完 → 该店长 / 老板拍板了（老板 2026-10-06）。接单方那边只留一条通知，不弹窗。
-      const code = data?.orderCode || '这一单';
-      const isReviewer = user?.role === 'OWNER' || user?.role === 'ADMIN';
-      notifyNotice({
-        kind: 'audit',
-        icon: '🧾',
-        title: `可以拍板了：${code}`,
-        desc: data?.message || '发单客服已跟接单方核对完（双方无异议），等店长拍板',
-        href: rolePage(user?.role, 'orders'),
-        toast: isReviewer ? 'info' : 'none',
-        duration: 8,
-        dedupeKey: `outcome-cs-confirmed:${data?.orderId || code}`,
-        dedupeMs: 6 * 60 * 60 * 1000,
-      });
-    },
-    onOrderOutcomeRejected: (data: any) => {
-      // 店长 / 老板把接单方的「不成功」说明打回了（老板 2026-10-06：乱写就驳回）：
-      // 接单方要重新填原因 + 重贴截图再报一次；发单客服先不用核对这张，只留个通知。
-      const code = data?.orderCode || '这一单';
-      const note = (data?.note || '').toString().trim();
-      const isCompanion = user?.role === 'COMPANION';
-      notifyNotice({
-        kind: 'order',
-        icon: '↩️',
-        title: isCompanion ? `店长把你的说明打回了：${code}` : `接单方说明被打回：${code}`,
-        desc:
-          data?.message ||
-          (isCompanion
-            ? `店长把这张单的「不成功」说明打回了${note ? `（${note}）` : ''}，请重新填清楚原因、重新贴截图再报一次`
-            : `店长把接单方的「不成功」说明打回了${note ? `（${note}）` : ''}，让他重填，你先不用核对这张`),
-        href: rolePage(user?.role, 'orders'),
-        toast: isCompanion ? 'warning' : 'none',
-        duration: 10,
-        dedupeKey: `outcome-rejected:${data?.orderId || code}`,
-        dedupeMs: 6 * 60 * 60 * 1000,
-      });
-      if (isCompanion) {
-        showBannerNotification({
-          title: `↩️ 店长打回了 ${code} 的说明`,
-          body: (note ? `${note}
-` : '') + '请重新填清楚原因、重新贴截图，再报一次结果',
-          icon: '↩️',
-          seconds: 20,
-          hint: '点这里 → 去「订单管理」重新报结果',
-          action: 'open-orders',
-        });
-      }
-    },
-    onOrderUnstartedReminderAdmin: (data: any) => {
-      // 满 7 天还没处理 → 只落进「待办」（右上角铃铛），不弹窗打扰；人工去「成交核对 → 抢了没结果」核。
-      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
-      if (!isMgmt) return;
-      const count = Number(data?.count) || 0;
-      recordNotice({
-        kind: 'order',
-        icon: '🧾',
-        title: `抢了没结果的单${count ? ` ${count} 个` : ''}：满 7 天了，去核一下`,
-        desc:
-          data?.message ||
-          '有订单抢走满 7 天还没点「开始首单」也没报结果，去「订单管理 → 成交核对 → 抢了没结果」处理',
-        href: rolePage(user?.role, 'orders'),
-        dedupeKey: 'unstarted-reminder-admin',
-        dedupeMs: 12 * 60 * 60 * 1000,
-      });
-    },
-    onBridgeResponded: (data: any) => {
-      const text = data.message || (data.accepted ? '对方已同意桥接申请' : '对方已拒绝桥接申请');
-      message.info(text);
-      recordNotice({
-        kind: 'system',
-        icon: data.accepted ? '🔗' : '🚫',
-        title: data.accepted ? '桥接申请已同意' : '桥接申请被拒绝',
-        desc: text,
-      });
-    },
-    onRevenueDiff: (data: any) => {
-      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
-      if (isMgmt && data.message) {
-        message.warning({ content: data.message, duration: 10 });
-        recordNotice({ kind: 'finance', icon: '📉', title: '营收差异提醒', desc: data.message });
-      }
-    },
-    onReviewAlert: (data: any) => {
-      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
-      if (isMgmt) {
-        setReviewBadge((p) => p + 1);
-        const text = `工作抽查：${data.companionName} 存在异常（${data.reason || data.level || '异常'}），请到「陪玩管理 → 陪玩列表」核查他的工作记录`;
-        message.warning({ content: text, duration: 10 });
-        // 「查看」直接落到这个人的工作记录，并把异常那一条高亮出来（老板 2026-10-05：
-        // 以前只跳到陪玩列表 / 实名审核，什么都没标出来，根本找不到是哪一条）。
-        const base = user?.role === 'CS' ? '/cs/employees' : '/admin/companions';
-        const params = new URLSearchParams({ role: 'COMPANION' });
-        if (data.companionId) params.set('workCompanion', data.companionId);
-        if (data.sessionId) params.set('workSession', data.sessionId);
-        if (data.companionName) params.set('workName', data.companionName);
-        recordNotice({
-          kind: 'audit',
-          icon: '🛡️',
-          title: `工作抽查异常 · ${data.companionName || ''}`,
-          desc: text,
-          href: data.companionId ? `${base}?${params.toString()}` : rolePage(user?.role, 'audits'),
-        });
-      }
-    },
-    onCsAccountAnomaly: (data: any) => {
-      if (user?.role === 'CS' && data.message) {
-        message.warning({ content: data.message, duration: 12 });
-        showBannerNotification({
-          title: '⚠️ 账目异常',
-          body: data.message,
-          icon: '⚠️',
-          seconds: 15,
-          hint: '点这里 → 去账目看',
-          action: 'open-billing',
-        });
-        recordNotice({
-          kind: 'finance',
-          icon: '⚠️',
-          title: '账目异常',
-          desc: data.message,
-          href: rolePage(user?.role, 'billing'),
-        });
-      }
-    },
+  // WebSocket 实时推送（订单 / 转让 / 搭档 / 审核 / 通知音 / 横幅）全部在 hooks/useShellRealtime（原样搬出）。
+  const voiceSocketRef = useShellRealtime({
+    user,
+    addPartnerInvite,
+    removePartnerInvite,
+    addTransferReq,
+    removeTransferReq,
+    setUrgentOrder,
+    setReviewBadge,
   });
+  // 语音通话：必须和 useSocket 在同一个组件里、按「先连 socket 再注册来电监听」的原顺序调用。
+  const vc = useVoiceCall(voiceSocketRef);
 
   // 通知自检入口：排查「铃铛里没收到通知」时不用去造真实订单，
   // 在控制台执行 window.__chunlvNotice({ title: '测试', desc: '随便写' }) 就能验证铃铛。
   useEffect(() => {
     (window as any).__chunlvNotice = notifyNotice;
   });
-
-  // Voice call handler — uses the same WebSocket from useSocket
-  const vc = useVoiceCall(voiceSocketRef);
-  // 语音自检入口：排查「打语音没声音」时不用让陪玩反复试，
-  // 在控制台执行 window.__chunlvVoice.startCall('<对方userId>', '对方名字') 就能自己发起一通。
-  useEffect(() => {
-    (window as any).__chunlvVoice = vc;
-  });
-  useEffect(() => {
-    const handler = (e: CustomEvent) => {
-      const { targetUserId, targetUserName } = e.detail || {};
-      if (targetUserId) vc.startCall(targetUserId, targetUserName || '未知');
-    };
-    window.addEventListener('start-voice-call', handler as EventListener);
-    return () => window.removeEventListener('start-voice-call', handler as EventListener);
-  }, [vc.startCall]);
-
-  // 主程序窗口 = 「管语音」的那个窗口：独立聊天窗口里点电话按钮会请它去打
-  // （聊天窗口自己不能打：一个账号的来电是往 user:<id> 房间广播的，谁装了语音就谁响铃，
-  //  开 3 个聊天窗口就会同时响 3 个。见 utils/voiceCallWindow.ts）。
-  useEffect(() => {
-    setVoiceOwner(true);
-    return () => {
-      setVoiceOwner(false);
-      // 主程序关了，镜像键也要删 —— 免得下次开聊天窗口读到「上一通还在通话中」。
-      clearVoiceCallState();
-    };
-  }, []);
-  useEffect(
-    () =>
-      installVoiceCallRequestListener(({ targetUserId, targetUserName }) => {
-        // 打不了必须回一句话给点按钮的那个窗口，否则那边还是「点了一点反应没有」。
-        if (vc.callState.status !== 'idle') return '正在通话中，请先挂断';
-        void vc.startCall(targetUserId, targetUserName || '未知');
-        return null;
-      }),
-    [vc.startCall, vc.callState.status],
-  );
-  // 聊天窗口里的通话条按钮都转发到这里（挂断 / 接听 / 拒接 / 调音量）——
-  // 电话只有主程序窗口这一份（见 utils/voiceCallWindow.ts）。
-  useEffect(
-    () =>
-      installVoiceCallCommandListener((cmd) => {
-        if (cmd.action === 'hangup') vc.hangup();
-        else if (cmd.action === 'reject') vc.rejectCall();
-        else if (cmd.action === 'accept') void vc.acceptCall();
-        else if (cmd.action === 'setVolume' && typeof cmd.value === 'number') vc.setVolume(cmd.value);
-      }),
-    [vc.hangup, vc.rejectCall, vc.acceptCall, vc.setVolume],
-  );
-  // 把通话状态镜像出去 —— 聊天窗口顶上要跟着显示「正在语音通话 mm:ss」，
-  // 聊天窗口里的通话条也读它（带 volume）。空了就把键删掉，不留旧状态。
-  useEffect(() => {
-    if (vc.callState.status === 'idle') {
-      clearVoiceCallState();
-      return;
-    }
-    publishVoiceCallState({
-      status: vc.callState.status,
-      peerId: vc.callState.peerId,
-      peerName: vc.callState.peerName,
-      duration: vc.callState.duration,
-      volume: vc.callState.volume,
-    });
-  }, [vc.callState.status, vc.callState.peerId, vc.callState.peerName, vc.callState.duration, vc.callState.volume]);
-
-  const VoiceCallHandler = () => (
-    <>
-      <IncomingCallModal
-        open={vc.callState.status === 'ringing' || vc.callState.status === 'calling'}
-        callerName={vc.callState.peerName}
-        calling={vc.callState.status === 'calling'}
-        onAccept={vc.acceptCall}
-        onReject={vc.rejectCall}
-      />
-      {vc.callState.status === 'connected' && (
-        <VoiceCallBar
-          peerName={vc.callState.peerName}
-          duration={vc.callState.duration}
-          volume={vc.callState.volume}
-          onVolumeChange={vc.setVolume}
-          onHangup={vc.hangup}
-        />
-      )}
-    </>
-  );
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -1701,31 +693,8 @@ const AppLayout: React.FC = () => {
               这两行以前常驻在菜单底部，属于纯噪音。 */}
         </Sider>
 
-        {/* 左侧常驻群聊消息面板 — 群聊消息不再进铃铛 */}
-        <Sider
-          theme="light"
-          width={240}
-          collapsedWidth={0}
-          collapsible
-          collapsed={messagePanelCollapsed}
-          trigger={null}
-          style={{
-            background: BG.container,
-            borderRight: `1px solid ${BORDER.base}`,
-            height: '100vh',
-            position: 'sticky',
-            top: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            zIndex: 2,
-            overflow: 'hidden',
-          }}
-        >
-          {!messagePanelCollapsed && (
-            <LeftMessagePanel onOpenChat={openGroupChat} onOpenDirectChat={openDirectChat} />
-          )}
-        </Sider>
-
+        {/* 左侧常驻群聊消息面板 — 群聊消息不再进铃铛（渲染在 components/shell/ChatDock） */}
+        <MessageDock collapsed={messagePanelCollapsed} openGroupChat={openGroupChat} openDirectChat={openDirectChat} />
         <Layout style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
           {/* 顶栏 — 白色底 */}
           <Header
@@ -1784,143 +753,21 @@ const AppLayout: React.FC = () => {
               {/* Notification bell */}
               {user && <NotificationPanel open={notifOpen} onOpenChange={setNotifOpen} />}
               {user?.role === 'COMPANION' && (
-                <Popover
+                <PartnerInvitePopover
                   open={partnerInviteOpen}
                   onOpenChange={setPartnerInviteOpen}
-                  trigger="click"
-                  placement="bottomRight"
-                  title="待处理搭档邀请"
-                  content={
-                    <div style={{ width: 320 }}>
-                      {partnerInvites.length === 0 ? (
-                        <Text type="secondary">暂无待处理邀请</Text>
-                      ) : (
-                        partnerInvites.map((p) => {
-                          const remaining = Math.max(0, Math.ceil((p.expiresAt - Date.now()) / 1000));
-                          return (
-                            <div key={p.sessionId} style={{ padding: '8px 0', borderBottom: `1px solid ${BORDER.secondary}` }}>
-                              <div>
-                                <Text strong>🤝 {p.inviterName} 邀请你搭档</Text>
-                              </div>
-                              <div style={{ fontSize: 12, color: TEXT.secondary }}>
-                                {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)} · {p.duration || 1}h
-                              </div>
-                              <div style={{ margin: '6px 0' }}>
-                                <InviteCountdown seconds={remaining} />
-                              </div>
-                              <Space size={8}>
-                                <Button
-                                  size="small"
-                                  type="primary"
-                                  onClick={async () => {
-                                    try {
-                                      await ordersApi.acceptPartnerInvite(p.sessionId);
-                                      message.success('已接受搭档邀请，开始计时');
-                                      removePartnerInvite(p.sessionId);
-                                      (window as any).electronAPI?.sessionWatch?.(p.sessionId);
-                                      window.dispatchEvent(new Event('chunlv:service-started'));
-                                      setPartnerInviteOpen(false);
-                                    } catch (e: any) {
-                                      message.error(e?.response?.data?.message || '接受失败');
-                                    }
-                                  }}
-                                >
-                                  接受
-                                </Button>
-                                <Button
-                                  size="small"
-                                  onClick={async () => {
-                                    try {
-                                      await ordersApi.rejectPartnerInvite(p.sessionId);
-                                    } catch {}
-                                    removePartnerInvite(p.sessionId);
-                                  }}
-                                >
-                                  拒绝
-                                </Button>
-                              </Space>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  }
-                >
-                  <Badge
-                    count={partnerInvites.length}
-                    overflowCount={99}
-                    size="default"
-                    offset={[-2, 8]}
-                  >
-                    <Button
-                      type="text"
-                      icon={<span style={{ fontSize: 18 }}>🤝</span>}
-                      style={{ color: partnerInvites.length > 0 ? SEMANTIC.warning : commander.textSecondary }}
-                    />
-                  </Badge>
-                </Popover>
+                  partnerInvites={partnerInvites}
+                  removePartnerInvite={removePartnerInvite}
+                />
               )}
               {user?.role === 'COMPANION' && (
-                <Popover
+                <TransferRequestPopover
                   open={transferReqOpen}
                   onOpenChange={setTransferReqOpen}
-                  trigger="click"
-                  placement="bottomRight"
-                  title="待我确认的转让"
-                  content={
-                    <div style={{ width: 320 }}>
-                      {transferReqs.length === 0 ? (
-                        <Text type="secondary">暂无待确认的转让</Text>
-                      ) : (
-                        transferReqs.map((p) => (
-                          <div key={p.requestId || p.id} style={{ padding: '8px 0', borderBottom: `1px solid ${BORDER.secondary}` }}>
-                            <div>
-                              <Text strong>🔁 {p.fromName} 想把订单转给你</Text>
-                            </div>
-                            <div style={{ fontSize: 12, color: TEXT.secondary }}>
-                              {p.orderCode ? `${p.orderCode} · ` : ''}
-                              {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)}
-                              {p.reason ? ` · ${p.reason}` : ''}
-                            </div>
-                            <div style={{ margin: '6px 0' }}>
-                              <InviteCountdown
-                                seconds={Math.max(0, Math.ceil(((p.expiresAt || 0) - Date.now()) / 1000))}
-                              />
-                            </div>
-                            <Space size={8}>
-                              <Button
-                                size="small"
-                                type="primary"
-                                onClick={async () => {
-                                  await acceptTransferReq(p);
-                                  setTransferReqOpen(false);
-                                }}
-                              >
-                                同意
-                              </Button>
-                              <Button
-                                size="small"
-                                onClick={async () => {
-                                  await rejectTransferReq(p);
-                                }}
-                              >
-                                拒绝
-                              </Button>
-                            </Space>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  }
-                >
-                  <Badge count={transferReqs.length} overflowCount={99} size="default" offset={[-2, 8]}>
-                    <Button
-                      type="text"
-                      icon={<span style={{ fontSize: 18 }}>🔁</span>}
-                      style={{ color: transferReqs.length > 0 ? SEMANTIC.warningDeep : commander.textSecondary }}
-                    />
-                  </Badge>
-                </Popover>
+                  transferReqs={transferReqs}
+                  acceptTransferReq={acceptTransferReq}
+                  rejectTransferReq={rejectTransferReq}
+                />
               )}
               {user && (
                 <>
@@ -2028,26 +875,19 @@ const AppLayout: React.FC = () => {
 
       <SalaryDetailModal open={salaryOpen} onClose={() => setSalaryOpen(false)} salary={mySalary} />
 
-      {/* Urgent order popup + solo grab success */}
-      <UrgentOrderPopup
+      {/* Urgent order popup（渲染在 components/shell/ShellBanners） */}
+      <ShellBanners
         urgentOrder={urgentOrder}
         urgentGrabbed={urgentGrabbed}
         setUrgentOrder={setUrgentOrder}
         setUrgentGrabbed={setUrgentGrabbed}
       />
-
       {/* Global Grab Success Modal — survives navigation */}
       <GrabSuccessModal order={grabbedOrder} onClose={() => setGrabbedOrder(null)} />
 
-      {/* Global Chat Modal (opened from notification bell) */}
-      <ChatModal
-        open={!!globalChatPartner}
-        partner={globalChatPartner as any}
-        onClose={() => setGlobalChatPartner(null)}
-      />
-
-      <VoiceCallHandler />
-      <ServiceStartOverlay />
+      {/* Global Chat Modal (opened from notification bell) — 渲染在 components/shell/ChatDock */}
+      <ChatModalHost partner={globalChatPartner} onClose={() => setGlobalChatPartner(null)} />
+      <VoiceCallHost vc={vc} />
     </ChatProvider>
   );
 };
