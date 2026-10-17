@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { isRenewalSegment } from '../common/price-rules';
 import { ratePercent } from '../common/customer-rates';
 import { currentBusinessDayRange, businessDayRange, businessDayKey } from '../common/business-day';
+import { actorOfStudio, actorOfUser, scopeWhere, visibleStudioIds } from '../common/scope';
 
 export interface DailyStatsItem {
   csUserId: string;
@@ -302,7 +303,8 @@ export class StatsService {
       } else if (user.role === 'COMPANION') {
         where.companionId = user.companionId;
       } else if (user.role === 'ADMIN') {
-        where.studioId = user.studioId;
+        // 统一作用域：店长只看本店（与老代码 `where.studioId = user.studioId` 等价）
+        Object.assign(where, scopeWhere(actorOfUser(user)));
       }
     }
 
@@ -411,7 +413,8 @@ export class StatsService {
       if (user.role === 'CS') {
         claimedWhere.claimedCsUserId = user.id;
       } else if (user.role === 'ADMIN') {
-        claimedWhere.studioId = user.studioId;
+        // 统一作用域：店长只看本店（与老代码 `claimedWhere.studioId = user.studioId` 等价）
+        Object.assign(claimedWhere, scopeWhere(actorOfUser(user)));
       }
     }
     if (filters.csUserId && user?.role !== 'CS') claimedWhere.claimedCsUserId = filters.csUserId;
@@ -542,11 +545,13 @@ export class StatsService {
     user: any,
     companionId?: string,
   ): { scope: 'STORE' | 'COMPANION'; companionId: string | null; studioId: string | null } {
-    const role = user?.role;
-    if (role === 'COMPANION') {
-      return { scope: 'COMPANION', companionId: user?.companionId || null, studioId: user?.studioId || null };
+    // 统一作用域解析：老板 → 全站（null），店长 / 客服 / 陪玩 → 本店。
+    const actor = actorOfUser(user);
+    const ids = visibleStudioIds(actor);
+    const studioId = ids ? ids[0] ?? null : null;
+    if (actor.role === 'COMPANION') {
+      return { scope: 'COMPANION', companionId: actor.companionId || null, studioId };
     }
-    const studioId = role === 'OWNER' ? null : user?.studioId || null;
     if (companionId) return { scope: 'COMPANION', companionId, studioId };
     return { scope: 'STORE', companionId: null, studioId };
   }
@@ -574,7 +579,8 @@ export class StatsService {
     companionId: string | null,
   ) {
     const who: any = {};
-    if (studioId) who.studioId = studioId;
+    // 统一作用域：老板（解析后 studioId 为 null）不加店铺过滤，其余看本店。
+    if (studioId) Object.assign(who, scopeWhere(actorOfStudio(studioId)));
     if (companionId) who.OR = [{ companionId }, { coCompanionId: companionId }];
 
     const orders = ((await this.prisma.order.findMany({
@@ -782,7 +788,8 @@ export class StatsService {
     let companions: Array<{ id: string; name: string; resigned: boolean }> = [];
     if (scope === 'STORE') {
       const list = (await this.prisma.companion.findMany({
-        where: studioId ? { studioId } : {},
+        // 统一作用域：老板全站 / 本店店长客服看本店（与老代码 `studioId ? { studioId } : {}` 等价）
+        where: scopeWhere(actorOfStudio(studioId)),
         select: { id: true, isResigned: true, user: { select: { username: true, displayName: true } } },
       })) as any[];
       companions = (list || [])
@@ -812,7 +819,8 @@ export class StatsService {
     const { start, end } = businessDayRange(date);
 
     const orderWhere: any = { status: 'DONE', createdAt: { gte: start, lt: end } };
-    if (studioId) orderWhere.studioId = studioId;
+    // 统一作用域：老板全站 / 店长客服本店
+    Object.assign(orderWhere, scopeWhere(actorOfStudio(studioId)));
     if (companionId) orderWhere.OR = [{ companionId }, { coCompanionId: companionId }];
 
     const orders = ((await this.prisma.order.findMany({
@@ -948,7 +956,8 @@ export class StatsService {
     const customers: DailyKpiDetailCustomer[] = [];
     if (custIds.length) {
       const histWhere: any = { status: 'DONE', customerId: { in: custIds } };
-      if (studioId) histWhere.studioId = studioId;
+      // 统一作用域：老板全站 / 店长客服本店
+      Object.assign(histWhere, scopeWhere(actorOfStudio(studioId)));
       if (companionId) histWhere.OR = [{ companionId }, { coCompanionId: companionId }];
 
       const hist = ((await this.prisma.order.groupBy({

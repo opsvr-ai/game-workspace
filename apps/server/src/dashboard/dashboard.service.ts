@@ -10,6 +10,7 @@ import { roundToJiao } from '../common/money';
 import { computeEntertainmentFee, entertainmentBasisRevenue, loadEntertainmentRule, manualTodayBoosts, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { companionOrderRevenue } from '../common/order-revenue';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 /** 计「在线时长」时认可的模式，与 onlineCount 保持一致 */
 const ONLINE_MODES = new Set(['AVAILABLE', 'BUSY', 'ENTERTAINMENT']);
@@ -19,7 +20,7 @@ export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   async getDashboard(studioId: string | null) {
-    const studioWhere: any = studioId ? { studioId } : {};
+    const studioWhere: any = scopeWhere(actorOfStudio(studioId));
 
     const { start: today, end: tomorrow } = currentBusinessDayRange();
 
@@ -195,7 +196,7 @@ export class DashboardService {
   }
 
   async getTrend(studioId: string | null, days: number = 7) {
-    const studioWhere: any = studioId ? { studioId } : {};
+    const studioWhere: any = scopeWhere(actorOfStudio(studioId));
     const result: { date: string; revenue: number; orderCount: number }[] = [];
     const todayBiz = businessDayOf(new Date());
     for (let i = days - 1; i >= 0; i--) {
@@ -221,7 +222,7 @@ export class DashboardService {
   }
 
   async getCompanionStatus(studioId: string | null) {
-    const studioWhere: any = studioId ? { studioId } : {};
+    const studioWhere: any = scopeWhere(actorOfStudio(studioId));
     return this.prisma.companion.findMany({
       where: studioWhere,
       select: {
@@ -235,7 +236,7 @@ export class DashboardService {
   }
 
   async getRevenueOverview(studioId: string | null) {
-    const studioWhere: any = studioId ? { studioId } : {};
+    const studioWhere: any = scopeWhere(actorOfStudio(studioId));
     const yesterdayBiz = businessDayOf(new Date());
     yesterdayBiz.setDate(yesterdayBiz.getDate() - 1);
     const yesterdayKey = `${yesterdayBiz.getFullYear()}-${String(yesterdayBiz.getMonth() + 1).padStart(2, '0')}-${String(yesterdayBiz.getDate()).padStart(2, '0')}`;

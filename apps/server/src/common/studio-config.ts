@@ -1,9 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import {
-  DEFAULT_CONFIGS,
-  assertStudioScopedKeys,
-  isStudioScopedKey,
-} from './default-config';
+import { assertStudioScopedKeys, isStudioScopedKey } from './default-config';
+import { assertValidConfigEntries, configDefault } from './config-keys';
 
 /**
  * 分店配置的**唯一读取入口**（老板 2026-09-21 拍板：以后进来的租赁线下工作室 / 线上俱乐部，
@@ -83,7 +80,8 @@ export async function resolveConfigsDetailed(
       inherited.push(key);
       sources[key] = 'system';
     } else {
-      values[key] = DEFAULT_CONFIGS[key] ?? null;
+      // 内置默认值只有一处真源（config-keys.ts 的类型化定义；未定义的动态键退回 DEFAULT_CONFIGS）。
+      values[key] = configDefault(key) ?? null;
       inherited.push(key);
       sources[key] = 'default';
     }
@@ -136,6 +134,8 @@ export async function saveStudioConfigs(
 ): Promise<void> {
   const keys = Object.keys(entries);
   assertStudioScopedKeys(keys);
+  // 类型化校验：非法值一个字节都不落库（老板专属键上面已经拦掉了，这里管值本身）。
+  assertValidConfigEntries(entries);
   await Promise.all(
     keys.map((key) =>
       prisma.studioConfig.upsert({
@@ -176,6 +176,11 @@ export async function saveConfigsByRole(
   if (!keys.length) {
     return { scope: asOwner ? 'global' : 'studio', saved: [], skipped: [] };
   }
+  const pickedEntries: Record<string, any> = {};
+  for (const k of keys) pickedEntries[k] = entries[k];
+  // 类型化校验（唯一 schema）：非法值整次不落库，错误消息点出键名。
+  // 放在「写哪儿」判断之后、「开始写」之前：老板 / 店长两条写路径共用同一套定义。
+  assertValidConfigEntries(pickedEntries);
   if (asOwner) {
     await Promise.all(
       keys.map((key) =>

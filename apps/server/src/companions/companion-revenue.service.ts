@@ -7,6 +7,7 @@ import { computeRevenueShare, effectiveTenureMonths } from '../common/revenue-ca
 import type { RevenueSplitTier } from '../common/revenue-calculator';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { companionOrderRevenue } from '../common/order-revenue';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 @Injectable()
 export class CompanionRevenueService {
@@ -27,13 +28,15 @@ export class CompanionRevenueService {
    * 挂了店的照旧只看「本店 + 桥接店」，口径一点没动。
    */
   async getRanking(studioId: string | null, type: string, allStudios = false) {
-    let scopeIds: string[] | null = null;
+    // 统一作用域：老板（allStudios）全站 → `{}`；挂了店的看「本店 + 桥接店」。
+    let where: Record<string, any> = {};
     if (!allStudios) {
       if (!studioId) return [];
-      scopeIds = [studioId, ...(await this.bridgeService.getBridgedStudioIds(studioId))];
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      where = scopeWhere(actorOfStudio(studioId), { bridgedIds });
     }
     const companions = await this.prisma.companion.findMany({
-      where: scopeIds ? { studioId: { in: scopeIds } } : {},
+      where,
       select: { id: true, user: { select: { username: true, displayName: true } } },
     });
 

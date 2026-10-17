@@ -21,6 +21,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { StudiosService } from '../studios/studios.service';
 import { presence } from '../common/presence';
 import { notResignedWhere } from '../common/offboarding';
+import { actorOfUser, scopeWhere } from '../common/scope';
 import { logger } from '../common/logger';
 
 /**
@@ -58,13 +59,15 @@ export class CompanionsService {
    */
   async listPersonnel(user: any, includeBridged = false, includeResigned = false) {
     const where: any = { role: { in: ['COMPANION', 'CS', 'ADMIN', 'OWNER'] } };
-    if (user.role !== 'OWNER') {
-      if (includeBridged && user.studioId) {
-        const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
-        where.studioId = { in: [user.studioId, ...bridgedIds] };
+    const actor = actorOfUser(user);
+    if (actor.role !== 'OWNER') {
+      if (includeBridged && actor.studioId) {
+        // 统一作用域：本店 + 桥接店（与老代码 `{ in: [本店, ...桥接] }` 等价）
+        const bridgedIds = await this.bridgeService.getBridgedStudioIds(actor.studioId);
+        Object.assign(where, scopeWhere(actor, { bridgedIds }));
       } else {
         // 员工管理等页面只看本工作室；老板才看全部。
-        where.studioId = user.studioId;
+        Object.assign(where, scopeWhere(actor));
       }
     }
     if (!includeResigned) {
@@ -206,11 +209,14 @@ export class CompanionsService {
       where.isResigned = false;
     }
     if (user.role !== 'OWNER') {
-      if (includeBridged && user.studioId) {
-        const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
-        where.studioId = { in: [user.studioId, ...bridgedIds] };
+      const actor = actorOfUser(user);
+      if (includeBridged && actor.studioId) {
+        // 统一作用域：本店 + 桥接店（与老代码 `{ in: [本店, ...桥接] }` 等价）
+        const bridgedIds = await this.bridgeService.getBridgedStudioIds(actor.studioId);
+        Object.assign(where, scopeWhere(actor, { bridgedIds }));
       } else {
-        where.studioId = user.studioId;
+        // 统一作用域：店长 / 客服只看本店
+        Object.assign(where, scopeWhere(actor));
       }
     }
     const companions = await this.prisma.companion.findMany({
@@ -302,8 +308,9 @@ export class CompanionsService {
 
     const where: any = { isResigned: false, user: { resignedAt: null } };
     let ownStudioId: string | null = null;
-    if (user.role !== 'OWNER') {
-      if (!user.studioId) {
+    const actor = actorOfUser(user);
+    if (actor.role !== 'OWNER') {
+      if (!actor.studioId) {
         // 没挂工作室的账号（异常数据）：宁可给空，也绝不能因为 studioId 为空把全站漏出去。
         return {
           rows: [],
@@ -311,16 +318,16 @@ export class CompanionsService {
           counts: { serving: 0, entertainment: 0, available: 0, resting: 0, offline: 0 },
         };
       }
-      const ownId: string = user.studioId;
+      const ownId: string = actor.studioId;
       ownStudioId = ownId;
-      let studioIds: string[] = [ownId];
+      let bridged: string[] = [];
       try {
-        const bridged = await this.bridgeService.getBridgedStudioIds(ownId);
-        studioIds = [...new Set([...studioIds, ...(bridged || [])])];
+        bridged = (await this.bridgeService.getBridgedStudioIds(ownId)) || [];
       } catch {
         // 桥接表查不到就退回只看本店，别把整个看板拖挂。
       }
-      where.studioId = studioIds.length > 1 ? { in: studioIds } : ownId;
+      // 统一作用域：本店 + 桥接工作室（桥接的人看得到、方便邀请；业绩由下面的 isBridged 保护）。
+      Object.assign(where, scopeWhere(actor, { bridgedIds: bridged }));
     }
 
     const companions = await this.prisma.companion.findMany({

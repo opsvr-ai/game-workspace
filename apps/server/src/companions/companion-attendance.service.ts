@@ -2,6 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 /**
  * 考勤适用职位：陪玩 / 客服 / 店长（老板不考勤）。
@@ -270,7 +271,8 @@ export class CompanionAttendanceService {
     // StaffAttendance 上没有 User 关系字段（只有 userId），按店过滤就先查这家店的人。
     if (filters.studioId) {
       const usersInStudio = await this.prisma.user.findMany({
-        where: { studioId: filters.studioId },
+        // 统一作用域：老板（不传 studioId）看全部；传了店就只看那家店的人
+        where: scopeWhere(actorOfStudio(filters.studioId)),
         select: { id: true },
       });
       where.userId = { in: usersInStudio.map((u) => u.id) };
@@ -436,7 +438,8 @@ export class CompanionAttendanceService {
 
     if (role === 'COMPANION') {
       const companions = await this.prisma.companion.findMany({
-        where: { isResigned: false, ...(studioId ? { studioId } : {}) },
+        // 统一作用域：老板（studioId 为 null）看全部，店长 / 客服看本店
+        where: { isResigned: false, ...scopeWhere(actorOfStudio(studioId)) },
         select: { id: true, status: true, user: { select: { username: true, displayName: true } } },
       });
       const ids = companions.map((c) => c.id);
@@ -472,7 +475,8 @@ export class CompanionAttendanceService {
       }
     } else {
       const users = await this.prisma.user.findMany({
-        where: { role, resignedAt: null, ...(studioId ? { studioId } : {}) },
+        // 统一作用域：老板（studioId 为 null）看全部，店长 / 客服看本店
+        where: { role, resignedAt: null, ...scopeWhere(actorOfStudio(studioId)) },
         select: { id: true, username: true, displayName: true },
       });
       const ids = users.map((u) => u.id);

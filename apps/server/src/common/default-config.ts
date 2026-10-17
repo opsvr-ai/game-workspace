@@ -3,6 +3,10 @@ import { BadRequestException } from '@nestjs/common';
 /**
  * 系统配置的「内置默认值」+「哪些配置是分店的」。
  *
+ * ⚠️ 新增 / 删除配置键时，**必须同步** `common/config-keys.ts` 的类型化定义（默认值、类型、作用域、校验器）：
+ *    两边键集合不一致时 `__tests__/config-center.test.ts` 会直接红，配置也写不进库。
+ *    这里只保留「默认值真源」与老板专属名单；写入校验 / 作用域 / 校验器统一在 config-keys.ts。
+ *
  * 老板 2026-09-21 拍板：**以后进来的租赁线下工作室、线上俱乐部，所有数据由他们自己的店长填写**。
  * 所以配置分两层，任何一处读配置都必须走 `common/studio-config.ts` 的解析器：
  *  1. **分店自己的值**（`StudioConfig` 表，店长填）——优先；

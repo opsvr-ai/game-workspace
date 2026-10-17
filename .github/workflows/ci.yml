@@ -78,6 +78,11 @@ jobs:
       # 谁再直接从 antd import message 这里就红（目标恒为 0）。
       - name: 提示层出口冻结（提示只留一个出口）
         run: node scripts/_check_feedback_layer.mjs --check
+      # 作用域收敛（2026-10-17）：服务端「这条数据给谁看」以前散在各 service 里手写 `studioId:` 条件，
+      # 多一个 `!` 就是一次越权或空看板。统一入口是 apps/server/src/common/scope.ts（ScopeContext），
+      # 迁移完成的调用点逐个换成 scopeWhere；这里统计剩余裸条件，只能减不能增（基线 docs/SCOPE-USAGE-BASELINE.json）。
+      - name: 作用域收敛（裸 studioId 只减不增）
+        run: node scripts/_check_scope_usage.mjs --check
       # 路由分包守卫（2026-10-07）：50 个页面原来全是同步 import，首屏必须把所有页面的代码
       # 都下载 + 解析完才画出第一帧（主包 1.2MB）。改成按路由 lazy 之后主包 347KB。
       # 但「新加一个页面」时同步 import 是最自然的写法，写下去没人会觉得不对 —— 这里拦住它。

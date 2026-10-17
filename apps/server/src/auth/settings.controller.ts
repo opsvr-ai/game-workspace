@@ -28,6 +28,7 @@ import {
   OWNER_ONLY_KEYS,
   OWNER_ONLY_PREFIXES,
 } from '../common/default-config';
+import { assertValidConfigEntries, configDefault } from '../common/config-keys';
 import {
   resolveConfigsDetailed,
   resetStudioConfigs,
@@ -81,7 +82,7 @@ export class SettingsController {
     const resolved = await resolveConfigsDetailed(this.prisma, studioId, safeKeys);
     const result: Record<string, any> = {};
     for (const k of keys) {
-      result[k] = safeKeys.includes(k) ? resolved.values[k] ?? null : DEFAULT_CONFIGS[k] ?? null;
+      result[k] = safeKeys.includes(k) ? resolved.values[k] ?? null : configDefault(k) ?? null;
     }
     result['_meta'] = {
       role: req?.user?.role ?? null,
@@ -200,6 +201,13 @@ export class SettingsController {
         admin: pick('commission.admin_online_rate_percent') ?? 0,
       });
     }
+
+    // 保存前的类型化校验（唯一 schema 入口 `common/config-keys.ts`）：
+    // 非法值整次不落库，错误消息里点出所有出问题的键名（`BadRequestException`）。
+    // 放在业务校验 / 归一化之后，校验的就是**真正要写进库的**那份值
+    // （例如分成阶梯已经被 normalizeShareTiers 归一化过）；
+    // 未知动态键（服务端自己写的 `counter.global_code` 之类）沿用老行为放行。
+    assertValidConfigEntries(body);
 
     // 写到哪里看身份（老板拍板：店跟店相互独立，默认全部归分店）：
     // - 老板 → 全局默认（SystemConfig），所有店跟着变；

@@ -3,6 +3,7 @@ import { Injectable, NotFoundException, ForbiddenException, ConflictException } 
 import { PrismaService } from '../prisma/prisma.service';
 import { canSeeCustomerSource } from '../common/order-privacy';
 import { currentBusinessDayRange } from '../common/business-day';
+import { actorOfStudio, actorOfUser, scopeWhere } from '../common/scope';
 import type { UserRole } from '@chunlv/shared';
 
 export interface CreateCustomerDto {
@@ -53,10 +54,12 @@ export class CustomersService {
     else if (scope !== 'all') where.archivedAt = null;
 
     if (user.role === 'COMPANION') {
-      where.companionId = user.companionId;
+      // 统一作用域：陪玩只看自己的客户（本店同事也不给）
+      Object.assign(where, scopeWhere(actorOfUser(user), { ownField: 'companionId' }));
       where.isDeletedByCustomer = false;
     } else if (user.role === 'ADMIN' || user.role === 'CS') {
-      where.studioId = user.studioId;
+      // 统一作用域：店长 / 客服看本店
+      Object.assign(where, scopeWhere(actorOfUser(user)));
     }
 
     // Sort: totalSpent=消费金额降序, createdAt=创建时间降序, updatedAt=最近更新降序(默认)
@@ -197,13 +200,15 @@ export class CustomersService {
     if (isCompanionViewer && !user.companionId) return empty;
 
     // 封存的客户不在看板上出现（封存 = 这轮不打了、等以后再换人加）
+    const actor = actorOfUser(user);
     const customerWhere: any = { isDeletedByCustomer: false, archivedAt: null };
-    if (isCompanionViewer) customerWhere.companionId = user.companionId;
-    else if (user.role !== 'OWNER') customerWhere.studioId = user.studioId;
+    // 统一作用域：陪玩只看自己的客户，店长 / 客服本店，老板全站
+    Object.assign(customerWhere, scopeWhere(actor, { ownField: 'companionId' }));
     if (!isCompanionViewer && opts.companionId) customerWhere.companionId = opts.companionId;
 
     const companionWhere: any = { isResigned: false };
-    if (user.role !== 'OWNER') companionWhere.studioId = user.studioId;
+    // 店长 / 客服只看本店陪玩；陪玩再收敛到「自己那一格」
+    Object.assign(companionWhere, scopeWhere(actor));
     if (isCompanionViewer) companionWhere.id = user.companionId;
     else if (opts.companionId) companionWhere.id = opts.companionId;
 
@@ -603,11 +608,13 @@ export class CustomersService {
    */
   async customerProfileAnalytics(id: string, user: AuthenticatedUser) {
     const where: any = { id };
+    // 统一作用域（与客户管理 / 看板同一口径）：陪玩只有自己的客户，店长 / 客服本店，老板全站。
+    const actor = actorOfUser(user);
     if (user.role === 'COMPANION') {
-      where.companionId = user.companionId;
+      Object.assign(where, scopeWhere(actor, { ownField: 'companionId' }));
       where.isDeletedByCustomer = false;
-    } else if (user.role !== 'OWNER') {
-      where.studioId = user.studioId;
+    } else {
+      Object.assign(where, scopeWhere(actor));
     }
     const customer = await this.prisma.customer.findUnique({
       where,
@@ -1226,11 +1233,12 @@ export class CustomersService {
     const where: any = { id };
     // Studio isolation: non-OWNER users can only see customers in their studio
     if (user && user.role !== 'OWNER') {
+      const actor = actorOfUser(user);
       if (user.role === 'COMPANION') {
-        where.companionId = user.companionId;
+        Object.assign(where, scopeWhere(actor, { ownField: 'companionId' }));
         where.isDeletedByCustomer = false;
       } else {
-        where.studioId = user.studioId;
+        Object.assign(where, scopeWhere(actor));
       }
     }
     const customer = await this.prisma.customer.findUnique({
@@ -1684,7 +1692,8 @@ export class CustomersService {
   /** 重复客户档案分组（同一工作室下、微信号相同且非空的档案） */
   async listDuplicateGroups(studioId?: string | null) {
     const where: any = { wechatId: { not: '' } };
-    if (studioId) where.studioId = studioId;
+    // 统一作用域：老板（studioId 为空）看全站，店长 / 客服看本店
+    Object.assign(where, scopeWhere(actorOfStudio(studioId)));
     const rows = await this.prisma.customer.findMany({
       where,
       select: {

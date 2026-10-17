@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 @Injectable()
 export class CompanionWechatService {
@@ -227,7 +228,8 @@ export class CompanionWechatService {
     opts: { allStudios?: boolean } = {},
   ) {
     const where: any = {};
-    if (!opts.allStudios && studioId) where.studioId = studioId;
+    // 统一作用域：老板（allStudios）不过滤工作室；店长 / 客服只看本店
+    if (!opts.allStudios && studioId) Object.assign(where, scopeWhere(actorOfStudio(studioId)));
     if (status) where.status = status;
     const rows =
       (await this.prisma.workWechatRequest.findMany({
@@ -255,7 +257,8 @@ export class CompanionWechatService {
   /** 管理端：待审核数量（界面上的红标） */
   async countPendingWorkWechatRequests(studioId: string) {
     const where: any = { status: 'PENDING' };
-    if (studioId) where.studioId = studioId;
+    // 统一作用域：老板（studioId 为空）数全站，店长 / 客服只数本店
+    if (studioId) Object.assign(where, scopeWhere(actorOfStudio(studioId)));
     return this.prisma.workWechatRequest.count({ where });
   }
 
