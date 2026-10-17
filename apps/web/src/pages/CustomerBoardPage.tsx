@@ -44,6 +44,8 @@ import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
 import { customersApi } from '../api/customers';
 import CustomerProfileDrawer from '../components/CustomerProfileDrawer';
+import { usePolling } from '../hooks/usePolling';
+import { useLiveRefresh, LIVE_BOARD_EVENTS } from '../hooks/useLiveRefresh';
 import { useAuthStore } from '../stores/authStore';
 import { companionStatusConfig, customerStatusConfig, statusDotColor } from '../constants';
 import { BG, BORDER, BRAND, SEMANTIC, TEXT } from '../styles/tokens';
@@ -272,13 +274,18 @@ const CustomerBoardPage: React.FC = () => {
     void fetchBoard();
   }, [fetchBoard]);
 
-  // 15 秒拉一次（页面不在前台就不拉）
-  useEffect(() => {
-    const t = setInterval(() => {
-      if (document.visibilityState === 'visible') void fetchBoard(true);
-    }, REFRESH_MS);
-    return () => clearInterval(t);
-  }, [fetchBoard]);
+  // 兜底轮询：15 秒一次，页面不在前台就暂停（usePolling 回到前台会立刻补一次）。
+  usePolling(() => {
+    void fetchBoard(true);
+  }, REFRESH_MS);
+
+  // 推送驱动刷新：状态广播 / 抢单 / 转让等事件到达后 800ms 内合并成一次刷新。
+  // 轮询不删 —— 推送漏了、断了还有它兜底；统计口径不变，刷的仍是同一个接口。
+  useLiveRefresh({
+    events: LIVE_BOARD_EVENTS,
+    refetch: () => fetchBoard(true),
+    delayMs: 800,
+  });
 
   // 正在打的计时本地走字
   useEffect(() => {

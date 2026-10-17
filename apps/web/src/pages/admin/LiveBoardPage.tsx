@@ -24,6 +24,8 @@ import { ReloadOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/PageHeader';
 import { companionsApi } from '../../api/companions';
 import { statusDotColor } from '../../constants/companions';
+import { usePolling } from '../../hooks/usePolling';
+import { useLiveRefresh, LIVE_BOARD_EVENTS } from '../../hooks/useLiveRefresh';
 import { useAuthStore } from '../../stores/authStore';
 import { BG, BORDER, TEXT, SEMANTIC } from '../../styles/tokens';
 
@@ -119,6 +121,7 @@ const LiveBoardPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [filter, setFilter] = useState<'all' | Bucket>('all');
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const fetchedAtRef = useRef<number>(Date.now());
 
   const fetchBoard = useCallback(async (silent = false) => {
@@ -128,6 +131,7 @@ const LiveBoardPage: React.FC = () => {
       const body = (res as any)?.data ?? res;
       setData(body?.rows ? body : { rows: [], updatedAt: new Date().toISOString() });
       fetchedAtRef.current = Date.now();
+      setLastUpdatedAt(fetchedAtRef.current);
     } catch {
       if (!silent) message.error('看板加载失败');
     } finally {
@@ -137,11 +141,21 @@ const LiveBoardPage: React.FC = () => {
 
   useEffect(() => {
     void fetchBoard();
-    const t = setInterval(() => {
-      if (document.visibilityState === 'visible') void fetchBoard(true);
-    }, REFRESH_MS);
-    return () => clearInterval(t);
   }, [fetchBoard]);
+
+  // 兜底轮询：15 秒一次，页面不可见就暂停；
+  // 推送（useLiveRefresh）断了 / 漏事件时靠它兜住，两条路同时在也只是一次 GET。
+  usePolling(() => {
+    void fetchBoard(true);
+  }, REFRESH_MS);
+
+  // 推送驱动刷新：状态广播 / 订单事件到达后 1 秒内合并成一次刷新，
+  // 一次抢单风暴里十几个事件不会变成十几个请求。
+  useLiveRefresh({
+    events: LIVE_BOARD_EVENTS,
+    refetch: () => fetchBoard(true),
+    delayMs: 1000,
+  });
 
   // 时长本地走字：不刷新也能看到秒数在跳
   useEffect(() => {
@@ -296,10 +310,18 @@ const LiveBoardPage: React.FC = () => {
         }
         extra={
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {data?.updatedAt ? (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                更新于 {new Date(data.updatedAt).toLocaleTimeString('zh-CN')}
-              </Text>
+            {lastUpdatedAt ? (
+              <Tooltip
+                title={
+                  data?.updatedAt
+                    ? `服务端数据时间 ${new Date(data.updatedAt).toLocaleString('zh-CN')}`
+                    : ''
+                }
+              >
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  最后更新 {new Date(lastUpdatedAt).toLocaleTimeString('zh-CN', { hour12: false })}
+                </Text>
+              </Tooltip>
             ) : null}
             <Button icon={<ReloadOutlined />} onClick={() => void fetchBoard()} loading={loading}>
               刷新
