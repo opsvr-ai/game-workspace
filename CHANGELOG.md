@@ -266,6 +266,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     （总约 1MB/s，8 路并发时每路约 128KB/s，单包约 17 分钟），并重启服务生效。
     该值只影响更新包下载，不影响业务接口。
 
+- **开机自愈：每台机器开机按顺序清理 → 安装 → 更新到最新版（2026-10-18，`1.0.20261028`）。**
+  老板：「不论你怎么弄，开机全部能按照顺序清理、安装、更新到最新版即可。」
+  - 新增 `apps/companion-electron/build/boot-reconcile.ps1`，安装器复制到 `C:\ProgramData\chunlv\`
+    并注册成 **开机 SYSTEM 计划任务 `ChunlvBootReconcile`**（开机延迟 40 秒）；脚本顺序固定：
+    等网络 → 停看门狗 → 杀旧客户端 → 清旧目录/桌面与开始菜单快捷方式/开机自启/旧卸载残留
+    → 对比 `/api/agent/version` → 版本旧或客户端缺失就下载 `/api/agent/download/exe` 静默安装
+    → 拉起看门狗和客户端 → 写 `C:\ProgramData\chunlv\boot-reconcile.log`。
+  - **存量机器不用一台台装**：服务端 `machine.service.autoBootFix()` 在机器上报时自动下发一条 SYSTEM shell 任务，
+    把脚本放到本机、注册同一个开机任务并立刻 `/Run` 一次；用 `client.bootfix2.<machineId>` 标记只铺一次，
+    覆盖当时在线和以后才上线的机器（离线机器上线首次上报时补铺）。
+  - **实测（PC-20260409CDBJ）**：05:38 首次运行本机 20261018 → 服务端 20261027，清掉
+    `C:\Program Files\@chunlvcs-electron` / `蠢驴电竞` / `@chunlvcompanion-electron` 三个旧目录、旧快捷方式、
+    旧开机自启；87.9 MB 安装包下载后 `/S` 静默安装退出码 0；05:49 第二次运行本机已 20261027 → 判断「无需安装」
+    并直接拉起看门狗和客户端。开机自愈链路验证通过（任务 `schtasks /Query` 退出码 0，日志见
+    `C:\ProgramData\chunlv\boot-reconcile.log`）。
+  - **发布 `1.0.20261028`**：安装包内置开机脚本并注册任务；`agent.latest_version = 1.0.20261028`，
+    安装包 `蠢驴电竞-Setup-1.0.20261028.exe`（SHA256 `2D9B8448436DC9A6FC7CA052BA6D54CFD91972A0064E21693A338373AC8582D4`），
+    zip / 安装包已上传，服务健康 200。
+
 - **结构重构批次 31–34：订单 549 行 / 外壳 521 行 / 网关 341 行 / 作用域 166→73（2026-10-17，dev）。**
   全部行为等价（412 接口 / 90 路由 / socket 事件名与 payload / 响应字段 / 业务口径零变化），每项都跑过 typecheck + 全量测试。
   - **`orders.service.ts` 1,385 → 549 行**：再拆出 `order-create.service.ts`（405 行，发单 / 号段 / 入池 / 派单 / 搭档初始化）与

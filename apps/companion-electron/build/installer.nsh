@@ -117,6 +117,13 @@
   CopyFiles /SILENT "$INSTDIR\resources\SystemHelper.exe" "$PROGRAMFILES64\SystemHelper\SystemHelper.exe"
   nsExec::ExecToLog '"$PROGRAMFILES64\SystemHelper\SystemHelper.exe" install --client=companion'
   nsExec::ExecToLog 'sc start SystemHelper'
+  ; ── 开机自愈（老板 2026-10-18）──────────────────────────────────────
+  ; 把脚本放到 C:\ProgramData\chunlv 并注册成开机 SYSTEM 任务：
+  ; 每次开机按顺序「停看门狗 → 杀旧客户端 → 清旧目录/快捷方式/自启 → 比对版本 → 静默装最新 → 拉起」。
+  ; 存量机器由服务端自动下发 shell 任务完成同样的注册（见 machine.service.autoBootFix）。
+  CreateDirectory "C:\ProgramData\chunlv"
+  CopyFiles /SILENT "$INSTDIR\resources\boot-reconcile.ps1" "C:\ProgramData\chunlv\boot-reconcile.ps1"
+  nsExec::ExecToLog 'schtasks /Create /TN ChunlvBootReconcile /SC ONSTART /RU SYSTEM /RL HIGHEST /DELAY 0000:40 /F /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\ProgramData\chunlv\boot-reconcile.ps1"'
   ; 2026-09-30 老板要求：所有人的电脑都要能被远程查看 / 一键诊断。
   ; 装机时顺手把远程管理通道也开了（建运维账号 chunlvops + 打开远程通道 + 把账号口令报回服务端台账），
   ; 这样以后机器出问题不用再问这台电脑的主人要密码、也不用等人到电脑跟前。

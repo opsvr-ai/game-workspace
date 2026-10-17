@@ -598,8 +598,15 @@ Electron 客户端 是运行在陪玩师电脑上的桌面客户端，通过 Web
   ```
   安装包输出 `release/蠢驴电竞-Setup-<版本>.exe`（`productName`/`shortcutName`/`uninstallDisplayName` = 蠢驴电竞；
   **exe 名和安装目录仍是 `陪玩管理`**，`win.executableName` + `installer.nsh` 写死，保证自动更新/看门狗/换端兼容）。
-- **当前线上版本：`1.0.20261027`（2026-10-18 发布，`agent.latest_version`）**；旧包备份
-  `uploads/*.bak-20261017-2310`，回滚时恢复文件并把 `agent.latest_version` 改回 `1.0.20261026`。
+- **当前线上版本：`1.0.20261028`（2026-10-18 发布，`agent.latest_version`）**；旧包备份
+  `uploads/*.bak-20261017-2310`，回滚时恢复文件并把 `agent.latest_version` 改回 `1.0.20261027`。
+- **开机自愈（2026-10-18）**：`boot-reconcile.ps1` 由安装器复制到 `C:\ProgramData\chunlv\` 并注册成
+  **开机 SYSTEM 计划任务 `ChunlvBootReconcile`**（ONSTART、延迟 40 秒）。执行顺序固定：
+  等网络 → 停看门狗 → 杀旧客户端 → 清旧目录/快捷方式/旧开机自启/旧卸载残留 → 对比
+  `/api/agent/version` → 版本旧或客户端缺失时下载 `/api/agent/download/exe` 并 `/S` 静默安装 →
+  拉起看门狗和客户端。日志 `C:\ProgramData\chunlv\boot-reconcile.log`。
+  存量机器由服务端 `machine.service.autoBootFix()` 在机器上报时自动下发一次 SYSTEM shell 任务完成同样的注册
+  （`client.bootfix2.<machineId>` 标记，离线机器上线后首次上报补铺）。
 - **更新包下发总带宽**：`apps/server/.env` 的 `UPDATE_DOWNLOAD_KBPS`（默认 300，按「所有正在下载的机器共享」算）。
   统一客户端首轮铺开时多家店同时下载会把每路压到几十 KB/s，128MB 包会超过客户端 30 分钟下载超时；
   2026-10-17 已调到 `1024`（约 1MB/s 总额度，8 路并发时每路约 128KB/s，单包约 17 分钟）。调整后需 `pm2 restart chunlv-server`。

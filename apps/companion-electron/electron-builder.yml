@@ -24,6 +24,9 @@ extraResources:
   # 托盘上真正显示的那张：绿色方块 + 白驴（陪玩端专用，跟客服端的蓝色区分开）。
   - from: public/tray-companion.png
     to: tray-companion.png
+  # 开机自愈脚本：安装器会复制到 C:\ProgramData\chunlv 并注册成开机 SYSTEM 任务。
+  - from: build/boot-reconcile.ps1
+    to: boot-reconcile.ps1
 win:
   icon: public/donkey.ico
   # 保持 exe 名不变：自动更新 zip 按 win-unpacked 整包替换，看门狗按当前 exe 认客户端。

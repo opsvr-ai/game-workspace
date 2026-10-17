@@ -491,6 +491,10 @@ export class MachineService {
     if (String(record.clientType || '').toUpperCase() === 'UNKNOWN') return;
     // 云端点名要换端的机器（老板 2026-10-17：「现在就换」）—— 跟下面两条自愈并列。
     await this.autoSwitchClient(record);
+    // 2026-10-18 老板：「开机全部能按照顺序清理、安装、更新到最新版即可」。
+    // 给每台机器一次性铺一个开机自愈任务：脚本会停看门狗 → 杀旧客户端 → 清旧目录/快捷方式/自启 →
+    // 比较服务端版本 → 静默装最新安装包 → 拉起看门狗和客户端。装完把标记写进 SystemConfig，只铺一次。
+    await this.autoBootFix(record);
     const target = await this.watchdogTargetBuild();
     const build = String(record.watchdogBuild || '');
     const needsRemote = !record.remoteReady;
@@ -514,6 +518,60 @@ export class MachineService {
       reason: needsRemote ? '自动自愈：开通远程管理' : '自动自愈：看门狗换成云端最新那份',
       actor: { username: 'system', id: '' },
     });
+  }
+
+  /**
+   * 开机自愈一次性铺开（老板 2026-10-18：「不论你怎么弄，开机全部能按照顺序清理、安装、
+   * 更新到最新版即可」）。
+   *
+   * 看门狗是开机必起的 SYSTEM 服务，但它只保活/换文件，不会清旧客户端目录，也不会主动重装。
+   * 这里给每台上报过的机器补一条 **shell 任务**（看门狗以 SYSTEM 执行）：
+   *   ① 把 `boot-reconcile.ps1` 下载到 `C:\ProgramData\chunlv\`；
+   *   ② 注册/覆盖 `ChunlvBootReconcile` 计划任务（ONSTART、SYSTEM、开机延迟 40 秒）；
+   *   ③ 立刻 `/Run` 一次，让这台机器当天就完成「清理 → 安装 → 更新」。
+   * 脚本之后每次开机都会自己跑；服务端用 `client.bootfix.<machineId>` 记录已铺过，不重复派。
+   */
+  private async autoBootFix(record: any): Promise<void> {
+    const machineId = String(record?.machineId || '');
+    if (!machineId) return;
+    if (String(record.clientType || '').toUpperCase() === 'UNKNOWN') return;
+    const markerKey = `client.bootfix2.${machineId}`;
+    const marker = await this.prisma.systemConfig.findUnique({ where: { key: markerKey } });
+    if (marker) return;
+    const rows = await this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.task.' } } });
+    const mine = rows
+      .map((r) => (r.value as any) || {})
+      .filter(
+        (t) =>
+          t &&
+          t.machineId === machineId &&
+          t.type === 'shell' &&
+          String(t.reason || '').startsWith('开机自愈'),
+      );
+    if (mine.some((t) => t.status === 'pending' || t.status === 'running')) return;
+
+    const command = [
+      "$p='C:\\ProgramData\\chunlv'",
+      'New-Item -ItemType Directory -Force -Path $p | Out-Null',
+      "(New-Object System.Net.WebClient).DownloadFile('http://1.117.229.36:3001/uploads/boot-reconcile.ps1',(Join-Path $p 'boot-reconcile.ps1'))",
+      "schtasks /Create /TN ChunlvBootReconcile /SC ONSTART /RU SYSTEM /RL HIGHEST /DELAY 0000:40 /F /TR 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\ProgramData\\chunlv\\boot-reconcile.ps1'",
+      'schtasks /Run /TN ChunlvBootReconcile',
+    ].join('; ');
+    const task = await this.createTask({
+      machineId,
+      type: 'shell',
+      command,
+      timeoutSec: 180,
+      reason: '开机自愈：清理旧客户端并安装最新版',
+      actor: { username: 'system', id: '' },
+    });
+    try {
+      await this.prisma.systemConfig.create({
+        data: { key: markerKey, value: { at: new Date().toISOString(), taskId: task.id } as any },
+      });
+    } catch {
+      /* 并发上报时可能已被另一条报告写过，忽略 */
+    }
   }
 
   /**
