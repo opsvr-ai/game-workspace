@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WsGateway } from '../ws/ws.gateway';
+import { WsConnectionService } from '../ws/ws-connection.service';
 import { presence } from '../common/presence';
 
 /**
@@ -282,5 +283,39 @@ describe('WsGateway 新拆层委托：状态 / 指令回执 / chat', () => {
     emitted.length = 0;
     await gw.handleChatSend(companionClient(null) as never, { text: 'hi' } as never);
     expect(emitted).toHaveLength(0);
+  });
+});
+
+/**
+ * 线上事故回归（2026-10-17）：Nest 10 在 forwardRef 场景下会先给占位实例，
+ * 等真正实例化后再 `Object.assign(占位实例, new Service(...))` —— 新实例的类字段
+ * `runtime = null` 会把网关构造期 attach 好的 runtime 覆盖掉。症状是服务能启动，
+ * 但第一个 WebSocket 连接/断开就 `WsConnectionService runtime not attached`，进程直接崩。
+ * 这里锁住「afterInit 会重新挂 runtime」这个修复。
+ */
+describe('WsGateway 生命周期：forwardRef 占位实例合并后 runtime 仍需可用', () => {
+  it('Object.assign 覆盖构造期 runtime 后，afterInit 会重新挂上', () => {
+    const gw = new WsGateway(
+      null as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    (gw as unknown as { server: unknown }).server = { use: vi.fn() };
+
+    const conn = (gw as unknown as { connection: { runtime: unknown } }).connection;
+    expect(conn.runtime).toBeTruthy();
+
+    // 模拟 Nest 的 forwardRef 合并：类字段把 runtime 覆盖回 null
+    Object.assign(conn, new WsConnectionService(null as never, {} as never, {} as never, {} as never));
+    expect(conn.runtime).toBeNull();
+
+    // afterInit（Nest 在所有 provider 合并完成之后调用）重新挂一次
+    gw.afterInit();
+    expect(conn.runtime).toBeTruthy();
+    expect(() => (conn as unknown as { r: unknown }).r).not.toThrow();
   });
 });

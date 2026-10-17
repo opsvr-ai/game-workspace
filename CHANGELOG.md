@@ -444,6 +444,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **部署 dev 重构时线上 WebSocket crash loop：Nest forwardRef 占位实例把 `WsConnectionService.runtime` 覆盖成 null（2026-10-17，服务端）。**
+  部署后 `health=000`、pm2 秒级重启，日志反复报 `WsConnectionService runtime not attached`。
+  - **根因**：`WsConnectionService` 通过 `@Inject(forwardRef(...))` 参与 WsModule ↔ CompanionsModule 的循环解析；
+    Nest 10 的 `Injector.instantiateClass` 在 forwardRef 场景下先给**占位实例**，等真正实例化后再
+    `Object.assign(占位实例, new WsConnectionService(...))` —— 新实例的类字段 `runtime = null` 把网关构造期
+    `attach` 好的 runtime **覆盖掉**。所以服务能启动，但第一个 WebSocket 连接/断开就抛错、进程崩溃。
+    （在服务器上用真实 AppModule 探针复现：attach 时 runtime=true，同一 tick 被 `Object.assign` 写成 null；
+    emitter / blacklist / voice 没被覆盖，只有 connection 被 placeholder merge 命中。）
+  - **修法**：把「挂 server 取址 + emit 回调」抽成 `WsGateway.attachRuntimes()`，**构造期先挂一次、`afterInit()` 再挂一次**；
+    `afterInit` 在所有 provider 合并完成之后调用，幂等重挂即恢复。子服务不再依赖「构造期一次性 attach」。
+  - **回归测试**：`ws.gateway.delegation.test.ts` 新增 1 条 —— 用 `Object.assign(占位实例, new WsConnectionService())`
+    模拟 Nest 行为、断言 `afterInit()` 后 runtime 重新可用、`get r` 不再抛。
+  - **部署与验证**：先回滚到上一份 dist 恢复服务（health 200），修复后重新部署：
+    `health=200`、pm2 uptime 稳定且重启计数不涨、旧 `runtime not attached` 错误计数不再增加（历史 42 条）、
+    `/api/agent/frontend-version = v1033`、线上 `index.html` 指向本次构建的 `index-EkQxYxz6.js`。
+    另用**临时账号**做了真实链路验证：登录 → Socket.IO 连接 → 主动断开，服务端不崩、无新错误；
+    测试账号与关联考勤记录当场删除（leftover 0）。
+  - 服务端测试 **93 文件 / 915 用例全绿**（新增 1 条回归）。
+
 - **两个基线把「全绿」拖红了：日期硬编码的服务端用例 + `.ts` 里的 react-hooks disable 注释（2026-10-17，dev）。**
   - `apps/server/src/__tests__/stats.daily-kpi.test.ts` 断言里写死 `2026-09-24 / 2026-10-07 / 2026-08-07`，
     过一天就红（线上口径没问题，是测试不会算日子）。改成按当前营业日 `daysAgoKey(-13 / -61)` 推算，

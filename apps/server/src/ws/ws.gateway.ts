@@ -87,6 +87,22 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.status = statusService ?? new WsStatusService(prisma, this.emitter, this.blacklist);
     this.command = commandService ?? new WsCommandService(prisma);
 
+    // 构造期先挂一次（单测直接 new 的场景立刻可用）。
+    this.attachRuntimes();
+  }
+
+  /**
+   * 把「网关才知道的东西」（server 取址、emit 回调）挂到子服务上。
+   *
+   * 为什么要挂两次（构造 + afterInit）：
+   * 这些服务里有几个是通过 `@Inject(forwardRef(...))` 解析的（WsModule ↔ CompanionsModule 循环）。
+   * Nest 10 的 Injector 在 forwardRef 场景下会先给一个**占位实例**，等真正实例化后再
+   * `Object.assign(占位实例, new Service(...))` 合并进来 —— 新实例的类字段（`runtime = null`）
+   * 会把构造期挂好的 runtime **覆盖成 null**。线上 2026-10-17 就是这么炸的：
+   * 服务能启动，但第一个 WebSocket 连接/断开就 `WsConnectionService runtime not attached`。
+   * `afterInit()` 在所有 provider 合并完成之后才调用，这里再挂一次即恢复；两个 attach 都是幂等的。
+   */
+  private attachRuntimes(): void {
     // @WebSocketServer server 要等 Nest 完成注入才有值（单测是构造后手动挂），
     // 所以子服务拿的是取址回调，而不是构造期的 server 实例。
     const getServer = () => this.server;
@@ -105,6 +121,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ── lifecycle ──────────────────────────────────────────────────────
 
   afterInit(): void {
+    // forwardRef 占位实例合并后，类字段可能把构造期 attach 的 runtime 覆盖掉 —— 重新挂一次。
+    this.attachRuntimes();
     // 全量事件日志只在 debug 打开时才挂：以前生产上每条消息都要拦一次、
     // 还要 JSON.stringify 一遍再丢掉，聊天一多就是白烧 CPU。
     if (!isDebugEnabled) return;
