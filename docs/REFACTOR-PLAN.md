@@ -301,6 +301,24 @@
 > 验收口径（可复算）：`pnpm --filter @chunlv/web build` 后跑 `node scripts/_check_route_splitting.mjs`，
 > 输出里两行数（入口分包 / 首屏合计）。两次实验都临时改过 `vite.config.ts`，跑完已还原（`git diff` 无差异）。
 
+### 第 25 批 · 已完成（2026-10-17，前后端结构重构：订单子域 + 外壳角标 + Socket 单连接 + 实时看板）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 修基线：日期绑定测试 | P0-1 | `stats.daily-kpi.test.ts` 把写死的 `2026-09-24 / 2026-10-07 / 2026-08-07` 改成按当前营业日推算（`daysAgoKey`）——「默认最近 14 个营业日 / 最多 62 天」的口径不变，过一天不会再红。服务端回到 **848/848** | 本次 |
+| 后端：CS 收款 / 资金流水子域 | P1-1 | 新建 `orders/cs-finance.service.ts`（639 行）：`listCsFollowup / listCsConverted / listEscalatedPoolOrders / listMoneyFlows / addMoneyFlow / listCsWechatBalances / clearCsWechatBalance / getCsWechatBalanceSummary / listCsWechatFlow / listMoneyReconciliation / checkAndNotifyCsAnomaly` 原样迁出（逐字节比对方法体一致），私有 helper `evaluateOrderProblems / getJuejuReturnCents` 随行；`OrdersService` 保留同名门面委托（构造参数补了兜底实例，不用 `!` 非空断言），Controller / 路由 / 响应零改动。**`orders.service.ts` 净减约 550 行** | 本次 |
+| 前端：外壳角标 hook | P1-2 | 新建 `hooks/useMenuBadges.ts`（495 行）：9 组角标的 state / 拉取 / 轮询间隔（120s / 60s / 30s）/ 可见性判断 / 事件刷新 / seen 记账全部搬出；新建 `components/shell/NotificationPanel.tsx`（100 行，铃铛面板）与 `NoticePathBanner.tsx`（135 行，内容区顶部提醒横幅）。**`AppLayout.tsx` 2543 → 2055 行（净减 488）**，视觉 / 文案 / 点击行为零变化 | 本次 |
+| 前端：Socket 单连接 | P2-4 / 性能 | `hooks/useSocket.ts` 内部重写（454 → 567 行，公开 options 契约不变）：模块级 `connections`（baseUrl\|namespace，引用计数）+ 每个 baseUrl 一个 `Manager`；不再 `io()`，默认命名空间共用一个 Socket、`/chat` 复用同一 Manager；连接 / 30s 心跳 / 重连 / relogin（全局单飞，refreshToken 不会互相顶号）/ 顶号处理 / `pc:command` 只做一次；最后一个消费者卸载留 15s 宽限（StrictMode / 路由切换不拆连接），**退出登录（令牌已清）立刻断**；token 变化强制重新握手；`auth:replaced` 延迟比对当前令牌，避免同机重新登录被旧会话顶号通知清掉。**同一账号物理连接 3～4 条 → 1 条，心跳定时器 3～4 个 → 1 个**。新增 `__tests__/use-socket-share.test.ts`（7 用例，含变异验证：关掉共享 / token 重连 / 退出立即断都会红） | 本次 |
+| 前端：实时看板推送刷新 | P2-4 / 交互 | 新增 `hooks/useLiveRefresh.ts`（161 行）：订阅 11 个订单 / 状态事件，500～1000ms 合并刷新、不并发、页面不可见时暂停并在回前台补刷。实时看板 / 客户看板改为「推送为主 + 15s 轮询兜底」（`usePolling`，不可见暂停）；实时看板页头显示「最后更新 HH:mm:ss」（tooltip 保留服务端数据时间），手动刷新按钮保留。事件名 / payload / 接口 / 口径零改动 | 本次 |
+| 工程：lint 规则误报 | P2-1 | `.ts` 里的 `eslint-disable react-hooks/exhaustive-deps` 以前会报「Definition for rule was not found」（插件只挂在 .tsx）→ 把 react-hooks 插件注册到所有 TS 文件；TS 项目关掉 `react/prop-types`。**`pnpm -r lint` 回到 0 error** | 本次 |
+
+> 验收口径（可复算）：
+> `pnpm -r typecheck` 全绿；`pnpm --filter @chunlv/server test` **90 files / 848 tests**；`pnpm --filter @chunlv/web test` **27 files / 164 tests**；
+> `pnpm --filter @chunlv/server build`、`pnpm --filter @chunlv/web build` 通过；`pnpm -r lint` **0 error**；
+> 九个守门全绿：ui-tokens 332 / loading 0 / stat-cards 0 / feedback 0 / table-scroll 0 / splitting（入口 362KB、首屏 1870KB gzip 593KB）/ css-vars 94 / routes 90 / contract **412 接口 · 15 入站 · 19 出站**（后端拆分后路径与事件名一条没变）。
+> 结构文档：新增 `docs/PLATFORM-DESIGN.md`（前后端现状测绘 → 目标分层 → 本批设计 → 后续路线）。
+> **下一批候选**：`orders` 继续拆（补单 / 退款 / 复核、会话、转让）→ `orders.service.ts` < 1,500 行；`AppLayout` 再拆（聊天浮窗 / 横幅宿主 / 语音通话）→ < 1,200 行；`ws.gateway.ts` 拆连接层与事件语义层；配置中心类型化；`ScopeContext` 作用域收敛；antd 按组件路径引入（单独实验分支）。
+
 ### 第 24 批 · 已完成（2026-10-07，表格横滚兜底：窄屏不再把列切掉）
 
 | 任务 | 对应问题 | 交付 | 提交 |

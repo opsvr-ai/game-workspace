@@ -11,6 +11,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`dev` 分支平台重构批次 25：订单 CS 收款子域 + 外壳角标 hook + Socket 单连接 + 实时看板推送刷新（2026-10-17）。**
+  只改结构不改功能：400+ 接口、90 条路由、所有页面交互与业务口径零变化；验证证据见
+  `docs/PLATFORM-DESIGN.md` 第 5 节与 `docs/REFACTOR-PLAN.md`「第 25 批」。
+  - **新增结构文档** `docs/PLATFORM-DESIGN.md`：重新测绘前后端现状（服务端 26 模块 / 28 Controller / 412 接口；
+    前端 90 路由 / 64 页面 / 22 个测试文件）、目标分层、本批设计与后续路线。按日期的变更流水仍只留在本文件。
+  - **新增 `apps/server/src/orders/cs-finance.service.ts`（639 行）**：客服微信收款 / 资金流水 / 对账整段从
+    `orders.service.ts` 迁出（11 个公开方法 + 2 个私有 helper，方法体逐字节一致）；`OrdersService` 保留同名门面委托，
+    Controller / 路由 / 响应零改动。`orders.service.ts` **4,787 → 4,244 行**。
+  - **新增 `apps/web/src/hooks/useMenuBadges.ts`（495 行）**：外壳 9 组菜单角标（待处理 / 待办 / 桥接 / 报账 /
+    工作微信 / 工作抽查 / 联系 / 待开始 / 结果复核）的 state、拉取、轮询间隔、可见性判断与事件刷新原样搬出；
+    另新增 `components/shell/NotificationPanel.tsx`、`NoticePathBanner.tsx`。`AppLayout.tsx` **2,543 → 2,055 行**。
+  - **新增 `apps/web/src/hooks/useLiveRefresh.ts`（161 行）**：订阅 11 个订单 / 状态事件，500～1000ms 合并成一次刷新、
+    不并发、页面不可见时暂停；实时看板与客户看板改为「推送为主 + 15s 轮询兜底」，页头显示「最后更新 HH:mm:ss」，
+    手动刷新保留。事件名 / payload / 接口 / 统计口径零改动。
+
 - **一台电脑「跑错了端」现在云端点个名就换掉，不用人到电脑跟前（2026-10-17，服务端）。**
   老板：「现在就换」—— 起因是**孙可馨一直是在陪玩端程序里登客服账号**：界面是客服的，底层跑的是陪玩端的壳
   （看门狗按陪玩端守、跑陪玩的进程管控与录制、走陪玩端更新通道），台账里只能记成陪玩端，
@@ -185,6 +200,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Socket.IO 连接从前端「每个 `useSocket` 一条」收敛为「同一账号一条」（2026-10-17，网页）。**
+  以前 `useSocket` 每被调用一次就 `io()` 新建一条连接：AppLayout / ChatProvider / DevicesPanel / CSDispatchView
+  同时挂着时，同一账号会开 3～4 条连接、每条各跑一遍 30 秒心跳、各跑一遍令牌续期。现在改为模块级共享连接：
+  - 默认命名空间共用同一个 Socket 实例，`/chat` 复用同一个 `Manager`（同一条底层 WebSocket）；
+  - 连接、30 秒心跳、断线重连、relogin（全局单飞，refreshToken 不会互相顶号）、顶号处理、`pc:command` 只执行一次；
+  - 每个消费者只挂 / 摘自己的事件回调，注册与清理成对；最后一个消费者卸载后留 15 秒宽限，
+    React StrictMode 双挂载 / 路由切换不会拆连接、不会打断语音通话；
+  - 公开 options 契约与 59 个 socket 事件名逐条比对未变，4 个调用方零改动。
+  - **同一 SPA「退出 → 重新登录」也稳**：退出登录（令牌已清）时最后一个消费者卸载会**立刻断开**、不留宽限；
+    token 变化后复用旧连接会强制 disconnect + connect 重新鉴权；`auth:replaced` 延迟 800ms 并比对当前令牌，
+    避免登录接口先踢旧连接、把刚登进来的新会话一起清掉。
+  效果：同一账号物理连接 **3～4 条 → 1 条**，心跳定时器 **3～4 个 → 1 个**。
+  守卫：新增 `apps/web/src/__tests__/use-socket-share.test.ts`（7 用例，离线打桩；做过变异验证 ——
+  关掉共享复用 / token 变化重连 / 退出立即断 任一处都会红），web 27 文件 / 164 用例、typecheck、build、分包守门全绿。
+
 - **「登录什么就是什么」已经发到两端外壳：谁在登就报谁（老板 2026-10-17，陪玩端 `1.0.20261025` / 客服端 `1.0.20260941`）。**
   老板：「你直接全做成一样的 登录什么就是什么不行么」。上一条（网页 `v1030`）修的是**网页没把角色告诉外壳**；
   这一条修的是**外壳自己写死的角色** —— 机器心跳 / 台账上报的 `role`：
@@ -347,6 +377,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   自己的 `index.html` 指向新包 `index-CwGdGYiE.js`、重启后无 error 日志。
 
 ### Fixed
+
+- **两个基线把「全绿」拖红了：日期硬编码的服务端用例 + `.ts` 里的 react-hooks disable 注释（2026-10-17，dev）。**
+  - `apps/server/src/__tests__/stats.daily-kpi.test.ts` 断言里写死 `2026-09-24 / 2026-10-07 / 2026-08-07`，
+    过一天就红（线上口径没问题，是测试不会算日子）。改成按当前营业日 `daysAgoKey(-13 / -61)` 推算，
+    「默认最近 14 个营业日 / 最多回退 62 天」的口径不变。服务端回到 **848/848**。
+  - `eslint.config.mjs` 的 react-hooks 插件只注册在 `**/*.tsx`，于是 `.ts`（`utils/draft.ts`、`hooks/useSocket.ts`）
+    里的 `// eslint-disable-next-line react-hooks/exhaustive-deps` 会报「Definition for rule was not found」，
+    一条注释把 lint 干成 error；顺手把 TS 项目里重复劳动的 `react/prop-types` 关掉（`router.tsx` 的那条）。
+    `pnpm -r lint` 回到 **0 error**。
 
 - **陪玩申请工作微信，店长左侧「陪玩工作微信」没亮角标（2026-10-17，服务端 + 网页）。**
   老板：「刚才徐瑜申请工作微信，为什么 hanlei2 左侧标签没提示？」核查：申请确实落在
