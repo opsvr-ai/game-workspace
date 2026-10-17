@@ -1,13 +1,13 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert, Button, Card, Col, Collapse, Descriptions, Divider, Drawer, Dropdown, Form, Input, Modal,
-  Popconfirm, Row, Segmented, Select, Space, Spin, Table, Tag, Tooltip, Typography,
+  Alert, Button, Col, Collapse, Descriptions, Divider, Drawer, Dropdown, Form, Input, Modal,
+  Popconfirm, Row, Segmented, Select, Space, Table, Tag, Tooltip, Typography,
 } from 'antd';
 import { message } from '../../utils/feedback';
 import {
-  CheckCircleOutlined, CloudDownloadOutlined, CloudUploadOutlined, CopyOutlined, DesktopOutlined,
-  DownloadOutlined, ExclamationCircleOutlined, LaptopOutlined, LogoutOutlined, PoweroffOutlined,
+  CheckCircleOutlined, CloudDownloadOutlined, CopyOutlined, DesktopOutlined,
+  DownloadOutlined, ExclamationCircleOutlined, LogoutOutlined, PoweroffOutlined,
   RedoOutlined, ReloadOutlined, SafetyCertificateOutlined, SearchOutlined, SendOutlined,
   StopOutlined, SyncOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
@@ -34,7 +34,7 @@ const { Text, Paragraph } = Typography;
  * 这三件事本来就是同一台电脑的三个侧面，以前却是三个平级页签，各拉一遍接口、各画一张表：
  *   机器管理 —— 这台电脑是谁的、在不在线、看门狗什么版本、远程管理开没开；
  *   远程控制 —— 同一个使用人的陪玩状态 / 模式 / 限速 + 关机 / 重启 / 限速 / 踢出；
- *   客户端版本 —— 同一个陪玩端的版本是不是最新 + 推送更新 / 装机包 / 部署助手。
+ *   客户端版本 —— 同一个陪玩端的版本是不是最新 + 装机包。
  *
  * 现在合成一张表：**一行一台电脑**，右边一列操作全给它（一键诊断 / 查看记录 / 远程指令 / 开通远程管理）。
  *
@@ -42,8 +42,8 @@ const { Text, Paragraph } = Typography;
  *   /agent/machines（台账）× /companions（实时状态，按 loginUser = 陪玩账号对）
  *   × /agent/version-status（哪个陪玩端版本最新）× /managed-pcs（远程开机要的 MAC）。
  *
- * 取舍：三个页签以前各有一个「推送更新」，现在合并成表头那一个 ——
- * 勾选电脑 → 「推送更新 (n)」只推选中的，「全量推送」推全部在线的。
+ * 取舍：自动更新是默认路径（客户端每 30 分钟自己查、接单中自动跳过），表头不再放
+ * 「全量推送 / 构建并推送 / 部署助手」；只有某台卡住时，勾选它点「推送更新 (n)」催一次。
  */
 
 const FAST_MS = 10 * 1000;
@@ -84,12 +84,6 @@ interface PushResultItem {
   lastHeartbeat: string | null;
   sent: boolean;
   state: 'updating' | 'success' | 'failed' | 'offline';
-}
-
-interface DeployScriptData {
-  script: string;
-  downloadUrl: string;
-  serverUrl: string;
 }
 
 /** 可以下发的远程指令（走陪玩账号的 /command 接口）。 */
@@ -180,7 +174,6 @@ const DevicesPanel: React.FC = () => {
   const [shellForm] = Form.useForm();
 
   const [pushing, setPushing] = useState(false);
-  const [building, setBuilding] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [pushResults, setPushResults] = useState<PushResultItem[]>([]);
   const [pushResultOpen, setPushResultOpen] = useState(false);
@@ -190,17 +183,7 @@ const DevicesPanel: React.FC = () => {
   const pushLatestVersionRef = React.useRef<string>('');
 
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
-  const [deployModalOpen, setDeployModalOpen] = useState(false);
-  const [deployData, setDeployData] = useState<DeployScriptData | null>(null);
-  const [remoteIPs, setRemoteIPs] = useState('');
-  const [remoteUser, setRemoteUser] = useState('Administrator');
-  const [remotePass, setRemotePass] = useState('');
-  const [deploying, setDeploying] = useState(false);
-  const [deployOutput, setDeployOutput] = useState<string | null>(null);
-  const [scannedIPs, setScannedIPs] = useState<{ ip: string; mac?: string }[]>([]);
-  const [scanning, setScanning] = useState(false);
 
-  const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
   const downloadOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   // 2026-10-17 起不再区分「管理端 / 陪玩端」安装包：登录什么就是什么。
   // 陪玩端这个包已经能覆盖客服 / 店长 / 老板（外壳按登录角色开关陪玩专属能力），
@@ -950,111 +933,6 @@ const DevicesPanel: React.FC = () => {
     }
   };
 
-  const handlePushAll = async () => {
-    setPushing(true);
-    try {
-      const { data } = await agentApi.pushUpdateStudio();
-      const res = data as any;
-      if (res.code === 200) {
-        setPushSummary(res.message);
-        startPushResultPolling(res.data?.results || [], res.data?.version || '');
-        setPushResultOpen(true);
-      } else {
-        message.error(res.message || '全量推送失败');
-      }
-    } catch {
-      message.error('全量推送请求失败');
-    } finally {
-      setPushing(false);
-    }
-  };
-
-  const handleBuildAndPush = async () => {
-    setBuilding(true);
-    try {
-      const { data } = await agentApi.buildAndPush();
-      const res = data as any;
-      if (res.code === 200) {
-        message.success(res.message || '构建成功，已推送');
-        void fetchVersions();
-      } else {
-        message.error(res.data?.output || res.message || '构建失败');
-      }
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '构建请求失败');
-    } finally {
-      setBuilding(false);
-    }
-  };
-
-  const handleOpenDeploy = async () => {
-    setDeployModalOpen(true);
-    try {
-      const { data } = await agentApi.getDeployScript();
-      const res = data as any;
-      if (res.code === 200) setDeployData(res.data as DeployScriptData);
-    } catch {
-      message.error('获取部署脚本失败');
-    }
-  };
-
-  const handleScanLan = async () => {
-    setScanning(true);
-    try {
-      const res = await agentApi.scanLan();
-      const list = ((res.data as any)?.data as { ip: string; mac?: string }[]) || [];
-      setScannedIPs(list);
-      setRemoteIPs(list.map((h) => h.ip).join('\n'));
-      message.success('发现 ' + list.length + ' 台设备');
-    } catch {
-      message.error('扫描失败');
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  const handleDeployAll = async () => {
-    if (!remoteIPs.trim()) {
-      message.warning('请先扫描局域网或手填 IP');
-      return;
-    }
-    setDeploying(true);
-    setDeployOutput(null);
-    try {
-      const ips = remoteIPs.split(/[,\s]+/).filter(Boolean);
-      if (isElectron && (window as any).electronAPI?.executeRemoteDeploy) {
-        const res = await agentApi.getRemoteDeployScript({ targetIPs: ips, adminUser: remoteUser, adminPass: remotePass });
-        const script = (res.data as any)?.data?.script;
-        if (!script) {
-          message.error('脚本生成失败');
-          setDeploying(false);
-          return;
-        }
-        const out = await (window as any).electronAPI.executeRemoteDeploy(script);
-        message.success(out.success ? '全部安装完成！' : '部分失败，查看输出');
-        setDeployOutput(out.output || (out.success ? '全部成功' : '部分失败'));
-      } else {
-        const res = await agentApi.executeRemoteDeploy({ targetIPs: ips, adminUser: remoteUser, adminPass: remotePass });
-        const result = (res.data as any)?.data;
-        if (result?.success) {
-          const ok = (result.results || []).filter((r: any) => r.status === 'OK').length;
-          message.success('部署完成：' + ok + '/' + ips.length + ' 成功');
-        } else {
-          message.warning('部分失败，查看详情');
-        }
-        setDeployOutput(
-          ((result?.results || []) as any[])
-            .map((r) => '[' + (r.status === 'OK' ? '✓' : '✗') + '] ' + r.ip + ' — ' + r.reason)
-            .join('\n'),
-        );
-      }
-    } catch {
-      message.error('部署失败，请检查目标电脑网络');
-    } finally {
-      setDeploying(false);
-    }
-  };
-
   return (
     <div>
       <PageHeader
@@ -1062,31 +940,12 @@ const DevicesPanel: React.FC = () => {
         title='电脑'
         extra={
           <Space wrap>
-            <Tooltip title='下载安装包（发给新工作室 / 新电脑）'>
+            <Tooltip title='新电脑首次安装用；已经在用的电脑会自动更新，不用点这里'>
               <Button icon={<DownloadOutlined />} onClick={() => setDownloadModalOpen(true)}>下载安装包</Button>
             </Tooltip>
-            <Tooltip title='新电脑批量装客户端'>
-              <Button icon={<LaptopOutlined />} onClick={handleOpenDeploy}>部署助手</Button>
+            <Tooltip title='页面每 10 秒自动刷新；这里可手动立即刷新'>
+              <Button icon={<ReloadOutlined />} loading={loading} onClick={refreshAll}>刷新</Button>
             </Tooltip>
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={refreshAll}>刷新</Button>
-            <Popconfirm
-              title='给全部在线陪玩推送更新？'
-              description='只影响在线电脑；正在接单的不会被打断（客户端自己挑空闲升级）'
-              onConfirm={handlePushAll}
-              okText='确认'
-              cancelText='取消'
-            >
-              <Button icon={<SendOutlined />} loading={pushing}>全量推送</Button>
-            </Popconfirm>
-            <Popconfirm
-              title='构建并推送？'
-              description='会在服务器上拉代码 + 构建，完成后自动推给在线电脑'
-              onConfirm={handleBuildAndPush}
-              okText='确认'
-              cancelText='取消'
-            >
-              <Button type='primary' icon={<CloudUploadOutlined />} loading={building}>构建并推送</Button>
-            </Popconfirm>
           </Space>
         }
       />
@@ -1224,7 +1083,8 @@ const DevicesPanel: React.FC = () => {
       )}
 
       <Text type='secondary' style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-        勾选电脑可以只给那几台推更新（已经是最新的、没有陪玩账号的勾不了）。
+        平时不用点：客户端每 30 分钟自己查一次更新，正在接单会自动跳过。
+        只有某台一直卡在旧版本时，才勾选它点「推送更新」催一下（已经是最新的、没有陪玩账号的勾不了）。
       </Text>
 
       <Table<DeviceRow>
@@ -1439,67 +1299,6 @@ const DevicesPanel: React.FC = () => {
         />
       </Modal>
 
-      <Modal
-        title={<><LaptopOutlined /> 部署助手 — 新电脑安装客户端</>}
-        open={deployModalOpen}
-        onCancel={() => { setDeployModalOpen(false); setRemotePass(''); }}
-        width={720}
-        footer={[<Button key='close' onClick={() => { setDeployModalOpen(false); setRemotePass(''); }}>关闭</Button>]}
-      >
-        <Spin spinning={!deployData}>
-          {deployData && (
-            <>
-              <Card size='small' style={{ background: SEMANTIC.warningSoft }}>
-                <Text strong style={{ fontSize: 15 }}>⚡ PsExec 远程批量部署</Text>
-                <div style={{ marginTop: 8 }}>
-                  <Button size='small' loading={scanning} onClick={handleScanLan}>📡 扫描局域网</Button>
-                  {scannedIPs.length > 0 && (
-                    <div style={{ marginTop: 8, maxHeight: 200, overflow: 'auto' }}>
-                      {scannedIPs.map((h, i) => (
-                        <div key={h.ip} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-                          <span>
-                            <Text type='secondary' style={{ marginRight: 6 }}>{i + 1}.</Text>
-                            <Text code>{h.ip}</Text>
-                            {h.mac ? <Text type='secondary' style={{ fontSize: 10, marginLeft: 8 }}>{h.mac}</Text> : null}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <Input.TextArea
-                    rows={3}
-                    style={{ marginTop: 4 }}
-                    value={remoteIPs}
-                    onChange={(e) => setRemoteIPs(e.target.value)}
-                    placeholder='192.168.1.10 192.168.1.11（一行一个，也能用逗号 / 空格分开）'
-                  />
-                  <Space size={8} style={{ marginTop: 8, width: '100%' }}>
-                    <Input value={remoteUser} onChange={(e) => setRemoteUser(e.target.value)} placeholder='管理员账号' style={{ width: 150 }} />
-                    <Input.Password value={remotePass} onChange={(e) => setRemotePass(e.target.value)} placeholder='管理员密码（空密码留空）' style={{ width: 210 }} />
-                  </Space>
-                  <Button danger type='primary' loading={deploying} block style={{ marginTop: 8 }} onClick={handleDeployAll}>
-                    ⚡ 一键全部安装
-                  </Button>
-                  {deployOutput && (
-                    <div style={{ marginTop: 8 }}>
-                      <Text strong>安装结果：</Text>
-                      <details style={{ marginTop: 4 }}>
-                        <summary style={{ cursor: 'pointer', fontSize: 12 }}>查看原始输出</summary>
-                        <pre style={{ padding: 8, borderRadius: 6, fontSize: 10, whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto', marginTop: 4 }}>
-                          {deployOutput}
-                        </pre>
-                      </details>
-                    </div>
-                  )}
-                </div>
-              </Card>
-              <div style={{ marginTop: 12 }}>
-                <Text type='secondary'>💡 服务器地址：{deployData.serverUrl}</Text>
-              </div>
-            </>
-          )}
-        </Spin>
-      </Modal>
     </div>
   );
 };
