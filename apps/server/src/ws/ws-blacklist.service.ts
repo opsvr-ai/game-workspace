@@ -18,6 +18,18 @@ export interface WsBlacklistRuntime {
   getServer: () => Server;
 }
 
+/** 下发给客户端的进程黑名单条目（结构不变，网关公开方法签名引用它）。 */
+export interface BlacklistEntry {
+  processName: string;
+  processPath: string | null;
+}
+
+/** 下发给客户端的进程白名单条目（结构不变，网关公开方法签名引用它）。 */
+export interface WhitelistEntry {
+  processName: string;
+  isSystem: boolean;
+}
+
 @Injectable()
 export class WsBlacklistService {
   private runtime: WsBlacklistRuntime | null = null;
@@ -97,8 +109,8 @@ export class WsBlacklistService {
 
   async sendBlacklistUpdate(
     companionId: string,
-    blacklist: { processName: string; processPath: string | null }[],
-    whitelist: { processName: string; isSystem: boolean }[],
+    blacklist: BlacklistEntry[],
+    whitelist: WhitelistEntry[],
     version: number,
     status?: string,
     authoritative = false,
@@ -125,8 +137,8 @@ export class WsBlacklistService {
 
   async broadcastBlacklistToStudio(
     studioId: string,
-    blacklist: { processName: string; processPath: string | null }[],
-    whitelist: { processName: string; isSystem: boolean }[],
+    blacklist: BlacklistEntry[],
+    whitelist: WhitelistEntry[],
   ): Promise<void> {
     const companions = await this.prisma.companion.findMany({ where: { studioId }, select: { id: true } });
     const version = Date.now();

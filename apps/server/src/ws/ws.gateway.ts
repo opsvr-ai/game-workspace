@@ -17,12 +17,18 @@ import { CompanionsService } from '../companions/companions.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { BridgeService } from '../studios/bridge.service';
 import { HeartbeatService } from './heartbeat.service';
+import type { HeartbeatData } from './heartbeat.service';
 import { BlacklistIngestService } from './blacklist-ingest.service';
+import type { KillResultData } from './blacklist-ingest.service';
 import { isLanOrigin } from '../common/http-auth';
 import { WsEmitterService } from './ws-emitter.service';
+import type { NewMessagePayload, StudioChatPayload } from './ws-emitter.service';
 import { WsBlacklistService } from './ws-blacklist.service';
+import type { BlacklistEntry, WhitelistEntry } from './ws-blacklist.service';
 import { WsVoiceService } from './ws-voice.service';
 import { WsConnectionService } from './ws-connection.service';
+import { WsStatusService } from './ws-status.service';
+import { WsCommandService } from './ws-command.service';
 import type { ConnectedUser } from './ws-connection.service';
 
 export type { ConnectedUser } from './ws-connection.service';
@@ -30,25 +36,19 @@ export type { ConnectedUser } from './ws-connection.service';
 const wsAllowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8000,http://localhost:3001').split(',');
 
 /**
- * WebSocket 网关 —— 只保留「入口 + 公开方法委托」。
+ * WebSocket 网关 —— 只保留「@WebSocketServer + @SubscribeMessage 入口 + 公开方法委托」。
  *
- * 原来的 1,553 行拆成四层，事件名 / payload / 权限与业务判断一个字节都没改：
- *  - WsConnectionService：握手鉴权、房间编排、在线映射、断线宽限、kickUser
- *  - WsEmitterService：订单 / 通知 / 聊天等广播语义（含客户来源脱敏）
- *  - WsBlacklistService：黑名单开关缓存、名单下发、电脑识别
- *  - WsVoiceService：call:* 处理、音频限流、通话日志与断线宽限挂断
- *
- * 这里保留 @WebSocketServer server、@SubscribeMessage 入口和原有公开方法（同名委托），
+ * 业务分层（事件名 / payload / 权限与业务判断与原 1,553 行版本逐字一致）：
+ * WsConnectionService 握手/房间/在线/断线宽限；WsEmitterService 订单与通知广播（含 chat:send）；
+ * WsStatusService companion:status 权限与计时日志；WsCommandService pc:command_ack 回执；
+ * WsBlacklistService 黑名单开关与下发；WsVoiceService call:* 与音频限流。
  * 现有调用方（orders / auth / companions / billing / chat …）零改动。
  */
 @WebSocketGateway({
   cors: {
     origin: (origin: string | undefined, callback: (err: Error | null, allowed?: boolean) => void) => {
-      if (!origin || wsAllowedOrigins.includes(origin) || isLanOrigin(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
+      if (!origin || wsAllowedOrigins.includes(origin) || isLanOrigin(origin)) callback(null, true);
+      else callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
   },
@@ -61,38 +61,40 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly blacklist: WsBlacklistService;
   private readonly voice: WsVoiceService;
   private readonly connection: WsConnectionService;
+  private readonly status: WsStatusService;
+  private readonly command: WsCommandService;
 
   constructor(
-    private readonly jwt: JwtService,
-    private readonly prisma: PrismaService,
-    private readonly bridgeService: BridgeService,
-    @Inject(forwardRef(() => CompanionsService)) private readonly companionsService: CompanionsService,
-    @Inject(forwardRef(() => ExcellenceService)) private readonly excellence: ExcellenceService,
+    jwt: JwtService,
+    prisma: PrismaService,
+    bridgeService: BridgeService,
+    @Inject(forwardRef(() => CompanionsService)) companionsService: CompanionsService,
+    @Inject(forwardRef(() => ExcellenceService)) excellence: ExcellenceService,
     private readonly heartbeatService: HeartbeatService,
     private readonly blacklistIngestService: BlacklistIngestService,
-    // 四个子服务在 WsModule 里注册成 provider，由 Nest 注入；
-    // 单测里直接 `new WsGateway(7 个旧参数)` 时兜底自建，保持老测试零改动。
+    // 子服务在 WsModule 注册成 provider 由 Nest 注入；单测直接 new WsGateway(旧 7 参数) 时兜底自建。
     @Optional() emitterService?: WsEmitterService,
     @Optional() blacklistService?: WsBlacklistService,
     @Optional() voiceService?: WsVoiceService,
     @Optional() connectionService?: WsConnectionService,
+    @Optional() statusService?: WsStatusService,
+    @Optional() commandService?: WsCommandService,
   ) {
-    this.emitter = emitterService ?? new WsEmitterService(this.prisma, this.bridgeService, this.excellence);
-    this.blacklist = blacklistService ?? new WsBlacklistService(this.prisma);
-    this.voice = voiceService ?? new WsVoiceService(this.prisma);
-    this.connection =
-      connectionService ?? new WsConnectionService(this.jwt, this.prisma, this.bridgeService, this.companionsService);
+    this.emitter = emitterService ?? new WsEmitterService(prisma, bridgeService, excellence);
+    this.blacklist = blacklistService ?? new WsBlacklistService(prisma);
+    this.voice = voiceService ?? new WsVoiceService(prisma);
+    this.connection = connectionService ?? new WsConnectionService(jwt, prisma, bridgeService, companionsService);
+    this.status = statusService ?? new WsStatusService(prisma, this.emitter, this.blacklist);
+    this.command = commandService ?? new WsCommandService(prisma);
 
-    // @WebSocketServer server 要等 Nest 完成注入才有值（单测里是构造后手动挂），
+    // @WebSocketServer server 要等 Nest 完成注入才有值（单测是构造后手动挂），
     // 所以子服务拿的是取址回调，而不是构造期的 server 实例。
     const getServer = () => this.server;
     const notifyUser = (userId: string, event: string, data: unknown) => this.notifyUser(userId, event, data);
-    const notifyCompanion = (companionId: string, event: string, data: unknown) =>
-      this.notifyCompanion(companionId, event, data);
     this.emitter.attach({
       getServer,
       notifyUser,
-      notifyCompanion,
+      notifyCompanion: (companionId, event, data) => this.notifyCompanion(companionId, event, data),
       isCompanionConnected: (companionId) => this.isCompanionConnected(companionId),
     });
     this.voice.attach({ notifyUser });
@@ -133,196 +135,38 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return this.connection.handleDisconnect(client);
   }
 
-  // ── inbound ────────────────────────────────────────────────────────
+  // ── inbound（@SubscribeMessage 入口，业务在对应 service）───────────
 
   @SubscribeMessage('companion:status')
-  async handleStatusChange(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { status: string; mode?: string },
-  ): Promise<void> {
-    const user = client.data.user as ConnectedUser | undefined;
-    if (!user?.companionId) return;
-
-    logger.info('WS companion:status received', {
-      companionId: user.companionId,
-      username: user.username,
-      status: data.status,
-      mode: data.mode,
-    });
-
-    // Compat: map old client status values to new enum
-    const STATUS_COMPAT: Record<string, string> = { ONLINE: 'AVAILABLE', IDLE: 'ENTERTAINMENT' };
-    const mappedStatus = STATUS_COMPAT[data.status] || data.status;
-
-    // 接单状态只能由开始服务自动进入，不能手动点，防止借“接单”状态玩黑名单游戏。
-    if (mappedStatus === 'BUSY') {
-      logger.warn('Ignored manual BUSY status', {
-        companionId: user.companionId,
-        username: user.username,
-      });
-      return;
-    }
-
-    // 服务进行中（有已开始的会话）不允许被客户端切成空闲/娱乐/休息等状态，防止状态被误刷成空闲。
-    if (mappedStatus !== 'BUSY') {
-      const activeSession = await this.prisma.orderSession.findFirst({
-        where: {
-          OR: [{ companionId: user.companionId }, { coCompanionId: user.companionId }],
-          status: 'ACTIVE',
-          startedAt: { not: null },
-        },
-        select: { id: true },
-      }).catch(() => null);
-      if (activeSession) {
-        logger.warn('Ignored companion:status while in service', {
-          companionId: user.companionId,
-          username: user.username,
-          requestedStatus: mappedStatus,
-        });
-        return;
-      }
-    }
-
-    // Get previous status for time tracking
-    const prev = await this.prisma.companion
-      .findUnique({
-        where: { id: user.companionId },
-        select: { status: true },
-      })
-      .catch(() => null);
-    const prevStatus = prev?.status;
-
-    await this.prisma.companion
-      .update({
-        where: { id: user.companionId },
-        data: { status: mappedStatus },
-      })
-      .then(() => {
-        logger.debug('DB status updated', { companionId: user.companionId, status: data.status });
-      })
-      .catch((err) => {
-        logger.error('DB status update failed', { companionId: user.companionId, error: (err as any).message });
-      });
-
-    // 同步「当前模式」与状态，避免出现状态是空闲、模式还显示娱乐
-    await this.prisma.companionPC.update({
-      where: { companionId: user.companionId },
-      data: { currentMode: mappedStatus },
-    }).catch(() => {});
-
-    // 状态变化后推送新状态对应的黑名单，避免客户端停留在旧状态的黑名单列表。
-    // 这是陪玩本人开的状态，属于权威状态，可以下发。
-    await this.pushCurrentBlacklist(user.companionId, user.studioId, true);
-
-    // ── Time tracking: start/stop CompanionTimeLog on status change ──
-    if (mappedStatus !== prevStatus) {
-      const now = new Date();
-      // Close any open time log for the previous status
-      if (prevStatus) {
-        await this.prisma.companionTimeLog.updateMany({
-          where: { companionId: user.companionId, mode: prevStatus, endedAt: null },
-          data: { endedAt: now },
-        });
-        logger.info('TimeLog closed', { companionId: user.companionId, mode: prevStatus });
-      }
-      // Open new time log for the new status (ENTERTAINMENT = billing)
-      await this.prisma.companionTimeLog.create({
-        data: {
-          companionId: user.companionId,
-          mode: mappedStatus,
-          startedAt: now,
-          endedAt: null,
-          durationSeconds: 0,
-        },
-      });
-      logger.info('TimeLog started', { companionId: user.companionId, mode: mappedStatus });
-    }
-
-    if (user.studioId) {
-      this.broadcastToBridgedStudios(user.studioId, 'status:broadcast', {
-        companionId: user.companionId,
-        status: mappedStatus,
-        mode: data.mode,
-      });
-      logger.debug('Broadcast to studio', { studioId: user.studioId });
-    }
+  async handleStatusChange(@ConnectedSocket() client: Socket, @MessageBody() data: { status: string; mode?: string }): Promise<void> {
+    return this.status.handleStatusChange(client.data.user as ConnectedUser | undefined, data);
   }
 
   @SubscribeMessage('companion:heartbeat')
-  async handleHeartbeat(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      agentVersion?: string;
-      currentMode?: string;
-      workSec?: number;
-      isThrottled?: boolean;
-      throttleLimitKB?: number;
-    },
-  ): Promise<void> {
+  async handleHeartbeat(@ConnectedSocket() client: Socket, @MessageBody() data: HeartbeatData): Promise<void> {
     const user = client.data.user as ConnectedUser | undefined;
     if (!user?.companionId) return;
     return this.heartbeatService.process(data, user);
   }
 
   @SubscribeMessage('pc:command_ack')
-  async handleCommandAck(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { command: string; success: boolean },
-  ): Promise<void> {
-    const user = client.data.user as ConnectedUser | undefined;
-    if (!user?.companionId) return;
-    logger.info('RECV pc:command_ack', { companionId: user.companionId, command: data.command, success: data.success });
-    if (!data.success) logger.warn('Remote command failed', { companionId: user.companionId, command: data.command });
-
-    const pc = await this.prisma.companionPC.findUnique({ where: { companionId: user.companionId } });
-    if (!pc) return;
-
-    await this.prisma.pCOperationLog.create({
-      data: {
-        pcId: pc.id,
-        operation: data.command,
-        operatorId: user.id,
-        detail: JSON.stringify({ success: data.success }),
-      },
-    });
+  async handleCommandAck(@ConnectedSocket() client: Socket, @MessageBody() data: { command: string; success: boolean }): Promise<void> {
+    return this.command.handleCommandAck(client.data.user as ConnectedUser | undefined, data);
   }
 
-  // ── blacklist inbound ──────────────────────────────────────────────
-
   @SubscribeMessage('blacklist:report')
-  async handleBlacklistReport(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { processes: any[]; totalCount: number },
-  ): Promise<void> {
-    const user = client.data.user as ConnectedUser | undefined;
-    return this.blacklistIngestService.processReport(user!, data);
+  async handleBlacklistReport(@ConnectedSocket() client: Socket, @MessageBody() data: { processes: any[]; totalCount: number }): Promise<void> {
+    return this.blacklistIngestService.processReport(client.data.user as ConnectedUser, data);
   }
 
   @SubscribeMessage('blacklist:kill_result')
-  async handleBlacklistKillResult(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      processName: string;
-      pid: number;
-      success: boolean;
-      resultText?: string;
-      triggeredBy?: string;
-      processPath?: string;
-    },
-  ): Promise<void> {
-    const user = client.data.user as ConnectedUser | undefined;
-    return this.blacklistIngestService.processKillResult(user!, data);
+  async handleBlacklistKillResult(@ConnectedSocket() client: Socket, @MessageBody() data: KillResultData): Promise<void> {
+    return this.blacklistIngestService.processKillResult(client.data.user as ConnectedUser, data);
   }
 
   @SubscribeMessage('blacklist:update_ack')
-  async handleBlacklistUpdateAck(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { version: number },
-  ): Promise<void> {
-    const user = client.data.user as ConnectedUser | undefined;
-    return this.blacklistIngestService.processUpdateAck(user!, data);
+  async handleBlacklistUpdateAck(@ConnectedSocket() client: Socket, @MessageBody() data: { version: number }): Promise<void> {
+    return this.blacklistIngestService.processUpdateAck(client.data.user as ConnectedUser, data);
   }
 
   // ── outbound（事件语义层委托，见 WsEmitterService）────────────────
@@ -390,11 +234,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return this.connection.isCompanionConnected(companionId);
   }
 
-  async notifyStudioManagers(
-    studioId: string | null | undefined,
-    event: string,
-    data: unknown,
-  ): Promise<void> {
+  async notifyStudioManagers(studioId: string | null | undefined, event: string, data: unknown): Promise<void> {
     return this.emitter.notifyStudioManagers(studioId, event, data);
   }
 
@@ -455,42 +295,17 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return this.blacklist.getCompanionBlacklistOverrides(studioId);
   }
 
-  /**
-   * **这个陪玩**到底动不动手：本店开关 + 按人特批合成。
-   * 没被特批的人 = 跟随本店开关（老行为，一个字节都不变）。
-   */
-  async isCompanionBlacklistEnabled(
-    companionId: string | null | undefined,
-    studioId: string | null | undefined,
-  ): Promise<boolean> {
+  /** **这个陪玩**到底动不动手：本店开关 + 按人特批合成（没被特批 = 跟随本店开关）。 */
+  async isCompanionBlacklistEnabled(companionId: string | null | undefined, studioId: string | null | undefined): Promise<boolean> {
     return this.blacklist.isCompanionBlacklistEnabled(companionId, studioId);
   }
 
-  async sendBlacklistUpdate(
-    companionId: string,
-    blacklist: { processName: string; processPath: string | null }[],
-    whitelist: { processName: string; isSystem: boolean }[],
-    version: number,
-    status?: string,
-    authoritative = false,
-    studioId?: string | null,
-  ): Promise<void> {
-    return this.blacklist.sendBlacklistUpdate(
-      companionId,
-      blacklist,
-      whitelist,
-      version,
-      status,
-      authoritative,
-      studioId,
-    );
+  async sendBlacklistUpdate(companionId: string, blacklist: BlacklistEntry[], whitelist: WhitelistEntry[],
+    version: number, status?: string, authoritative = false, studioId?: string | null): Promise<void> {
+    return this.blacklist.sendBlacklistUpdate(companionId, blacklist, whitelist, version, status, authoritative, studioId);
   }
 
-  async broadcastBlacklistToStudio(
-    studioId: string,
-    blacklist: { processName: string; processPath: string | null }[],
-    whitelist: { processName: string; isSystem: boolean }[],
-  ): Promise<void> {
+  async broadcastBlacklistToStudio(studioId: string, blacklist: BlacklistEntry[], whitelist: WhitelistEntry[]): Promise<void> {
     return this.blacklist.broadcastBlacklistToStudio(studioId, blacklist, whitelist);
   }
 
@@ -508,54 +323,19 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return this.blacklist.syncManagedPc(address, username);
   }
 
-  // ── chat inbound / outbound ─────────────────────────────────────────
+  // ── chat inbound / outbound（见 WsEmitterService）──────────────────
 
   @SubscribeMessage('chat:send')
-  async handleChatSend(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { orderId?: string; text: string },
-  ): Promise<void> {
-    const user = client.data.user as ConnectedUser | undefined;
-    if (!user?.studioId || !data.text?.trim()) return;
-
-    logger.info('WS chat:send', { senderId: user.id, studioId: user.studioId, orderId: data.orderId });
-
-    // Broadcast to entire studio (CS/admin/companion all in studio room)
-    this.notifyChatMessage(user.studioId, {
-      text: data.text,
-      senderId: user.id,
-      senderRole: user.role,
-      senderName: user.username,
-      orderId: data.orderId || null,
-      companionId: user.companionId || null,
-      timestamp: new Date().toISOString(),
-    });
+  async handleChatSend(@ConnectedSocket() client: Socket, @MessageBody() data: { orderId?: string; text: string }): Promise<void> {
+    this.emitter.handleChatSend(client.data.user as ConnectedUser | undefined, data);
   }
 
   /** Notify a specific user about a new chat message (via user room) */
-  notifyNewMessage(
-    userId: string,
-    payload: {
-      conversationId: string;
-      orderInfo?: string;
-      message: { id: string; senderId: string; text: string; createdAt: string };
-    },
-  ): void {
+  notifyNewMessage(userId: string, payload: NewMessagePayload): void {
     this.emitter.notifyNewMessage(userId, payload);
   }
 
-  notifyChatMessage(
-    studioId: string,
-    payload: {
-      text: string;
-      senderId: string;
-      senderRole: string;
-      senderName: string;
-      orderId?: string | null;
-      companionId?: string | null;
-      timestamp: string;
-    },
-  ): void {
+  notifyChatMessage(studioId: string, payload: StudioChatPayload): void {
     this.emitter.notifyChatMessage(studioId, payload);
   }
 }

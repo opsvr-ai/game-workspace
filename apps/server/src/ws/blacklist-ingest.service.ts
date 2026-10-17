@@ -4,6 +4,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { logger } from '../common/logger';
 import type { HeartbeatUser } from './heartbeat.service';
 
+/** 客户端回报的「杀进程结果」payload（结构不变，网关入口签名引用它）。 */
+export interface KillResultData {
+  processName: string;
+  pid: number;
+  success: boolean;
+  resultText?: string;
+  triggeredBy?: string;
+  processPath?: string;
+}
+
 @Injectable()
 export class BlacklistIngestService {
   constructor(private readonly prisma: PrismaService) {}
@@ -25,17 +35,7 @@ export class BlacklistIngestService {
     });
   }
 
-  async processKillResult(
-    user: HeartbeatUser,
-    data: {
-      processName: string;
-      pid: number;
-      success: boolean;
-      resultText?: string;
-      triggeredBy?: string;
-      processPath?: string;
-    },
-  ): Promise<void> {
+  async processKillResult(user: HeartbeatUser, data: KillResultData): Promise<void> {
     if (!user.companionId) return;
     logger.info('RECV blacklist:kill_result', {
       companionId: user.companionId,

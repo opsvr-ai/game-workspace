@@ -176,3 +176,111 @@ describe('WsGateway 连接层委托：handleConnection / handleDisconnect', () =
     expect(presence.hasSocket('u1')).toBe(false);
   });
 });
+
+describe('WsGateway 新拆层委托：状态 / 指令回执 / chat', () => {
+  function setup() {
+    const { emitted, server } = captureServer();
+    const prisma = {
+      orderSession: { findFirst: vi.fn().mockResolvedValue(null) },
+      companion: {
+        findUnique: vi.fn().mockResolvedValue({ status: 'AVAILABLE' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      companionPC: { update: vi.fn().mockResolvedValue({}), findUnique: vi.fn().mockResolvedValue({ id: 'pc-1' }) },
+      companionTimeLog: { updateMany: vi.fn().mockResolvedValue({}), create: vi.fn().mockResolvedValue({}) },
+      companionStatusBlacklist: { findMany: vi.fn().mockResolvedValue([]) },
+      processWhitelist: { findMany: vi.fn().mockResolvedValue([]) },
+      studioConfig: { findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn().mockResolvedValue(null) },
+      pCOperationLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    const gw = new WsGateway(
+      null as never,
+      prisma as never,
+      { getBridgedStudioIds: vi.fn().mockResolvedValue([]) } as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+    );
+    (gw as unknown as { server: unknown }).server = server;
+    return { gw, prisma, emitted };
+  }
+
+  const companionClient = (studioId: string | null = 's1') => ({
+    data: { user: { id: 'u1', username: 'c1', role: 'COMPANION', studioId, companionId: 'c1' } },
+  });
+
+  it('companion:status 委托后：仍切库 / 记计时日志 / 推黑名单 / 广播工作室', async () => {
+    const { gw, prisma, emitted } = setup();
+    // 第一次读是切状态前的旧状态（AVAILABLE），之后（pushCurrentBlacklist）读到的就是新状态。
+    prisma.companion.findUnique.mockResolvedValueOnce({ status: 'AVAILABLE' }).mockResolvedValue({
+      status: 'ENTERTAINMENT',
+    });
+
+    // IDLE 走旧客户端兼容映射 → ENTERTAINMENT
+    await gw.handleStatusChange(companionClient() as never, { status: 'IDLE' } as never);
+
+    expect(prisma.companion.update).toHaveBeenCalledWith({ where: { id: 'c1' }, data: { status: 'ENTERTAINMENT' } });
+    expect(prisma.companionPC.update).toHaveBeenCalledWith({
+      where: { companionId: 'c1' },
+      data: { currentMode: 'ENTERTAINMENT' },
+    });
+    expect(prisma.companionTimeLog.create).toHaveBeenCalled();
+    // 权威状态的黑名单下发 + 工作室广播都还在
+    expect(emitted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          room: 'companion:c1',
+          event: 'blacklist:update',
+          data: expect.objectContaining({ status: 'ENTERTAINMENT', authoritative: true }),
+        }),
+        {
+          room: 'studio:s1',
+          event: 'status:broadcast',
+          data: { companionId: 'c1', status: 'ENTERTAINMENT', mode: undefined },
+        },
+      ]),
+    );
+  });
+
+  it('companion:status 的「服务中禁止切状态」判断仍在', async () => {
+    const { gw, prisma } = setup();
+    prisma.orderSession.findFirst.mockResolvedValue({ id: 'sess-1' });
+
+    await gw.handleStatusChange(companionClient() as never, { status: 'AVAILABLE' } as never);
+
+    expect(prisma.companion.update).not.toHaveBeenCalled();
+  });
+
+  it('pc:command_ack 委托后：回执仍落 PCOperationLog', async () => {
+    const { gw, prisma } = setup();
+
+    await gw.handleCommandAck(companionClient() as never, { command: 'update', success: false } as never);
+
+    expect(prisma.pCOperationLog.create).toHaveBeenCalledWith({
+      data: { pcId: 'pc-1', operation: 'update', operatorId: 'u1', detail: JSON.stringify({ success: false }) },
+    });
+  });
+
+  it('chat:send 委托后：仍广播 chat:new 到 studio 房间；没有工作室的连接直接丢弃', async () => {
+    const { gw, emitted } = setup();
+
+    await gw.handleChatSend(companionClient() as never, { text: 'hi', orderId: 'o1' } as never);
+    expect(emitted[0]).toMatchObject({
+      room: 'studio:s1',
+      event: 'chat:new',
+      data: {
+        text: 'hi',
+        senderId: 'u1',
+        senderRole: 'COMPANION',
+        senderName: 'c1',
+        orderId: 'o1',
+        companionId: 'c1',
+      },
+    });
+
+    emitted.length = 0;
+    await gw.handleChatSend(companionClient(null) as never, { text: 'hi' } as never);
+    expect(emitted).toHaveLength(0);
+  });
+});

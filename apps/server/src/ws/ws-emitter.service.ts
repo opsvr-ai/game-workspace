@@ -6,6 +6,25 @@ import { BridgeService } from '../studios/bridge.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { logger } from '../common/logger';
 import { stripCustomerSourceDeep } from '../common/order-privacy';
+import type { ConnectedUser } from './ws-connection.service';
+
+/** 点对点聊天消息 payload（网关公开方法签名引用，结构不变）。 */
+export interface NewMessagePayload {
+  conversationId: string;
+  orderInfo?: string;
+  message: { id: string; senderId: string; text: string; createdAt: string };
+}
+
+/** 工作室聊天广播 payload（chat:send / notifyChatMessage 共用同一结构）。 */
+export interface StudioChatPayload {
+  text: string;
+  senderId: string;
+  senderRole: string;
+  senderName: string;
+  orderId?: string | null;
+  companionId?: string | null;
+  timestamp: string;
+}
 
 /**
  * 「事件语义层」——原 ws.gateway.ts 的 outbound 段整体搬到这里。
@@ -357,30 +376,33 @@ export class WsEmitterService {
     });
   }
 
+  /**
+   * 客户端 `chat:send` 的校验 + 广播 —— 原 ws.gateway.ts handleChatSend 整段。
+   * 没登工作室 / 空消息直接丢弃；其余按原 payload 结构广播全工作室。
+   */
+  handleChatSend(user: ConnectedUser | undefined, data: { orderId?: string; text: string }): void {
+    if (!user?.studioId || !data.text?.trim()) return;
+
+    logger.info('WS chat:send', { senderId: user.id, studioId: user.studioId, orderId: data.orderId });
+
+    // Broadcast to entire studio (CS/admin/companion all in studio room)
+    this.notifyChatMessage(user.studioId, {
+      text: data.text,
+      senderId: user.id,
+      senderRole: user.role,
+      senderName: user.username,
+      orderId: data.orderId || null,
+      companionId: user.companionId || null,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   /** Notify a specific user about a new chat message (via user room) */
-  notifyNewMessage(
-    userId: string,
-    payload: {
-      conversationId: string;
-      orderInfo?: string;
-      message: { id: string; senderId: string; text: string; createdAt: string };
-    },
-  ): void {
+  notifyNewMessage(userId: string, payload: NewMessagePayload): void {
     this.server.to(`user:${userId}`).emit('chat:message', payload);
   }
 
-  notifyChatMessage(
-    studioId: string,
-    payload: {
-      text: string;
-      senderId: string;
-      senderRole: string;
-      senderName: string;
-      orderId?: string | null;
-      companionId?: string | null;
-      timestamp: string;
-    },
-  ): void {
+  notifyChatMessage(studioId: string, payload: StudioChatPayload): void {
     this.server.to(`studio:${studioId}`).emit('chat:new', payload);
   }
 }
