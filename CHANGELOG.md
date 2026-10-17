@@ -544,6 +544,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **发单弹窗没有按上等马 / 中等马 / 下等马延迟（2026-10-18，服务端）。**
+  老板：「我刚发单，陪玩端就能收到弹窗？之前定的按照上等马 中等马 下等马的延迟呢？」
+  - **根因**：`WsEmitterService.broadcastNewOrder` 对**所有**命中陪玩立即 `emit('order:urgent')`；
+    段位延迟只作用在 `GET /orders/pool` 的可见性过滤里，而且订单池里 `cf.broadcast=true` 的自家广播单
+    还被特判成 `delay=0` —— 弹窗和订单池两条路都绕过了段位。
+  - **修法**：`broadcastNewOrder` 按 `pool.priority_delay_seconds`（上等马，默认 0）、
+    `pool.middle_delay_seconds`（中等马，默认 60 秒）、`pool.low_delay_seconds`（下等马，默认 120 秒）
+    分别立即 / 定时发 `order:urgent`；延迟到点先查订单仍是 `PENDING`、没被抢才弹（避免弹已抢走的单）。
+    订单池可见性同步去掉 `cf.broadcast` 的 0 秒特判，统一按段位等待。
+  - 桥接工作室仍走原来的 `pool.bridge_delay_seconds`；指定单（DIRECT）仍立即提醒本人，不受影响。
+  - 新增回归测试 `ws.gateway.broadcast-delay.test.ts`：验证上等马立即、中等马 60 秒、下等马 120 秒，
+    以及延迟期间订单被抢后不再弹；原有 `ws.gateway.broadcast.test.ts` 仍全绿。
+
 - **部署 dev 重构时线上 WebSocket crash loop：Nest forwardRef 占位实例把 `WsConnectionService.runtime` 覆盖成 null（2026-10-17，服务端）。**
   部署后 `health=000`、pm2 秒级重启，日志反复报 `WsConnectionService runtime not attached`。
   - **根因**：`WsConnectionService` 通过 `@Inject(forwardRef(...))` 参与 WsModule ↔ CompanionsModule 的循环解析；

@@ -6,6 +6,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { logger } from '../common/logger';
 import { stripCustomerSourceDeep } from '../common/order-privacy';
+import { resolveConfigsRaw } from '../common/studio-config';
 import type { ConnectedUser } from './ws-connection.service';
 
 /** 点对点聊天消息 payload（网关公开方法签名引用，结构不变）。 */
@@ -157,7 +158,13 @@ export class WsEmitterService {
    * 广播新单（右下角弹窗抢单）。
    *
    * 收件人规则见 urgentRecipientWhere（空闲 + 娱乐中必推；接单中看本人开关）。
-   * 返回实际推送人数，方便排查「为什么没人收到」。
+   * **2026-10-18 老板报「刚发单陪玩端就能收到弹窗，之前定的上等马/中等马/下等马延迟呢？」**：
+   * 以前 `broadcastNewOrder` 对所有人立即 emit `order:urgent`，段位延迟只挡了订单池可见性，
+   * 弹窗根本没等 —— 现在按店里的 `pool.*_delay_seconds` 分档延迟：
+   *   上等马 priority（默认 0 秒）、中等马 middle（默认 60 秒）、下等马 low（默认 120 秒）；
+   * 延迟到的弹窗会先查订单是否还在 PENDING / 没被抢，避免弹一个已经被接掉的单。
+   * 管理端 / 客服不走这里；桥接 / 线上仍按 `broadcastUrgentToBridgedStudios` 的桥接延迟。
+   * 返回命中人数（含已排期的），日志里写明立即 / 延迟各多少。
    */
   async broadcastNewOrder(studioId: string, data: unknown): Promise<number> {
     try {
@@ -165,27 +172,50 @@ export class WsEmitterService {
         where: this.urgentRecipientWhere(studioId),
         select: { id: true, status: true, user: { select: { username: true } } },
       });
+      const orderId = String((data as any)?.id || '');
+      // 「线上→线下流转」到点放给本店线下（_releasedToOffline）是排队后的补发：
+      // 段位等待已经在之前跑完了，这次对全部本店线下立即弹，不要再叠一层段位延迟。
+      const immediateRelease = (data as any)?._releasedToOffline === true;
+      const delays = await this.tierDelaysMs(studioId);
       let sent = 0;
+      let immediate = 0;
+      let scheduled = 0;
       const notConnected: string[] = [];
       // 陪玩端一律看不到客户来源那一组字段（老板 2026-09-29 / 2026-10-02）
       const safe = stripCustomerSourceDeep(data);
       // 谁被命中、各是什么状态：以后问「娱乐中的到底弹没弹」，直接看日志。
       const byStatus: Record<string, number> = {};
+      const byTier: Record<string, number> = {};
       for (const c of companions) {
         byStatus[c.status] = (byStatus[c.status] ?? 0) + 1;
         // 命中 ≠ 收到：客户端没连着的人，这条弹窗只会发进空气里。
         if (!this.r.isCompanionConnected(c.id)) {
           notConnected.push(c.user?.username || c.id);
         }
-        this.server.to(`companion:${c.id}`).emit('order:urgent', safe);
+        const tier = await this.tierOf(c.id);
+        byTier[tier] = (byTier[tier] ?? 0) + 1;
+        const delayMs = immediateRelease
+          ? 0
+          : tier === 'TOP' ? delays.priority : tier === 'MIDDLE' ? delays.middle : delays.low;
+        if (delayMs > 0 && orderId) {
+          this.scheduleUrgentPopup(`companion:${c.id}`, orderId, safe, delayMs, tier);
+          scheduled += 1;
+        } else {
+          this.server.to(`companion:${c.id}`).emit('order:urgent', safe);
+          immediate += 1;
+        }
         sent += 1;
       }
       // 老板 2026-09-22 报「邵泽慧发广播单，所有人都没弹窗」：这条路径以前一句日志都没有，
-      // 出问题只能靠猜。现在把「命中几人 / 真正在线几人 / 谁不在线」都记下来。
+      // 出问题只能靠猜。现在把「命中几人 / 真正在线几人 / 谁不在线 / 分档延迟」都记下来。
       logger.info('SEND order:urgent (broadcast)', {
         studioId,
         orderCode: (data as any)?.orderCode,
         matched: sent,
+        immediate,
+        scheduled,
+        delaysMs: delays,
+        byTier,
         connected: sent - notConnected.length,
         byStatus,
         notConnected,
@@ -201,6 +231,74 @@ export class WsEmitterService {
       logger.error('broadcastNewOrder failed', { error: (err as Error).message, studioId });
       return 0;
     }
+  }
+
+  /** 本店「段位等待」配置（毫秒）。读不到配置时退回 0，保持单测 / 异常场景的行为。 */
+  private async tierDelaysMs(studioId: string): Promise<{ priority: number; middle: number; low: number }> {
+    try {
+      const cfg = await resolveConfigsRaw(this.prisma, studioId, [
+        'pool.priority_delay_seconds',
+        'pool.middle_delay_seconds',
+        'pool.low_delay_seconds',
+      ]);
+      const toMs = (key: string, fallbackSec: number) => {
+        const n = Number((cfg as any)[key]);
+        return (Number.isFinite(n) && n >= 0 ? n : fallbackSec) * 1000;
+      };
+      return {
+        priority: toMs('pool.priority_delay_seconds', 0),
+        middle: toMs('pool.middle_delay_seconds', 60),
+        low: toMs('pool.low_delay_seconds', 120),
+      };
+    } catch {
+      return { priority: 0, middle: 0, low: 0 };
+    }
+  }
+
+  /** 当前陪玩段位；算不出来按中等马（宁可多等 60 秒，也不越过上等马先弹）。 */
+  private async tierOf(companionId: string): Promise<'TOP' | 'MIDDLE' | 'LOW'> {
+    try {
+      const ex = await this.excellence.computeOne(companionId);
+      const tier = String((ex as any)?.tier || '').toUpperCase();
+      return tier === 'TOP' || tier === 'LOW' ? tier : 'MIDDLE';
+    } catch {
+      return 'MIDDLE';
+    }
+  }
+
+  /** 延迟弹窗：到点先确认订单还在、没被抢，再发；订单没了就静默丢弃。 */
+  private scheduleUrgentPopup(
+    room: string,
+    orderId: string,
+    payload: unknown,
+    delayMs: number,
+    tier: string,
+  ): void {
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const fresh = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            select: { status: true, companionId: true, claimedCsUserId: true },
+          });
+          if (!fresh || fresh.status !== 'PENDING' || fresh.companionId || fresh.claimedCsUserId) {
+            logger.info('SEND order:urgent (delayed) skipped: order no longer available', { room, orderId, tier });
+            return;
+          }
+          this.server.to(room).emit('order:urgent', payload);
+          logger.info('SEND order:urgent (delayed)', { room, orderId, tier, delayMs });
+        } catch (err) {
+          logger.warn('SEND order:urgent (delayed) failed', {
+            room,
+            orderId,
+            tier,
+            error: (err as Error).message,
+          });
+        }
+      })();
+    }, delayMs);
+    // 别让 Node 进程因为一个待发弹窗一直不退出（服务端常驻，主要是测试环境友好）
+    if (typeof (timer as any).unref === 'function') (timer as any).unref();
   }
 
   /** 只推送给「空闲且上等马」的线下陪玩，返回实际推送人数。 */

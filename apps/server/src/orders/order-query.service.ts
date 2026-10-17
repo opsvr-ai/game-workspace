@@ -110,11 +110,14 @@ export class OrderQueryService {
       if (!studioId) {
         delay = 0; // 老板（无工作室）看全部订单，立即可见
       } else if (ownOfflineOrder) {
-        // 本店自己的单：广播的急单自家所有人立即可见；其余按段位（管理端/客服不受段位限制）
-        delay =
-          cf.broadcast === true || !isCompanion
-            ? 0
-            : tier === 'TOP' ? priorityDelay : tier === 'MIDDLE' ? middleDelay : lowDelay;
+        // 本店自己的单：按段位等待（管理端 / 客服不受段位限制）。
+        // 2026-10-18 老板：「刚发单陪玩端就能收到弹窗，上等马/中等马/下等马的延迟呢？」
+        // 原来自家广播单（cf.broadcast=true）走 0 秒、绕过了段位 —— 弹窗也立即发；现在统一按段位：
+        // 上等马 priority（默认 0）、中等马 middle（默认 60 秒）、下等马 low（默认 120 秒）。
+        // 弹窗的同一份等待在 WsEmitterService.broadcastNewOrder 里按同样配置延迟。
+        delay = !isCompanion
+          ? 0
+          : tier === 'TOP' ? priorityDelay : tier === 'MIDDLE' ? middleDelay : lowDelay;
       } else {
         // 别家看本店的单：桥接工作室 / 线上俱乐部。
         // 「线上→线下流转」= 桥接工作室 + 线上俱乐部秒看到（等待时间 0），没人接再放给本店线下；

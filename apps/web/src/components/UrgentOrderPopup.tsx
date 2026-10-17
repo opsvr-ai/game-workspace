@@ -25,7 +25,7 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
   const navigate = useNavigate();
 
   // 弹窗停留时长可在后台配置（pool.popup_seconds，默认 20 秒）。
-  // 错过弹窗也不吃亏：广播单在订单池里对全店立即可见，不会等段位延迟。
+  // 弹窗和订单池都按段位延迟（2026-10-18 修正）：上等马立即、中等马 60 秒、下等马 120 秒，不再对全店立即弹。
   const [popupSeconds, setPopupSeconds] = useState(20);
   useEffect(() => {
     configApi
