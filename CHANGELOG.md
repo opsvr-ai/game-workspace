@@ -218,6 +218,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **结构重构批次 31–34：订单 549 行 / 外壳 521 行 / 网关 341 行 / 作用域 166→73（2026-10-17，dev）。**
+  全部行为等价（412 接口 / 90 路由 / socket 事件名与 payload / 响应字段 / 业务口径零变化），每项都跑过 typecheck + 全量测试。
+  - **`orders.service.ts` 1,385 → 549 行**：再拆出 `order-create.service.ts`（405 行，发单 / 号段 / 入池 / 派单 / 搭档初始化）与
+    `order-cs.service.ts`（577 行，联系跟进 / 加入房间 / 改单 / 抢单释放 / 改金额 / 支付方式）；迁出 16 个类成员，
+    14 个方法体逐字节一致、create 仅 1 行依赖委托改写，12 个门面签名不变；订单主文件从 4,787 累计降到 549 行。
+  - **`AppLayout.tsx` 895 → 521 行**：拆出 `styles/shellMenuCss.ts`（三段样式注入）、`hooks/useShellMenu.tsx`（菜单构建 + 角标装饰 + 点击进入）、
+    `hooks/useShellBranding.ts`（工作室品牌 / 版本 / 客服提成 / 分账比例 / cs-heartbeat）；菜单 key / 文案 / 图标 / 跳转目标零变化，
+    导航 Sider 仍是外层 Layout 直接子节点（`ant-layout-has-sider` 运行时 smoke 断言）。
+  - **`ws.gateway.ts` 561 → 341 行**：再拆出 `ws-status.service.ts`（companion:status 整段）与 `ws-command.service.ts`（pc:command_ack），
+    `chat:send` 的校验 / 日志 / 广播下沉到 `ws-emitter.service.ts`；脚本比对公开方法 45/45、emit 事件 10/10、订阅事件 12/12 与拆分前零差异。
+  - **ScopeContext 继续迁移：裸 `studioId` 166 → 73**（-93 处，23 个服务文件）。finance/commission 24→6、billing/settlement 13→1、
+    process-blacklist 12→4、chat 8→0、finance/reconciliation 7→1、customer-tracking 6→0、analytics/payroll 4→0 等；
+    明确「本店作用域参数」用 `actorOfStudio(id,'ADMIN')`（null/'' 仍 `{studioId:null}`，不会放大成全站），
+    剩余 73 处均为写操作 / 复合唯一键 / 关系筛选 / 显式 OR 口径等刻意保留；基线 `docs/SCOPE-USAGE-BASELINE.json` 同步调低，CI 只减不增。
+  - **测试**：服务端 **93 文件 / 914 用例全绿**；前端 27 文件 / 164 用例全绿；web typecheck / loading / stat-cards 守门绿。
+
 - **「下载安装包」不再按管理端 / 陪玩端分两个包（老板 2026-10-17，网页）。**
   老板指着弹窗问「现在不是不区分管理端跟陪玩端了么，这些是不是都重复了」。核对后：
   `/api/agent/download/exe` 和 `/api/agent/download/cs` 仍是两个不同的壳（线上 92MB / 82MB），

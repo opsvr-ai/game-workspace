@@ -301,6 +301,49 @@
 > 验收口径（可复算）：`pnpm --filter @chunlv/web build` 后跑 `node scripts/_check_route_splitting.mjs`，
 > 输出里两行数（入口分包 / 首屏合计）。两次实验都临时改过 `vite.config.ts`，跑完已还原（`git diff` 无差异）。
 
+### 第 34 批 · 已完成（2026-10-17，ScopeContext 继续迁移：166 → 73）
+
+| 任务 | 对应问题 | 交付 |
+|---|---|---|
+| 高计数目录迁移 | P1-7 | 23 个服务文件、**93 处裸 `studioId` 条件**换成 `common/scope.ts` 的 `scopeWhere` / `actorOfStudio`：finance/commission 24→6、billing/settlement 13→1、process-blacklist 12→4、chat 8→0、finance/reconciliation 7→1、customer-tracking 6→0、analytics/payroll 4→0、customer-analytics/companions/auth 3→0，其余逐文件 1-2 处 |
+| 等价性 | — | 「本店作用域参数」用 `actorOfStudio(id,'ADMIN')`（null/'' 仍 `{ studioId: null }`，绝不放大成全站）；老代码 `studioId ? {studioId} : {}` 类才用默认 `actorOfStudio`（null→不加过滤）；桥接用 `bridgedIds` 复刻 `{ in: [own, ...bridged] }` |
+| 刻意保留 | — | 剩余 73 处全部为「非作用域」写法：写操作 deleteMany、复合唯一键、`{id, studioId}` 越权校验、`companion/customer: { studioId }` 关系筛选、`OR:[{studioId},{studioId:null}]` 全局兜底、orders 21 / ws 5（并行任务域） |
+| 守门 | P1-7 | `docs/SCOPE-USAGE-BASELINE.json` 从 166 调低到 **73**；`--json` 修成纯 JSON（CI 可解析）；`pnpm scope:usage:check` 绿 |
+
+> 验收口径：`pnpm --filter @chunlv/server typecheck`、全量 **93 文件 / 914 用例全绿**、`node scripts/_check_scope_usage.mjs --check`（73/73，exit 0）。
+
+### 第 33 批 · 已完成（2026-10-17，ws.gateway 再拆到 341 行）
+
+| 任务 | 对应问题 | 交付 |
+|---|---|---|
+| 状态订阅 | P1-6 | `ws/ws-status.service.ts`（137 行）：`companion:status` 整段（BUSY 拦截、服务中禁改状态、旧状态兼容映射、数据库 + `companionPC.currentMode` 同步、权威黑名单下发、计时日志、桥接广播） |
+| 指令回执 | P1-6 | `ws/ws-command.service.ts`（41 行）：`pc:command_ack` 落 `PCOperationLog`；`blacklist:*` 回执继续委托既有 `BlacklistIngestService`（不重复造层） |
+| 聊天发送 | P1-6 | `chat:send` 的校验 / 日志 / 广播下沉到 `ws-emitter.service.ts`（408 行），gateway 入口只委托 |
+| 收口 | P1-6 | `ws.gateway.ts` **561 → 341 行**，只留 `@WebSocketServer`、afterInit、12 个 `@SubscribeMessage` 入口、45 个同名公开方法；脚本比对公开方法 45/45、emit 事件 10/10、订阅事件 12/12 与拆分前零差异 |
+| 测试 | P0-1 | delegation 测试 6 用例（新增 4 条），ws 相关 9 文件 64/64；全量 93/914 |
+
+### 第 32 批 · 已完成（2026-10-17，AppLayout 再拆到 521 行）
+
+| 任务 | 对应问题 | 交付 |
+|---|---|---|
+| 样式注入 | P2-7 | `styles/shellMenuCss.ts`（35 行）：三段 `<style>` 注入收成 `installShellMenuCss()`，CSS 运行时字符串与改前逐字一致 |
+| 菜单构建 | P1-2 | `hooks/useShellMenu.tsx`（268 行）：menuItems useMemo + onMenuClick（角标 decoration / 业绩比例 / 单子菜单平铺 / 通知未读角标 / 待办角标 / 标题可点）原样迁出；菜单 key / 文案 / 图标 / 跳转目标零变化 |
+| 品牌版本 | P1-2 | `hooks/useShellBranding.ts`（163 行）：studioBrand / appVersion / webBuild（60s + buildRefresh）/ 客服提成底薪 / 分账比例 / cs-heartbeat（60s + 可见性补报） |
+| 收口 | P1-2 | `AppLayout.tsx` **895 → 521 行**（-374）；导航 Sider 仍是外层 Layout 直接子节点，`ant-layout-has-sider` 不受影响（运行时 smoke 断言） |
+| 测试 | P0-1 | web 27 文件 / 164 用例、typecheck、loading / stat-cards 守门全绿 |
+
+### 第 31 批 · 已完成（2026-10-17，orders.service 再拆到 549 行）
+
+| 任务 | 对应问题 | 交付 |
+|---|---|---|
+| 创建子域 | P1-1 | `order-create.service.ts`（405 行）：`create`（含号段生成 nextGlobalCode、入池 / 派单 / 搭档初始化）+ getBridgeDelayMs / getPopupSeconds |
+| 客服订单操作 | P1-1 | `order-cs.service.ts`（577 行）：updateContact / joinRoom / updateOrderInfo / updateAmount / markCsContact / redispatch / markPoolHandled / claim / releaseClaim / updatePayment + 2 个私有 helper |
+| 收口 | P1-1 | `orders.service.ts` **1,385 → 549 行**（-836）；16 个类成员迁出（14 个方法体逐字节一致，create 仅 1 行依赖委托改写），12 个门面签名不变；无 forwardRef、无反向依赖 |
+| 测试 | P0-1 | 全量服务端 **93 文件 / 914 用例全绿** |
+
+> 至此订单服务：4,787 → 4,244（25 批）→ 1,385（26 批）→ **549 行**（31 批），
+> 共 8 个子域服务 + 主流程门面；继续压缩空间已很小。
+
 ### 第 30 批 · 已完成（2026-10-17，antd 按组件引入实验：结论「不做」）
 
 | 任务 | 对应问题 | 交付 |
