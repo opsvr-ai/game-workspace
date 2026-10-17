@@ -24,6 +24,16 @@ describe('StatsService.getDailyKpi（每日数据）', () => {
   let service: StatsService;
   const today = businessDayKey(new Date());
   const { start } = currentBusinessDayRange();
+  /**
+   * 相对当前营业日往前推 n 天的日期键。
+   * 这里以前写死 '2026-09-24' / '2026-10-07'，到了第二天测试就红 ——
+   * 断言的是「默认最近 14 个营业日」这条口径，不是某一天，所以按当天推算。
+   */
+  const daysAgoKey = (n: number) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() - n);
+    return businessDayKey(d);
+  };
   /** 本营业日 12:00 之后再过 h 小时（负数是昨天的同一时刻） */
   const at = (h: number) => new Date(start.getTime() + h * 3600 * 1000);
 
@@ -181,8 +191,8 @@ describe('StatsService.getDailyKpi（每日数据）', () => {
 
     const def = await service.getDailyKpi({}, { role: 'ADMIN', studioId: 's1' } as any);
     expect(def.dateTo).toBe(today);
-    expect(def.dateFrom).toBe('2026-09-24');
-    expect(def.total.date).toBe('2026-09-24 ~ 2026-10-07');
+    expect(def.dateFrom).toBe(daysAgoKey(13));
+    expect(def.total.date).toBe(`${daysAgoKey(13)} ~ ${today}`);
 
     const flipped = await service.getDailyKpi({ dateFrom: today, dateTo: '2026-09-01' }, { role: 'ADMIN', studioId: 's1' } as any);
     expect(flipped.dateFrom).toBe(flipped.dateTo);
@@ -191,7 +201,7 @@ describe('StatsService.getDailyKpi（每日数据）', () => {
       { dateFrom: '2020-01-01', dateTo: today },
       { role: 'ADMIN', studioId: 's1' } as any,
     );
-    expect(tooLong.dateFrom).toBe('2026-08-07'); // 只回退 62 天
+    expect(tooLong.dateFrom).toBe(daysAgoKey(61)); // 只回退 62 天（含当天共 62 天）
   });
 
   it('明细：只加了一段、这一天没有新单的客户也看得见，并标成续单客户', async () => {
