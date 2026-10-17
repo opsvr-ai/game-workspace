@@ -13,18 +13,18 @@
 这套系统的业务闭环已经完整（发单 → 抢单 → 服务计时 → 报账 → 结算 → 分润），线上有真实订单与真实资金在跑。
 问题不在功能，而在三个「单点体积」和两个「重复实现」：
 
-| 单点 | 现状（2026-10-17 实测） | 后果 |
+| 单点 | 现状（2026-10-17 批次 25–30 完成后实测） | 后果 |
 |---|---|---|
-| 后端订单服务 | `apps/server/src/orders/orders.service.ts` **4,244 行 / 60+ 公开方法**（重构前 4,787 行） | 任何订单相关改动都要动这个文件，回归范围无法界定 |
-| 前端外壳 | `apps/web/src/layouts/AppLayout.tsx` **2,055 行**（重构前 2,543 行），含 20+ 角标 state、通知、聊天、语音、横幅 | 加一个角标要改全局文件，冲突率最高 |
-| WebSocket 网关 | `apps/server/src/ws/ws.gateway.ts` **1,448 行**，连接层 + 业务发射器混在一起 | 事件与业务耦合，测试只能整体打桩 |
-| Socket 连接 | 前端 `useSocket` 每调用一次就新建一条连接；同一账号同时开 **3～4 条** | 心跳与事件重复、移动端/弱网下更费电费带宽 |
-| 租户作用域 | `studioId:` 条件数百处、`OWNER` 判断散落各服务 | 「老板全站 / 店长本店 / 桥接店」三套规则靠人记，漏一处就是越权或串店 |
+| 后端订单服务 | `apps/server/src/orders/orders.service.ts` **1,385 行**（起点 4,787 → 批次 25 的 4,244 → 批次 26 的 1,385）；其余拆到 5 个子域服务 | 已从「上帝对象」降为「主流程 + 门面」；剩余可继续抽客服订单操作 |
+| 前端外壳 | `apps/web/src/layouts/AppLayout.tsx` **895 行**（起点 2,543 → 批次 25 的 2,055 → 批次 27 的 895） | 菜单 / 布局 / 组合逻辑仍集中，但聊天 / 横幅 / 语音 / 角标 / 通知均已独立 |
+| WebSocket 网关 | `apps/server/src/ws/ws.gateway.ts` **561 行**（起点 1,553 → 批次 28）；连接 / 广播 / 黑名单 / 语音拆成 4 个服务 | 网关只剩入口与同名委托，业务服务不再依赖内部实现 |
+| Socket 连接 | 前端 `useSocket` 已按 `baseUrl + namespace` 共享：同一账号物理连接 **3～4 条 → 1 条**（批次 25） | 心跳 / 重连 / 令牌续期各只跑一次 |
+| 租户作用域 | `common/scope.ts` + 30 处 `scopeWhere` 调用（22 个方法）落地（批次 29）；裸 `studioId` 条件 **166 → 166 冻结**，四个目标目录 **37 → 10** | 「老板全站 / 本店 / 桥接店」有唯一实现，剩余裸条件由 CI 守卫只减不增 |
 
-本轮（批次 25）不搞大爆炸重写，按绞杀者模式先做四件事：
-**后端拆出第一个订单子域（CS 收款/资金流水）**、**前端外壳拆出角标 hook 与通知面板**、
-**前端 Socket 收敛为单连接**、**实时看板从轮询升级为推送驱动（保留轮询兜底）**；
-并顺手修掉一条与系统日期绑定的既有测试失败，让「全绿」重新成为可信基线。
+批次 25–30 覆盖五件「结构 + 工程地基」的事：
+**订单子域化**、**外壳组件化**、**网关分层**、**配置中心类型化 + ScopeContext**、**antd 引入方式实验**；
+并顺手修掉日期绑定测试与 lint 规则误报，让「全绿」重新成为可信基线。
+antd 实验结论是**不做**：深路径引入后首屏反而 +2KB（详见第 5.8 节）。
 
 ---
 
@@ -113,7 +113,7 @@ flowchart LR
     OC[OrdersController<br/>只做参数解析与鉴权]
   end
   subgraph APP[应用层]
-    OF[OrdersService 门面<br/>目标 < 800 行]
+    OF[OrdersService 门面<br/>当前 1,385 行 · 只留主流程]
   end
   subgraph DOMAIN[订单子域 · 独立可测]
     LC[order-lifecycle<br/>创建/发布/入池/分配]
@@ -142,10 +142,21 @@ flowchart LR
 3. **口径下沉**：金额、时间窗、可见性判断继续搬进 `common/`，子服务只做编排。
 4. **一个子域一次提交**：拆一个 → 跑全量测试 → 绿了再拆下一个。
 
-### 2.3 本轮已落地：`cs-finance` 子域
+### 2.3 已落地的订单子域
 
-见第 5 节「批次 25 交付」。它是订单服务拆分的**第一个样板**，验证三件事：
-子服务可以只依赖 Prisma / 事件 / 配置、门面委托不改调用方、全量测试能兜住行为等价。
+批次 25–26 已把订单服务拆成 **1 个主流程门面 + 5 个子域服务**：
+
+| 子域 | 文件 | 行数 | 内容 |
+|---|---|---|---|
+| CS 收款 / 对账 | `orders/cs-finance.service.ts` | 639 | 客服微信收款、资金流水、对账、客服异常 |
+| 补单 / 复核 | `orders/order-exception.service.ts` | 1,234 | 补单、退单、报结果、复核、催反馈 |
+| 会话 / 搭档 | `orders/order-session.service.ts` | 730 | 开始 / 暂停 / 恢复 / 结束、搭档邀请、断线清理 |
+| 转让 | `orders/order-transfer.service.ts` | 426 | 转让申请、同意 / 拒绝 / 撤回 / 过期 |
+| 只读查询 | `orders/order-query.service.ts` | 746 | 抢单池、列表、详情、紧急单、待开始 |
+
+五个子域都只依赖基础服务（Prisma / Ws / Bridge / Quota / Excellence），**没有反向依赖 OrdersService、没有 forwardRef**；
+`OrdersService` 保留同名门面，58 个类成员方法体与拆分前逐字节一致，Controller / HTTP 路由零改动。
+剩余可继续拆的是「客服订单操作组」（updateContact / claim / redispatch / joinRoom 等）。
 
 ---
 
@@ -155,7 +166,8 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  R[router.tsx 90 条路由<br/>页面全部 lazy] --> L[AppLayout 2,464 行<br/>菜单/角标/通知/聊天/语音/横幅]
+  R[router.tsx 90 条路由<br/>页面全部 lazy] --> L[AppLayout 895 行<br/>菜单/布局/组合]
+  L --> SH[shell 组件 + hooks<br/>角标/通知/聊天/横幅/语音/实时回调]
   L --> P[64 个页面]
   P --> A[api/ 26 个模块<br/>统一 axios client]
   P --> S[zustand stores 6 个]
@@ -184,9 +196,9 @@ flowchart TB
 ```
 apps/web/src/
   routes/            ← 路由表（path / roles / loader），菜单与路由同源
-  layouts/AppLayout   ← 只做布局与组合（目标 < 1,200 行）
-  components/shell/   ← 通知中心 / 聊天浮窗 / 横幅宿主 / 服务开始遮罩
-  hooks/              ← useMenuBadges / useLiveRefresh / usePolling / useVoiceCall
+  layouts/AppLayout   ← 只做布局与组合（当前 895 行）
+  components/shell/   ← 通知中心 / 聊天浮窗 / 横幅宿主 / 语音通话 / 提醒横幅
+  hooks/              ← useMenuBadges / useShellChat / useShellBanners / useShellRealtime / useLiveRefresh / usePolling / useVoiceCall
   sockets/            ← 单连接 + 事件语义封装（按 token 共享）
   api/                ← 唯一数据出口（禁止页面里直接 axios/fetch）
   stores/             ← 跨页状态（auth / chat / notice / order / invite）
@@ -204,7 +216,7 @@ apps/web/src/
 
 ---
 
-## 4. 本轮重构设计（批次 25）
+## 4. 重构设计（批次 25–30）
 
 ### 4.1 范围与不变量
 
@@ -224,6 +236,11 @@ apps/web/src/
 | 25-2 | 前端外壳 | `AppLayout` 迁出 9 组菜单角标 → `hooks/useMenuBadges.ts`；通知面板 → `components/shell/NotificationPanel.tsx` | 前端类型检查、测试全绿；AppLayout 显著变短 |
 | 25-3 | 前端实时 | `useSocket` 收敛为按 token 单连接；新增 `useLiveRefresh` 节流刷新；实时看板 / 客户看板推送驱动 + 轮询兜底 | 类型检查、测试全绿；连接数与心跳不再 ×N |
 | 25-4 | 基线 | 修掉 `stats.daily-kpi.test.ts` 与系统日期绑定的断言（改为按当天推算） | 单测绿；全量服务端测试回到 848/848 |
+| 26 | 后端 | `orders.service.ts` 继续拆补单复核 / 会话搭档 / 转让 / 查询子域，目标 < 1,500 行 | 1,385 行；服务端 93/910 全绿 |
+| 27 | 前端外壳 | `AppLayout` 拆聊天浮窗 / 横幅宿主 / 语音通话 / 实时回调，目标 < 1,200 行 | 895 行；web 27/164 全绿 |
+| 28 | 后端实时 | `ws.gateway` 拆连接层 / 广播层 / 黑名单层 / 语音层，公开 API 不变 | 1,553 → 561 行；ws 测试 + 全量 93/910 |
+| 29 | 后端地基 | 118 个配置键类型化 + 写入校验 + 单入口；`ScopeContext` 迁移核心读路径 | 配置/作用域测试 60 条；裸 `studioId` 166 冻结、目标目录 37→10 |
+| 30 | 前端实验 | `antd/es/*` 按组件引入，量首屏收益 | **结论不做**：首屏 1,870 → 1,872KB（gzip 593 → 593），无收益 |
 
 ### 4.3 验收门禁（全绿才算完）
 
@@ -246,11 +263,11 @@ node scripts/_export_api_contract.mjs --check
 
 ---
 
-## 5. 批次 25 交付记录（滚动更新）
+## 5. 批次 25–30 交付记录（滚动更新）
 
-> 详细提交与验证证据见 `CHANGELOG.md` 与 `docs/REFACTOR-PLAN.md` 的「第 25 批」。
+> 详细提交与验证证据见 `CHANGELOG.md` 与 `docs/REFACTOR-PLAN.md` 的「第 25–30 批」。
 
-### 5.1 结构变化（可复算）
+### 5.1 结构变化（批次 25，可复算）
 
 | 对象 | 重构前 | 重构后 | 变化 |
 |---|---|---|---|
@@ -273,38 +290,54 @@ node scripts/_export_api_contract.mjs --check
   断线 / 漏事件仍有 15 秒轮询兜底；页面切到后台不再空转刷新，回前台立即补一次。
 - **性能增强**：同一账号只保留一条底层 WebSocket；心跳、重连、令牌刷新、顶号处理各只执行一次。
 
-### 5.3 验证结果
+### 5.3 验证结果（批次 30 结束时）
 
 | 门禁 | 结果 |
 |---|---|
 | `pnpm -r typecheck` | 通过 |
-| 服务端测试 | 90 文件 / **848 用例全绿**（含本轮修掉的日期绑定用例） |
-| 前端测试 | 27 文件 / **164 用例全绿**（含本轮新增的 Socket 单连接 7 条回归 + 变异验证） |
+| 服务端测试 | **93 文件 / 910 用例全绿**（含配置中心 36 + ScopeContext 24 + ws 委托 2） |
+| 前端测试 | **27 文件 / 164 用例全绿**（含 Socket 单连接 7 条回归 + 变异验证） |
 | `pnpm -r lint` | **0 error**（警告为历史积压） |
 | `pnpm --filter @chunlv/server build` | 通过 |
-| `pnpm --filter @chunlv/web build` | 通过；入口分包 362KB（上限 512KB）、首屏 1,870KB / gzip 593KB（上限 2,000KB / 640KB） |
-| 契约 / 路由 / 令牌 / 加载态 / 统计卡 / 反馈层 / 表格横滚 / CSS 变量 | 全部通过（ui-tokens 332 / loading 0 / stat-cards 0 / feedback 0 / table-scroll 0 / routes 90 / css-vars 94 / contract 412·15·19） |
+| `pnpm --filter @chunlv/web build` | 通过；入口分包 364KB（上限 512KB）、首屏 1,872KB / gzip 593KB（上限 2,000KB / 640KB；比批次 25 的 1,870KB 多 2KB，来自新拆出的 shell hooks，可忽略） |
+| 契约 / 路由 / 令牌 / 加载态 / 统计卡 / 反馈层 / 表格横滚 / CSS 变量 / 作用域 | 全部通过（ui-tokens 332 / loading 0 / stat-cards 0 / feedback 0 / table-scroll 0 / routes 90 / css-vars 94 / contract 412·15·19 / scope 166） |
 
-### 5.4 已知风险与收尾
+### 5.4 批次 26–30 结构变化
+
+| 对象 | 起点 | 现在 | 变化 |
+|---|---|---|---|
+| `orders/orders.service.ts` | 4,244 行 | **1,385 行** | 拆出 exception / session / transfer / query 四个子域 + 共享常量 |
+| `orders/` 子域服务 | 1 个（cs-finance） | 5 个，共 3,775 行 | 58 个类成员方法体逐字节迁出、无循环依赖 |
+| `AppLayout.tsx` | 2,055 行 | **895 行** | 拆出 3 个 shell 组件 + 3 个 shell hook（含 741 行实时回调） |
+| `components/shell/` | 2 个组件 / 235 行 | 5 个组件 / 617 行 | 新增聊天浮窗、横幅宿主、语音通话 |
+| `ws/ws.gateway.ts` | 1,553 行 | **561 行** | 拆出连接 / 广播 / 黑名单 / 语音 4 个服务（共 1,426 行） |
+| 配置中心 | 118 个键散装字符串 | `common/config-keys.ts`（836 行） | as const 键表 + 类型 / 默认值 / 作用域 / 校验器；写入统一校验 |
+| 作用域 | 661 处裸条件、无统一入口 | `common/scope.ts` + 166 基线 | 30 处 `scopeWhere` 调用（22 方法），目标四目录 37→10；CI 冻结 |
+| antd 引入 | `import { X } from 'antd'` | **保持不改** | 深路径实验：首屏 1,870→1,872KB（+2KB），收益为零 |
+
+### 5.5 已知风险与收尾
 
 - 共享连接在 SPA 内「不刷新页面直接换账号」时不会被重建；当前登出 / 顶号路径都是整页跳转，没有这条路径。
 - 每个 `useSocket` 消费者仍注册整套事件包装（旧契约允许运行时替换回调）；多消费者时是几次 no-op 判断，开销可忽略。
+- `orders` / `ws` / `AppLayout` 都采用「可选参数 + 兜底实例」写法保证老单测可手写 `new`；生产环境仍由 Nest DI 注入，
+  建议部署前在测试环境实启一次服务确认 DI（本地只能 typecheck + 单测）。
+- 作用域只迁移了 customers / companions / dashboard / stats 四个核心目录；其余裸 `studioId` 条件（166）由 CI 冻结只减不增。
 - 本批只在 `dev` 分支；未部署、未发客户端。`master` 仍保持可随时发布的线上版本。
 
 ---
 
 ## 6. 后续路线（按性价比排序）
 
-| 优先级 | 任务 | 目标 | 依赖 |
+| 优先级 | 任务 | 状态 / 目标 | 依赖 |
 |---|---|---|---|
-| P1 | `orders` 继续拆：补单/退款/复核、会话、转让 | `orders.service.ts` < 1,500 行 | 25-1 样板 |
-| P1 | `AppLayout` 继续拆：聊天浮窗 / 横幅宿主 / 语音通话 | < 1,200 行 | 25-2 样板 |
-| P1 | `ws.gateway.ts` 拆连接层与事件语义层 | 业务服务不直接依赖 gateway | 订单子域稳定 |
-| P2 | 配置中心：116 个键类型化 + schema 校验 + 单入口读取 | 消除「页面显示 ≠ 实际生效」 | 无 |
-| P2 | 作用域抽象 `ScopeContext` | 「老板 / 本店 / 桥接」只有一处实现 | 订单查询拆完 |
-| P2 | antd 按组件路径引入 | 首屏 1.3MB antd 分块可降 | 单独实验分支 |
-| P3 | `DataTable` 统一三大表列配置 | 列宽/钉列/密度只维护一份 | 老板确认可收起列 |
-| P3 | 双客户端机器端能力收敛为共享包 | 修一次两端生效 | 涉及终端发版，必须请示 |
+| P1 | `orders` 继续拆客服订单操作组 | 待做；可再抽 `order-cs.service.ts`，目标 < 1,000 行 | 26 样板 |
+| P1 | `AppLayout` 继续拆菜单树 / 主题注入 | 待做；当前 895 行 | 27 样板 |
+| P1 | `ws.gateway` 剩余业务订阅（companion:status / chat:send） | 待做；当前 561 行 | 28 样板 |
+| P2 | 作用域继续迁移剩余 166 处裸 `studioId` | 进行中；CI 只减不增 | 29 样板 |
+| P2 | 配置中心前端表单与 schema 联动 | 待做；当前只做后端校验 | 29 |
+| P2 | antd 首屏优化（替代方案） | 实验已证伪深路径引入；下一步考虑首屏页面拆分 / antd 版本 | 30 结论 |
+| P3 | `DataTable` 统一三大表列配置 | 待做；列宽属于业务取舍，需老板确认可收起列 | 页面临近 |
+| P3 | 双客户端机器端能力收敛为共享包 | 待做；涉及终端发版，必须请示 | 客户端窗口 |
 
 > 红线：任何涉及**终端程序更新**的动作先请示；任何脚本不得改 `blacklist.enabled` 等线上业务开关；
 > 线上真实客户 / 订单 / 报账数据只读；测试数据必须自己收尾删除。

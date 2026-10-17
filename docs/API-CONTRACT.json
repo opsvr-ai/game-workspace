@@ -10,7 +10,7 @@
   "stats": {
     "controllers": 28,
     "endpoints": 412,
-    "socketEmitters": 3,
+    "socketEmitters": 6,
     "socketInbound": 15,
     "socketOutbound": 19
   },
@@ -2980,57 +2980,51 @@
   "socketOutbound": [
     {
       "event": "auth:failed",
-      "emitter": "WsGateway",
+      "emitter": "WsConnectionService",
       "handler": "handleConnection",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-connection.service.ts"
     },
     {
       "event": "auth:replaced",
-      "emitter": "WsGateway",
+      "emitter": "WsConnectionService",
       "handler": "kickUser",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-connection.service.ts"
     },
     {
       "event": "auth:replaced",
-      "emitter": "WsGateway",
+      "emitter": "WsConnectionService",
       "handler": "setTimeout",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-connection.service.ts"
     },
     {
       "event": "auth:stale_token",
-      "emitter": "WsGateway",
+      "emitter": "WsConnectionService",
       "handler": "setTimeout",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-connection.service.ts"
     },
     {
       "event": "blacklist:update",
-      "emitter": "WsGateway",
+      "emitter": "WsBlacklistService",
       "handler": "sendBlacklistUpdate",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-blacklist.service.ts"
     },
     {
       "event": "chat:message",
-      "emitter": "WsGateway",
+      "emitter": "WsEmitterService",
       "handler": "notifyNewMessage",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-emitter.service.ts"
     },
     {
       "event": "chat:new",
-      "emitter": "WsGateway",
-      "handler": "handleChatSend",
-      "file": "apps/server/src/ws/ws.gateway.ts"
-    },
-    {
-      "event": "chat:new",
-      "emitter": "WsGateway",
+      "emitter": "WsEmitterService",
       "handler": "notifyChatMessage",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-emitter.service.ts"
     },
     {
       "event": "chat:notify",
-      "emitter": "WsGateway",
+      "emitter": "WsEmitterService",
       "handler": "notifyChat",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-emitter.service.ts"
     },
     {
       "event": "chat:read",
@@ -3070,21 +3064,21 @@
     },
     {
       "event": "order:new",
-      "emitter": "WsGateway",
+      "emitter": "WsEmitterService",
       "handler": "pushOrder",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-emitter.service.ts"
     },
     {
       "event": "order:urgent",
-      "emitter": "WsGateway",
+      "emitter": "WsEmitterService",
       "handler": "broadcastNewOrder",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-emitter.service.ts"
     },
     {
       "event": "pc:command",
-      "emitter": "WsGateway",
+      "emitter": "WsEmitterService",
       "handler": "sendCommand",
-      "file": "apps/server/src/ws/ws.gateway.ts"
+      "file": "apps/server/src/ws/ws-emitter.service.ts"
     },
     {
       "event": "room:updated",

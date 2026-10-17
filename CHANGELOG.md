@@ -11,6 +11,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **配置中心类型化 + ScopeContext 作用域收敛（2026-10-17，服务端，重构批次 29）。**
+  行为等价：不改接口响应字段、排序口径与业务判断；新增的是「写库前校验」与「作用域唯一实现」。
+  - **配置键类型化**：新增 `apps/server/src/common/config-keys.ts`（836 行），把 **118 个配置键**
+    （此前口径 116 漏了顶层 `games` / `ranks`）收成 as const 键表 + 类型化定义：默认值、类型、
+    SYSTEM 19 / STUDIO 99 作用域、数值范围 / 枚举 / 结构校验器、说明；`as const satisfies` 让键表与定义表编译期一一对应。
+  - **写入单入口**：`settings.controller` 保存与 `studio-config` 的老板 / 店长两条写路径统一
+    `assertValidConfigEntries` —— 非法值整次不落库、400 点名键名与原因；未知动态键（`counter.global_code` 等）
+    沿用老行为放行。读取内置默认值收敛到 `configDefault()` 唯一真源，`resolveConfigsRaw` 兼容不变。
+  - **ScopeContext**：新增 `apps/server/src/common/scope.ts`（252 行）——`Actor` + `scopeWhere` / `visibleStudioIds` /
+    `canAccessStudio` / `assertStudioAccess` 等纯函数，口径=老板全站 / 店长·客服本店 / 陪玩自己 / 桥接店可见 /
+    无店账号给空（绝不漏全站），产出 where 片段与老代码逐字等价。
+  - **迁移**：customers / companions / dashboard / stats 共 **22 个方法、30 处 `scopeWhere` 调用**，替换
+    **27 处裸 `studioId` 条件**；响应字段 / 排序 / 分页零变化。
+  - **守门**：新增 `scripts/_check_scope_usage.mjs`（AST 统计）+ `docs/SCOPE-USAGE-BASELINE.json`：
+    全仓裸 `studioId` 条件 **166（基线 166，只能减不能增）**，四个目标目录 **37 → 10**；CI 已接
+    `pnpm scope:usage:check`。
+  - **测试**：`config-center.test.ts` 36 用例 + `scope.test.ts` 24 用例；服务端 **93 文件 / 910 用例全绿**。
+
 - **`dev` 分支平台重构批次 25：订单 CS 收款子域 + 外壳角标 hook + Socket 单连接 + 实时看板推送刷新（2026-10-17）。**
   只改结构不改功能：400+ 接口、90 条路由、所有页面交互与业务口径零变化；验证证据见
   `docs/PLATFORM-DESIGN.md` 第 5 节与 `docs/REFACTOR-PLAN.md`「第 25 批」。
@@ -199,6 +217,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 验证：`tsc --noEmit` 通过，网页 **125 / 125** 通过，守门脚本全绿（routes 90 / contract 403 / ui:tokens 332 / table-scroll 0 张超宽）。
 
 ### Changed
+
+- **平台结构重构批次 26–28：订单服务 1,385 行 / 外壳 895 行 / 网关 561 行（2026-10-17，dev）。**
+  全部行为等价：HTTP 路由、响应字段、socket 事件名与 payload、业务口径零变化；每项都跑过 typecheck + 全量测试。
+  - **`orders.service.ts` 4,244 → 1,385 行**：拆出 `order-exception.service.ts`（1,234 行，补单 / 退单 / 报结果 / 复核）、
+    `order-session.service.ts`（730 行，会话 / 搭档邀请 / 断线清理）、`order-transfer.service.ts`（426 行，转让全链路）、
+    `order-query.service.ts`（746 行，抢单池 / 列表 / 详情 / 催单池）；共迁出 58 个类成员，方法体与拆分前逐字节一致，
+    38 个门面签名不变，共享常量抽到 `order.constants.ts`；无 forwardRef、无循环依赖。
+  - **`AppLayout.tsx` 2,055 → 895 行**：拆出 `hooks/useShellChat.ts` / `useShellBanners.ts` / `useShellRealtime.ts`（741 行，
+    原 40 个 socket 业务回调整块搬出）与 `components/shell/ChatDock.tsx` / `ShellBanners.tsx` / `VoiceCallHost.tsx`；
+    聊天浮窗、搭档邀请 / 转让 / 紧急单横幅、语音通话与全局浮层全部保留，样式 / 文案 / 点击行为零变化。
+  - **`ws.gateway.ts` 1,553 → 561 行**：拆出 `ws-connection.service.ts`（571 行）/ `ws-emitter.service.ts`（386 行）/
+    `ws-blacklist.service.ts`（259 行）/ `ws-voice.service.ts`（210 行）；网关只留 `@WebSocketServer`、`@SubscribeMessage`
+    入口与 45 个同名公开方法委托；脚本比对公开方法名单、emit 事件名、订阅事件名与 HEAD 完全一致。
+  - **antd 按组件引入实验：结论不做**。在独立分支用 codemod 把 129 个文件、939 条 `import { X } from 'antd'` 改成
+    `import X from 'antd/es/x'`，`tsc` 一次通过但**首屏零收益**：antd 分块 1,305 → 1,336KB、入口 362 → 364KB、
+    首屏 1,870 → 1,872KB（gzip 593 → 593）。原因：应用本身用 40+ 个 antd 组件，Rollup 已按 `sideEffects` 摇树，
+    深路径只增加模块边界开销。实验分支已删，保留汇总 import。
+  - **文档**：新增 `docs/PLATFORM-DESIGN.md` 的批次 26–30 记录与后续路线；`docs/REFACTOR-PLAN.md` 补第 26–30 批表；
+    `.gitignore` 放行作用域守门脚本，`package.json` 新增 `scope:usage` / `scope:usage:check`。
 
 - **Socket.IO 连接从前端「每个 `useSocket` 一条」收敛为「同一账号一条」（2026-10-17，网页）。**
   以前 `useSocket` 每被调用一次就 `io()` 新建一条连接：AppLayout / ChatProvider / DevicesPanel / CSDispatchView

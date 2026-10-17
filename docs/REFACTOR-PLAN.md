@@ -301,6 +301,70 @@
 > 验收口径（可复算）：`pnpm --filter @chunlv/web build` 后跑 `node scripts/_check_route_splitting.mjs`，
 > 输出里两行数（入口分包 / 首屏合计）。两次实验都临时改过 `vite.config.ts`，跑完已还原（`git diff` 无差异）。
 
+### 第 30 批 · 已完成（2026-10-17，antd 按组件引入实验：结论「不做」）
+
+| 任务 | 对应问题 | 交付 |
+|---|---|---|
+| 实验：`antd/es/*` 深路径引入 | P2-7 / 首屏体积 | 在 `exp/antd-per-component` 分支用 codemod 把 129 个文件、939 条 `import { X } from 'antd'` 改成 `import X from 'antd/es/x'`；`tsc` 一次通过 |
+| 量收益 | — | **零收益**：antd 分块 1,305KB → 1,336KB（+31KB），入口分包 362KB → 364KB，首屏 1,870KB / gzip 593KB → 1,872KB / gzip 593KB。原因：应用本身用了 40+ 个 antd 组件、Rollup 已经按 `sideEffects` 摇树，深路径只是增加模块边界开销 |
+| 结论 | — | **不合并**（实验分支已删，保留汇总 import）。以后要降首屏只能从「首屏页面实际用到的组件」或 antd 版本 / 替代方案入手，不再重复这条路 |
+
+> 验收口径：改前改后各跑一次 `pnpm --filter @chunlv/web build` + `node scripts/_check_route_splitting.mjs`，上面三组数就是实测值。
+
+### 第 29 批 · 已完成（2026-10-17，配置中心类型化 + ScopeContext 作用域收敛）
+
+| 任务 | 对应问题 | 交付 |
+|---|---|---|
+| 配置键类型化 | P1-4 | 新增 `common/config-keys.ts`（836 行）：**118 个键**（原说 116，漏了顶层不带引号的 `games` / `ranks`）的 as const 键表 + 类型化定义（默认值 / 类型 / SYSTEM 19 · STUDIO 99 / 校验器 / 说明）；`as const satisfies` 让键表与定义表编译期一一对应 |
+| 写入校验单入口 | P1-4 | `settings.controller` 保存与 `studio-config` 的两条写路径统一 `assertValidConfigEntries`：非法值整次不落库、400 点名键名+原因；未知动态键（`counter.global_code` 等）沿用老行为放行。读默认值收敛到 `configDefault()` 唯一真源，`resolveConfigsRaw` 兼容不变 |
+| ScopeContext | P1-7 | 新增 `common/scope.ts`（252 行）：`Actor` + `scopeWhere` / `visibleStudioIds` / `canAccessStudio` / `assertStudioAccess` 等纯函数；口径=老板全站 / 店长·客服本店 / 陪玩自己 / 桥接店可见 / 无店账号给空（绝不漏全站），产出 where 片段与老代码逐字等价 |
+| 迁移核心读路径 | P1-7 | customers / companions / dashboard / stats 共 **22 个方法、30 处 `scopeWhere` 调用**，替换 **27 处裸 `studioId` 条件**（另 3 处为陪玩自作用域等价替换）；响应字段 / 排序 / 分页零变化 |
+| 收敛守门 | P1-7 | 新增 `scripts/_check_scope_usage.mjs`（AST 统计，非 grep）+ `docs/SCOPE-USAGE-BASELINE.json`：全仓裸 `studioId` 条件 **166（基线 166，只能减不能增）**；四个目标目录 **37 → 10**（dashboard 4→0、customers 8→2、companions 17→6、stats 8→2），剩余 10 处均为显式入参 / 严格 null / 老板显式筛选，已逐处注释。CI 已接 `scope:usage:check` |
+| 测试 | P0-1 | `config-center.test.ts` 36 用例 + `scope.test.ts` 24 用例；服务端 **93 文件 / 910 用例全绿** |
+
+> 验收口径（可复算）：`pnpm --filter @chunlv/server typecheck`、`pnpm --filter @chunlv/server test`（93/910）、
+> `node scripts/_check_scope_usage.mjs --check`（166/166，exit 0）、`pnpm -r lint`（0 error）。
+> 已知严格化：以前非法类型值会被静默写进库，现在 400 点名；已核对 web 端 11 个设置页提交类型全部符合 schema。
+
+### 第 28 批 · 已完成（2026-10-17，ws.gateway 拆连接层与事件语义层）
+
+| 任务 | 对应问题 | 交付 |
+|---|---|---|
+| 连接层 | P1-6 | `ws/ws-connection.service.ts`（571 行）：握手鉴权（过期令牌宽限 / 单点登录 sv 校验）、房间编排（user / studio / 桥接店 / companion / pc）、在线映射、断线宽限与离线转换、staff 下班宽限、kickUser |
+| 事件语义层 | P1-6 | `ws/ws-emitter.service.ts`（386 行）：订单 / 通知 / 聊天广播语义，客户来源脱敏原样保留 |
+| 黑名单层 | P1-6 | `ws/ws-blacklist.service.ts`（259 行）：本店开关 + 按人特批 5s 缓存、名单下发、pushCurrentBlacklist / refreshCompanionBlacklist / syncManagedPc |
+| 语音层 | P1-6 | `ws/ws-voice.service.ts`（210 行）：call:* 处理、音频 8KB/100fps 限流、45s 断线宽限挂断、重连恢复 |
+| 网关收口 | P1-6 | `ws.gateway.ts` **1,553 → 561 行**：只留 `@WebSocketServer server`、`@SubscribeMessage` 入口、afterInit、45 个同名公开方法委托；公开方法名单 / emit 事件名 / 订阅事件名脚本比对与 HEAD 完全一致 |
+| 测试 | P0-1 | 新增 `ws.gateway.delegation.test.ts`（2 用例，假 server 锁委托后 emit 到正确 room）；既有 ws 测试断言一条未动；服务端 93/910 全绿 |
+
+> 验收口径：`pnpm --filter @chunlv/server typecheck`、9 个 ws 相关测试文件 52+2 条全绿、全量 93/910。
+
+### 第 27 批 · 已完成（2026-10-17，AppLayout 拆到 895 行）
+
+| 任务 | 对应问题 | 交付 |
+|---|---|---|
+| 聊天浮窗 | P1-2 | `hooks/useShellChat.ts`（86 行）+ `components/shell/ChatDock.tsx`（57 行）：globalChatPartner、openChatTarget、openDirectChat/openGroupChat、open-chat-modal 监听、消息栏 Sider 与全局 ChatModal |
+| 横幅宿主 | P1-2 | `hooks/useShellBanners.ts`（232 行）+ `components/shell/ShellBanners.tsx`（217 行）：紧急单、搭档邀请、转让申请、onOrderPoolFocus / onBannerAction / onBannerFsAdapted、通知音；两个顶栏 Popover 拆成独立组件以保住 antd Space 间距 |
+| 语音与全局浮层 | P1-2 | `components/shell/VoiceCallHost.tsx`（126 行）：IncomingCallModal / VoiceCallBar / ServiceStartOverlay + 自检入口与通话镜像 effect；`useVoiceCall` 保留在 AppLayout 以维持 effect 顺序 |
+| 实时回调 | P1-2 | `hooks/useShellRealtime.ts`（741 行）：原 `useSocket({...约 40 个业务回调})` 整块原样搬出，事件名 / payload / 文案 / 去重时间零变化 |
+| 收口 | — | `AppLayout.tsx` **2,055 → 895 行（-1,160）**；web 27 文件 / 164 用例、typecheck、loading / stat-cards 守门全绿；临时运行时 smoke（OWNER + COMPANION）验证布局 / 菜单 / 顶栏 / 两个横幅 Popover 全部正常 |
+
+> 行为等价要点：antd `<Space>` 按直接子节点包 item，所以两个顶栏 Popover 不能合并成一个组件；`useVoiceCall` 的挂载 effect 依赖父组件先建立 socket，因此保留在 AppLayout；导航 Sider 仍是外层 Layout 直接子节点，`ant-layout-has-sider` 不受影响。
+
+### 第 26 批 · 已完成（2026-10-17，orders.service 拆到 1,385 行）
+
+| 任务 | 对应问题 | 交付 |
+|---|---|---|
+| 补单 / 复核子域 | P1-1 | `order-exception.service.ts`（1,234 行）：补单 / 退单 / 报结果 / 复核 / 催反馈 + 7 个私有 helper |
+| 会话 / 搭档子域 | P1-1 | `order-session.service.ts`（730 行）：add/start/pause/resume/end session、搭档邀请、断线/超时清理、markCompanionsBusy、低价提醒 |
+| 转让子域 | P1-1 | `order-transfer.service.ts`（426 行）：申请 / 同意 / 拒绝 / 撤回 / 过期清理 / applyTransfer |
+| 只读查询子域 | P1-1 | `order-query.service.ts`（746 行）：findPool / findAll / findOne / 抢单池状态 / 紧急单 / 催单池 / 待开始 |
+| 收口 | P1-1 | `orders.service.ts` **4,244 → 1,385 行（-2,859）**，只留订单主流程与各子域门面；共迁出 **58 个类成员**，方法体与 HEAD 逐字节一致（仅可见性 / 静态类名改写），38 个门面签名一致；共享常量抽到 `order.constants.ts`；`orders.module.ts` 注册 4 个 provider；无 forwardRef、无循环依赖 |
+| 测试 | P0-1 | 服务端 **93 文件 / 910 用例全绿**（每拆一个子域都单独跑过 typecheck + 相关测试） |
+
+> 验收口径：`orders.service.ts` 行数（1,385 < 1,500）、`pnpm --filter @chunlv/server typecheck`、全量 test 93/910。
+> 剩余可继续压：客服订单操作组（updateContact / claim / redispatch / joinRoom 等）可再抽 `order-cs.service.ts`，本轮按计划收手控制风险。
+
 ### 第 25 批 · 已完成（2026-10-17，前后端结构重构：订单子域 + 外壳角标 + Socket 单连接 + 实时看板）
 
 | 任务 | 对应问题 | 交付 | 提交 |

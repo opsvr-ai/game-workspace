@@ -186,7 +186,12 @@ function build() {
     rawHttpDecorators += (text.match(new RegExp('@(?:' + HTTP_METHODS.join('|') + ')\\(', 'g')) || []).length;
     // 出站事件不只在 gateway 文件里：heartbeat.service.ts 也直接往房间里推
     // （entertainment:warning / status:broadcast）。凡是引用 WsGateway 的文件都算。
-    scanFile(rel, text, acc, /wsgateway/i.test(text));
+    // 2026-10-17 拆分后：广播语义搬进了 ws/ws-emitter.service.ts / ws-blacklist.service.ts /
+    // ws-voice.service.ts —— 它们不引用 WsGateway 文本，但拿到的是 socket.io 的 Server 实例，
+    // 所以「引用了 socket.io 的 Server」也算出站候选；否则契约会比真实事件少（拆分前 19 → 拆分后 9）。
+    const isOutboundCandidate =
+      /wsgateway/i.test(text) || /from\s+['"]socket\.io['"]/.test(text) || /@WebSocketGateway/.test(text);
+    scanFile(rel, text, acc, isOutboundCandidate);
   }
 
   const http = compareAndSort(acc.endpoints, (e) => e.method + ' ' + e.path);
