@@ -1,13 +1,13 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert, Button, Col, Collapse, Descriptions, Divider, Drawer, Dropdown, Form, Input, Modal,
+  Alert, Button, Col, Collapse, Descriptions, Drawer, Dropdown, Form, Input, Modal,
   Popconfirm, Row, Segmented, Select, Space, Table, Tag, Tooltip, Typography,
 } from 'antd';
 import { message } from '../../utils/feedback';
 import {
   CheckCircleOutlined, CloudDownloadOutlined, CopyOutlined, DesktopOutlined,
-  DownloadOutlined, ExclamationCircleOutlined, LogoutOutlined, PoweroffOutlined,
+  ExclamationCircleOutlined, LinkOutlined, LogoutOutlined, PoweroffOutlined,
   RedoOutlined, ReloadOutlined, SafetyCertificateOutlined, SearchOutlined, SendOutlined,
   StopOutlined, SyncOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
@@ -185,10 +185,6 @@ const DevicesPanel: React.FC = () => {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
   const downloadOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-  // 2026-10-17 起不再区分「管理端 / 陪玩端」安装包：登录什么就是什么。
-  // 陪玩端这个包已经能覆盖客服 / 店长 / 老板（外壳按登录角色开关陪玩专属能力），
-  // 所以弹窗里只留这一个通用包，避免再让人从两个 exe 里选。
-  const clientDownloadUrl = downloadOrigin + '/api/agent/download/exe';
   // 发给对方的那条「新电脑一键装机」链接：服务端 uploads/ 下的固定文件（改一个文件 = 改所有新装机）
   const setupPcUrl = downloadOrigin + '/uploads/setup-pc.bat';
 
@@ -940,8 +936,8 @@ const DevicesPanel: React.FC = () => {
         title='电脑'
         extra={
           <Space wrap>
-            <Tooltip title='新电脑首次安装用；已经在用的电脑会自动更新，不用点这里'>
-              <Button icon={<DownloadOutlined />} onClick={() => setDownloadModalOpen(true)}>下载安装包</Button>
+            <Tooltip title='复制新电脑装机链接发给对方；不用把安装包下到这台电脑'>
+              <Button icon={<LinkOutlined />} onClick={() => setDownloadModalOpen(true)}>装机链接</Button>
             </Tooltip>
             <Tooltip title='页面每 10 秒自动刷新；这里可手动立即刷新'>
               <Button icon={<ReloadOutlined />} loading={loading} onClick={refreshAll}>刷新</Button>
@@ -1210,7 +1206,7 @@ const DevicesPanel: React.FC = () => {
       </Modal>
 
       <Modal
-        title={<><DownloadOutlined /> 下载安装包</>}
+        title={<><LinkOutlined /> 装机链接</>}
         open={downloadModalOpen}
         onCancel={() => setDownloadModalOpen(false)}
         footer={null}
@@ -1234,25 +1230,9 @@ const DevicesPanel: React.FC = () => {
               </Text>
             </div>
           </div>
-          <Divider style={{ margin: 0 }} />
-          <div>
-            <Text strong>📦 通用客户端安装包（陪玩 / 客服 / 店长 / 老板都装这一个）</Text>
-            <div style={{ marginTop: 6 }}>
-              <Input value={clientDownloadUrl} readOnly />
-            </div>
-            <Space style={{ marginTop: 8 }}>
-              <Button type='primary' icon={<DownloadOutlined />} href={clientDownloadUrl}>下载</Button>
-              <Button icon={<CopyOutlined />} onClick={() => copyText(clientDownloadUrl, '客户端链接')}>复制链接</Button>
-            </Space>
-            <div style={{ marginTop: 6 }}>
-              <Text type='secondary' style={{ fontSize: 12 }}>
-                登录什么就是什么：登陪玩账号就是陪玩端，登客服 / 店长 / 老板账号就是管理端；
-                不再按「管理端 / 陪玩端」发两个安装包。新电脑优先用上面的「一键装机」。
-              </Text>
-            </div>
-          </div>
           <Text type='secondary' style={{ fontSize: 12 }}>
-            把「复制链接」得到的地址发给对方，对方浏览器打开即可下载安装（服务端已经是公网地址，外地工作室直接用这个就行）。
+            复制后直接发给对方即可，你不用在这台电脑上下载安装包。
+            对方点开链接 → 双击下载下来的 setup-pc.bat，就会自动完成装机（服务端已经是公网地址，外地工作室直接用这个就行）。
           </Text>
         </Space>
       </Modal>
