@@ -331,7 +331,8 @@ export class AgentController {
       res.status(404).json({ code: 404, message: '安装包不存在，请先构建', data: null });
       return;
     }
-    res.download(exePath, '陪玩管理-Setup.exe');
+    // 2026-10-18：安装器显示名统一「蠢驴电竞」，下载文件名也用中性名。
+    res.download(exePath, '蠢驴电竞-Setup.exe');
   }
 
   // Public: 客服端自动更新专用 —— 返回 win-unpacked 的 zip。

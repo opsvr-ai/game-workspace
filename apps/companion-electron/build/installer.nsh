@@ -8,14 +8,15 @@
 ; 于是「装完那一刻」才弹这个错 —— 用户和客服都看不出原因。
 ; x64.nsh 是 electron-builder 自带 NSIS 里的标准宏（含 include guard，重复 include 无害）。
 !include "x64.nsh"
-; Force install directory to use product name (陪玩管理), not package name (@chunlvcompanion-electron)
+; Force install directory to use the legacy path (陪玩管理), not package name (@chunlvcompanion-electron).
+; 2026-10-18：安装器/开始菜单显示名改成「蠢驴电竞」，但目录/exe 保持 陪玩管理（自动更新/看门狗兼容）。
 !macro preInit
   ; ── Step -2: 32 位系统在动任何文件之前就拦住（2026-10-07）──────────────
   ; 32 位机器装了也跑不起来，还会白建运维账号 chunlvops、白装一份 x64 看门狗。
   ; 判定用 ${RunningX64}：只拦「操作系统本身是 32 位」的机器；ARM64 的 Windows
   ; 会走 x64 模拟，RunningX64 为真，不受影响。
   ${IfNot} ${RunningX64}
-    MessageBox MB_ICONSTOP|MB_OK "这台电脑是 32 位 Windows，装不了「陪玩管理」。$\r$\n陪玩端只能在 64 位 Windows 10 / 11 上运行。$\r$\n请把这句话转告管理员（他会安排换 64 位系统，或者先用网页版）。$\r$\n急用可以先开网页版 —— 用浏览器打开下面这个地址，不用装任何东西：$\r$\n    http://1.117.229.36:3001$\r$\n想自己确认一下：右键「此电脑」→「属性」→ 看「系统类型」写的是不是「32 位操作系统」。$\r$\n（或者按住键盘最下面那一排的 Windows 键不放，再按一下 Pause Break 键。）"
+    MessageBox MB_ICONSTOP|MB_OK "这台电脑是 32 位 Windows，装不了「蠢驴电竞客户端」。$\r$\n陪玩端只能在 64 位 Windows 10 / 11 上运行。$\r$\n请把这句话转告管理员（他会安排换 64 位系统，或者先用网页版）。$\r$\n急用可以先开网页版 —— 用浏览器打开下面这个地址，不用装任何东西：$\r$\n    http://1.117.229.36:3001$\r$\n想自己确认一下：右键「此电脑」→「属性」→ 看「系统类型」写的是不是「32 位操作系统」。$\r$\n（或者按住键盘最下面那一排的 Windows 键不放，再按一下 Pause Break 键。）"
     Abort
   ${EndIf}
 
@@ -67,7 +68,9 @@
 
   ; ── Step 2: Delete old install files ──
   Delete "$INSTDIR\Uninstall 陪玩管理.exe"
+  Delete "$INSTDIR\Uninstall 蠢驴电竞.exe"
   Delete "$PROGRAMFILES64\陪玩管理\Uninstall 陪玩管理.exe"
+  Delete "$PROGRAMFILES64\陪玩管理\Uninstall 蠢驴电竞.exe"
   Delete "$PROGRAMFILES\陪玩管理\Uninstall 陪玩管理.exe"
   Delete "$LOCALAPPDATA\Programs\陪玩管理\Uninstall 陪玩管理.exe"
   RMDir /r "$INSTDIR"
@@ -90,7 +93,7 @@
 
   ; ── Step 3: Kill again after cleanup ──
   ; 装完再兜一次（同上面那处，原来那条过滤器 taskkill 解析不了）
-  nsExec::ExecToLog 'cmd /c "taskkill /f /im 陪玩管理.exe /t 2>nul"'
+  nsExec::ExecToLog 'cmd /c "taskkill /f /im 陪玩管理.exe /t 2>nul & taskkill /f /im 蠢驴电竞.exe /t 2>nul"'
   Sleep 1000
 !macroend
 

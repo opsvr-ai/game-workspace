@@ -1,5 +1,10 @@
 appId: com.chunlv.companion
-productName: 陪玩管理
+# 2026-10-18：老板要求安装器 / 开始菜单也彻底改名。productName 改为中性品牌，
+# 但 **exe 名 + 安装目录继续用「陪玩管理」**（win.executableName + installer.nsh 写死）——
+# 自动更新包、看门狗路径、换端脚本都按这个目录/exe 认客户端，改了会让存量机器更新后起不来。
+# 用户能看到的：安装器标题 / 开始菜单 / 应用列表 / 桌面图标 = 蠢驴电竞；安装目录仍是 陪玩管理。
+productName: 蠢驴电竞
+artifactName: 蠢驴电竞-Setup-${version}.${ext}
 directories:
   output: release
 files:
@@ -21,6 +26,8 @@ extraResources:
     to: tray-companion.png
 win:
   icon: public/donkey.ico
+  # 保持 exe 名不变：自动更新 zip 按 win-unpacked 整包替换，看门狗按当前 exe 认客户端。
+  executableName: 陪玩管理
   target:
     - target: nsis
       arch: [x64]
@@ -30,7 +37,8 @@ nsis:
   perMachine: true
   runAfterFinish: true
   createDesktopShortcut: true
-  shortcutName: 陪玩管理
+  shortcutName: 蠢驴电竞
+  uninstallDisplayName: 蠢驴电竞
   installerIcon: public/donkey.ico
   uninstallerIcon: public/donkey.ico
   installerHeaderIcon: public/donkey.ico

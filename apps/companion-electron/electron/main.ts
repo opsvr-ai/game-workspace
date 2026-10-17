@@ -293,11 +293,12 @@ function maybeCheckUpdates(): void {
 }
 
 // 更新流程是由看门狗把 zip 直接覆盖解压到 C:\Program Files\陪玩管理，
-// 不会再跑一次 NSIS 安装器。老机器如果桌面快捷方式还指向旧目录
+// 不会再跑一次 NSIS 安装器。老机器如果快捷方式还指向旧目录
 // （陪玩管理 / 客服管理 / 蠢驴电竞 / @chunlvcompanion-electron），更新后快捷方式就会变空白或消失。
-// 因此客户端每次启动时，都在当前用户桌面重建/校正「蠢驴电竞」快捷方式，
+// 因此客户端每次启动时，都在当前用户桌面 / 开始菜单重建/校正「蠢驴电竞」快捷方式，
 // 确保它永远指向本次正在运行的 exe。
-// 注意：安装目录 / productName 不动（看门狗和自动更新都用它），这里只改用户能看见的名字。
+// 注意：安装目录 / exe 名不动（看门狗和自动更新都用它），安装器/开始菜单显示名已改「蠢驴电竞」；
+// 这里把存量机器（自动更新不跑安装器）的开始菜单也补成中性名。
 function ensureDesktopShortcut(): void {
   // 开发模式（electron.exe）不创建快捷方式，避免污染开发机桌面。
   if (!app.isPackaged) return;
@@ -316,36 +317,69 @@ function ensureDesktopShortcut(): void {
   } catch {
     return;
   }
-  // 统一客户端只保留一个中性品牌：桌面图标叫「蠢驴电竞」。
-  const lnk = path.join(desktop, '蠢驴电竞.lnk');
+  // 统一客户端只保留一个中性品牌：桌面 / 开始菜单都叫「蠢驴电竞」。
+  const desktopLnk = path.join(desktop, '蠢驴电竞.lnk');
   const dir = path.dirname(target);
-  // 老版本 perMachine 安装器会把快捷方式放到「公共桌面」，当前用户桌面也会有我们新建的图标；
-  // 两个桌面都要清理，否则会同时出现「陪玩管理」「客服管理」「蠢驴电竞」好几个图标。
   let publicDesktop = '';
   try {
     publicDesktop = path.join(path.dirname(app.getPath('home')), 'Public', 'Desktop');
   } catch {
     publicDesktop = '';
   }
+  // 当前用户的开始菜单（普通权限可写）；公共开始菜单只清理（perMachine 安装的那份需要管理员，删不掉就留给安装器）。
+  let userStartMenu = '';
+  let commonStartMenu = '';
+  try {
+    userStartMenu = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs');
+  } catch {
+    userStartMenu = '';
+  }
+  try {
+    commonStartMenu = path.join(String(process.env.ProgramData || 'C:\\ProgramData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs');
+  } catch {
+    commonStartMenu = '';
+  }
+  const userStartLnk = userStartMenu ? path.join(userStartMenu, '蠢驴电竞.lnk') : '';
   const q = (v: string) => `'${v.replace(/'/g, "''")}'`;
   const script = [
     `$ErrorActionPreference='SilentlyContinue'`,
     `$w=New-Object -ComObject WScript.Shell`,
-    `$s=$w.CreateShortcut(${q(lnk)})`,
+    `$s=$w.CreateShortcut(${q(desktopLnk)})`,
     `$s.TargetPath=${q(target)}`,
     `$s.WorkingDirectory=${q(dir)}`,
     `$s.IconLocation=${q(`${target},0`)}`,
     `$s.Description='蠢驴电竞'`,
     `$s.Save()`,
+    // 开始菜单：新装机器的安装器已经建了公共「蠢驴电竞.lnk」；存量机器（自动更新不跑安装器）只有旧的
+    // 「陪玩管理.lnk」，这里补一个用户级「蠢驴电竞.lnk」。已有中性快捷方式时不再重复建，避免两个入口。
+    `$startDirs = @(${q(userStartMenu)}${commonStartMenu ? `,${q(commonStartMenu)}` : ''})`,
+    `$hasNeutral = $false`,
+    `foreach($d in $startDirs){ if (Test-Path -LiteralPath (Join-Path $d '蠢驴电竞.lnk')) { $hasNeutral = $true } }`,
+    `if (-not $hasNeutral -and ${userStartLnk ? `(Test-Path -LiteralPath ${q(userStartMenu)})` : '$false'}) {`,
+    `  $u=$w.CreateShortcut(${q(userStartLnk)})`,
+    `  $u.TargetPath=${q(target)}`,
+    `  $u.WorkingDirectory=${q(dir)}`,
+    `  $u.IconLocation=${q(`${target},0`)}`,
+    `  $u.Description='蠢驴电竞'`,
+    `  $u.Save()`,
+    `}`,
     // 清理旧名称/旧目录造成的失效或重复快捷方式，避免桌面出现空白图标或三四个一样的图标。
     // 旧名字包含：陪玩管理（老陪玩端）、客服管理（客服端）、蠢驴电竞（更老的品牌）、chunlv（旧目录名）。
-    // 注意：枚举桌面快捷方式必须用 -Path，不能用 -LiteralPath，否则 *.lnk 不会被展开，
+    // 注意：枚举快捷方式必须用 -Path，不能用 -LiteralPath，否则 *.lnk 不会被展开，
     // 旧快捷方式就一直删不掉，才会出现桌面上两个图标。
     `$desktops = @(${q(desktop)}${publicDesktop ? `,${q(publicDesktop)}` : ''})`,
     `foreach($d in $desktops){`,
     `  Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {`,
     `    if ($_.Name -notmatch '陪玩管理|客服管理|蠢驴电竞|chunlv') { return }`,
-    `    if ($_.FullName -eq ${q(lnk)}) { return }`,
+    `    if ($_.FullName -eq ${q(desktopLnk)}) { return }`,
+    `    $t=$w.CreateShortcut($_.FullName).TargetPath`,
+    `    if (-not $t -or -not (Test-Path -LiteralPath $t) -or ($t -ieq ${q(target)})) { Remove-Item -LiteralPath $_.FullName -Force }`,
+    `  }`,
+    `}`,
+    `foreach($d in $startDirs){`,
+    `  if (-not (Test-Path -LiteralPath $d)) { continue }`,
+    `  Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {`,
+    `    if ($_.Name -notmatch '陪玩管理|客服管理|chunlv') { return }`,
     `    $t=$w.CreateShortcut($_.FullName).TargetPath`,
     `    if (-not $t -or -not (Test-Path -LiteralPath $t) -or ($t -ieq ${q(target)})) { Remove-Item -LiteralPath $_.FullName -Force }`,
     `  }`,
@@ -357,7 +391,7 @@ function ensureDesktopShortcut(): void {
     ['-NoProfile', '-NonInteractive', '-Command', script],
     { windowsHide: true },
     (err) => {
-      if (err) logger.warn('Desktop shortcut failed', { target, error: err?.message || String(err) });
+      if (err) logger.warn('Shortcut repair failed', { target, error: err?.message || String(err) });
     },
   );
 }

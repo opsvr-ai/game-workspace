@@ -596,13 +596,15 @@ Electron 客户端 是运行在陪玩师电脑上的桌面客户端，通过 Web
   Copy-Item dist-electron/preload.js preload-dist/preload.js -Force
   npx electron-builder
   ```
-  安装包输出 `release/陪玩管理 Setup <版本>.exe`（artifact 名沿用旧名，避免改发布脚本/下载路径）。
-- **当前线上版本：`1.0.20261026`（2026-10-17 发布，`agent.latest_version`）**；发布前旧包备份在
-  `uploads/chunlv-latest.zip.bak-20261017-2310` / `agent-setup.exe.bak-20261017-2310`，
-  回滚时恢复文件并把 `agent.latest_version` 改回 `1.0.20261025`。
+  安装包输出 `release/蠢驴电竞-Setup-<版本>.exe`（`productName`/`shortcutName`/`uninstallDisplayName` = 蠢驴电竞；
+  **exe 名和安装目录仍是 `陪玩管理`**，`win.executableName` + `installer.nsh` 写死，保证自动更新/看门狗/换端兼容）。
+- **当前线上版本：`1.0.20261027`（2026-10-18 发布，`agent.latest_version`）**；旧包备份
+  `uploads/*.bak-20261017-2310`，回滚时恢复文件并把 `agent.latest_version` 改回 `1.0.20261026`。
 - **更新包下发总带宽**：`apps/server/.env` 的 `UPDATE_DOWNLOAD_KBPS`（默认 300，按「所有正在下载的机器共享」算）。
   统一客户端首轮铺开时多家店同时下载会把每路压到几十 KB/s，128MB 包会超过客户端 30 分钟下载超时；
   2026-10-17 已调到 `1024`（约 1MB/s 总额度，8 路并发时每路约 128KB/s，单包约 17 分钟）。调整后需 `pm2 restart chunlv-server`。
+- **存量机器改名**：自动更新只换 app 文件、不跑安装器；客户端启动时会补用户级开始菜单「蠢驴电竞.lnk」并清理旧名。
+  新装机器安装器直接建「蠢驴电竞」；安装目录仍在 `C:\Program Files\陪玩管理`（隐藏细节，不影响用户）。
 
 ### 5.1 编译 Agent
 

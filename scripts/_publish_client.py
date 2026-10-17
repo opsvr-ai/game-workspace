@@ -17,6 +17,7 @@ REMOTE_ZIP = "/apps/server/game-workspace/uploads/chunlv-latest.zip"
 LOCAL_RELEASE = r"E:\source_code\game-workspace\apps\companion-electron\release"
 REMOTE_SETUP = "/apps/server/game-workspace/uploads/agent-setup.exe"
 REMOTE_SETUP_CN = "/apps/server/game-workspace/uploads/陪玩管理-Setup.exe"
+REMOTE_SETUP_NEUTRAL = "/apps/server/game-workspace/uploads/蠢驴电竞-Setup.exe"
 # uploads/ 是 root 所有：SFTP（ubuntu 登录）写不进去。
 # 统一「先传到 ubuntu 可写的 STAGE，再用 sudo 原子改名就位」——细节见 _deploy_server_cloud.py 顶部。
 STAGE = "/home/ubuntu/chunlv-stage"
@@ -65,18 +66,24 @@ def upload_setup(c):
 
     新电脑走 /api/agent/download/exe 拿安装包，而它读的就是 uploads/agent-setup.exe。
     2026-09-21 踩过：只发了更新包没换装机包，结果新装的机器一上来就是旧版本。
+    2026-10-18：安装器 artifact 改名「蠢驴电竞-Setup-<版本>.exe」，这里两种名字都认。
     """
-    name = f"陪玩管理 Setup {VERSION}.exe"
-    local = os.path.join(LOCAL_RELEASE, name)
-    if not os.path.exists(local):
-        print(f"!! 未找到装机包 {name}，装机包保持原样（先跑 electron-builder --win）")
+    candidates = [
+        f"蠢驴电竞-Setup-{VERSION}.exe",
+        f"蠢驴电竞 Setup {VERSION}.exe",
+        f"陪玩管理 Setup {VERSION}.exe",
+    ]
+    local = next((os.path.join(LOCAL_RELEASE, n) for n in candidates if os.path.exists(os.path.join(LOCAL_RELEASE, n))), "")
+    if not local:
+        print(f"!! 未找到装机包（试过 {candidates}），装机包保持原样（先跑 electron-builder --win）")
         return
+    name = os.path.basename(local)
     ensure_stage(c)
     sftp = c.open_sftp()
-    for remote in (REMOTE_SETUP, REMOTE_SETUP_CN):
+    for remote in (REMOTE_SETUP, REMOTE_SETUP_CN, REMOTE_SETUP_NEUTRAL):
         sftp.put(local, staged(remote))
     sftp.close()
-    for remote in (REMOTE_SETUP, REMOTE_SETUP_CN):
+    for remote in (REMOTE_SETUP, REMOTE_SETUP_CN, REMOTE_SETUP_NEUTRAL):
         _in, out, err = c.exec_command(f"sudo -n mv -f '{staged(remote)}' '{remote}' && sudo -n md5sum '{remote}'")
         print(out.read().decode("utf-8", "replace").strip())
         e = err.read().decode("utf-8", "replace").strip()
