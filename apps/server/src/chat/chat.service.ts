@@ -2,6 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BridgeService } from '../studios/bridge.service';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 @Injectable()
 export class ChatService {
@@ -23,7 +24,7 @@ export class ChatService {
     const groupName = `${studio?.name || '工作室'}群聊`;
 
     let room = await this.prisma.chatRoom.findFirst({
-      where: { studioId, isGroup: true },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), isGroup: true },
     });
 
     if (!room) {
@@ -58,7 +59,7 @@ export class ChatService {
   /** Make sure every user currently assigned to the studio is a member of its group room. */
   async syncStudioGroupMembers(studioId: string, roomId: string) {
     const users = await this.prisma.user.findMany({
-      where: { studioId },
+      where: scopeWhere(actorOfStudio(studioId, 'ADMIN')),
       select: { id: true },
     });
     if (users.length === 0) return;
@@ -225,7 +226,7 @@ export class ChatService {
     const where: any = {
       OR: [
         { isGroup: false, OR: [{ participantA: userId }, { participantB: userId }] },
-        { studioId, isGroup: true, members: { some: { userId } } },
+        { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), isGroup: true, members: { some: { userId } } },
       ],
       ...(opts?.pinned ? { pinned: true } : {}),
     };
@@ -668,7 +669,7 @@ export class ChatService {
         OR: [
           { isGroup: false, participantA: userId, archived: false },
           { isGroup: false, participantB: userId, archived: false },
-          { studioId, isGroup: true, archived: false, members: { some: { userId } } },
+          { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), isGroup: true, archived: false, members: { some: { userId } } },
         ],
       },
       select: { id: true },
@@ -688,7 +689,7 @@ export class ChatService {
       where: {
         OR: [
           { isGroup: false, OR: [{ participantA: userId }, { participantB: userId }] },
-          { studioId, isGroup: true, members: { some: { userId } } },
+          { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), isGroup: true, members: { some: { userId } } },
         ],
       },
       select: { id: true, participantA: true, participantB: true, isGroup: true, lastMessageSeq: true },
@@ -871,7 +872,7 @@ export class ChatService {
 
   async getRecentMessages(studioId: string, since: Date) {
     return this.prisma.chatMessageLegacy.findMany({
-      where: { studioId, createdAt: { gte: since } },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), createdAt: { gte: since } },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -879,7 +880,7 @@ export class ChatService {
 
   async getMessages(studioId: string, orderId: string, limit = 200) {
     return this.prisma.chatMessageLegacy.findMany({
-      where: { studioId, orderId },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), orderId },
       orderBy: { createdAt: 'asc' },
       take: limit,
     });
@@ -898,7 +899,7 @@ export class ChatService {
     const ids = orderIds.map((o: { id: string }) => o.id);
     return this.prisma.chatMessageLegacy.findMany({
       where: {
-        studioId,
+        ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
         OR: [
           { senderId: otherUserId },
           ...(userId && userId !== otherUserId ? [{ senderId: userId }] : []),

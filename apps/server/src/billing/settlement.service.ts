@@ -13,6 +13,7 @@ import { computeWithdrawable } from '../common/withdrawable';
 import { roundToJiao } from '../common/money';
 import { resolveCompanionPctTiered, effectiveTenureMonths } from '../common/revenue-calculator';
 import { resolveConfigs } from '../common/studio-config';
+import { actorOfStudio, scopeWhere as scopeClause } from '../common/scope';
 
 @Injectable()
 export class SettlementService {
@@ -31,7 +32,7 @@ export class SettlementService {
 
     // Get all companions in studio
     const companions = await this.prisma.companion.findMany({
-      where: { studioId },
+      where: scopeClause(actorOfStudio(studioId, 'ADMIN')),
       select: { id: true, balance: true, revenueShare: true, createdAt: true, isSeniorStaff: true, user: { select: { username: true } } },
     });
 
@@ -154,7 +155,7 @@ export class SettlementService {
 
     // All companions in studio (for dropdown)
     const allCompanions = await this.prisma.companion.findMany({
-      where: { studioId },
+      where: scopeClause(actorOfStudio(studioId, 'ADMIN')),
       select: { id: true, user: { select: { username: true } } },
     });
 
@@ -179,7 +180,7 @@ export class SettlementService {
 
     // Today's DONE revenue
     const todayRows = await this.prisma.order.findMany({
-      where: { studioId, status: 'DONE', ...scopeWhere, createdAt: { gte: todayStart, lt: todayEnd } },
+      where: { ...scopeClause(actorOfStudio(studioId)), status: 'DONE', ...scopeWhere, createdAt: { gte: todayStart, lt: todayEnd } },
       select: orderSelect,
     });
 
@@ -190,7 +191,7 @@ export class SettlementService {
 
     const monthRows = await this.prisma.order.findMany({
       where: {
-        studioId,
+        ...scopeClause(actorOfStudio(studioId)),
         status: 'DONE',
         ...scopeWhere,
         createdAt: { gte: monthStart, lt: monthEnd },
@@ -201,7 +202,7 @@ export class SettlementService {
 
     // 历史累计（只用于展示）
     const totalRows = await this.prisma.order.findMany({
-      where: { studioId, status: 'DONE', ...scopeWhere },
+      where: { ...scopeClause(actorOfStudio(studioId)), status: 'DONE', ...scopeWhere },
       select: orderSelect,
     });
 
@@ -219,7 +220,7 @@ export class SettlementService {
       todayBoost = manualTodayBoost(comp, new Date());
     } else {
       const depAgg = await this.prisma.companion.aggregate({
-        where: { studioId },
+        where: scopeClause(actorOfStudio(studioId)),
         _sum: { deposit: true },
       });
       deposit = depAgg._sum.deposit ?? 0;
@@ -318,7 +319,7 @@ export class SettlementService {
     // Total revenue from DONE orders
     const revenueAgg = await this.prisma.order.aggregate({
       where: {
-        studioId,
+        ...scopeClause(actorOfStudio(studioId)),
         status: 'DONE',
         createdAt: { gte: startOfMonth, lt: endOfMonth },
       },
@@ -328,7 +329,7 @@ export class SettlementService {
     // Total expenses
     const expenseAgg = await this.prisma.expense.aggregate({
       where: {
-        studioId,
+        ...scopeClause(actorOfStudio(studioId)),
         date: { gte: startOfMonth, lt: endOfMonth },
       },
       _sum: { amount: true },
@@ -350,14 +351,14 @@ export class SettlementService {
     const { start, end } = businessDayRange(date);
 
     const orders = await this.prisma.order.aggregate({
-      where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
+      where: { ...scopeClause(actorOfStudio(studioId, 'ADMIN')), status: 'DONE', createdAt: { gte: start, lt: end } },
       _sum: { amount: true },
     });
     return {
       date,
       totalRevenue: orders._sum.amount ?? 0,
       orderCount: await this.prisma.order.count({
-        where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
+        where: { ...scopeClause(actorOfStudio(studioId, 'ADMIN')), status: 'DONE', createdAt: { gte: start, lt: end } },
       }),
     };
   }
@@ -366,14 +367,14 @@ export class SettlementService {
     const { start, end } = settlementMonthRange(month);
 
     const orders = await this.prisma.order.aggregate({
-      where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
+      where: { ...scopeClause(actorOfStudio(studioId, 'ADMIN')), status: 'DONE', createdAt: { gte: start, lt: end } },
       _sum: { amount: true },
     });
     return {
       month,
       totalRevenue: orders._sum.amount ?? 0,
       orderCount: await this.prisma.order.count({
-        where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
+        where: { ...scopeClause(actorOfStudio(studioId, 'ADMIN')), status: 'DONE', createdAt: { gte: start, lt: end } },
       }),
     };
   }

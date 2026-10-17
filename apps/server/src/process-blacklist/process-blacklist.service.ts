@@ -7,6 +7,7 @@ import {
   resolveStudioBlacklistEnabled,
 } from '../common/blacklist-switch';
 import { saveStudioConfigs } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 @Injectable()
 export class ProcessBlacklistService {
@@ -15,7 +16,8 @@ export class ProcessBlacklistService {
   // ── Blacklist CRUD ──
 
   async listBlacklist(studioId: string, page = 1, pageSize = 20) {
-    const where = { studioId };
+    // 统一作用域：严格本店（没有店就一条都不给，老代码 `{ studioId }` 的 null 语义不变）
+    const where: any = scopeWhere(actorOfStudio(studioId, 'ADMIN'));
     const [items, total] = await Promise.all([
       this.prisma.processBlacklist.findMany({
         where,
@@ -86,7 +88,7 @@ export class ProcessBlacklistService {
 
     // 只使用「状态黑名单」：陪玩处于哪个状态，就套用该状态下的黑名单
     const statusEntries = await this.prisma.companionStatusBlacklist.findMany({
-      where: { studioId: companion.studioId, status: companion.status },
+      where: { ...scopeWhere(actorOfStudio(companion.studioId, 'ADMIN')), status: companion.status },
       select: { processName: true },
     });
 
@@ -132,7 +134,7 @@ export class ProcessBlacklistService {
     const ids = Object.keys(next);
     if (ids.length) {
       const alive = await this.prisma.companion.findMany({
-        where: { id: { in: ids }, studioId },
+        where: { id: { in: ids }, ...scopeWhere(actorOfStudio(studioId, 'ADMIN')) },
         select: { id: true },
       });
       const aliveIds = new Set(alive.map((c) => c.id));
@@ -160,7 +162,7 @@ export class ProcessBlacklistService {
   async getWhitelist(studioId: string): Promise<{ processName: string; isSystem: boolean }[]> {
     await this.ensureBuiltinWhitelist(studioId);
     const entries = await this.prisma.processWhitelist.findMany({
-      where: { studioId },
+      where: scopeWhere(actorOfStudio(studioId, 'ADMIN')),
       orderBy: [{ isSystem: 'desc' }, { processName: 'asc' }],
     });
     return entries.map((e) => ({ processName: e.processName, isSystem: e.isSystem }));
@@ -183,7 +185,7 @@ export class ProcessBlacklistService {
 
   async listPendingDisable(studioId: string) {
     return this.prisma.processPendingDisable.findMany({
-      where: { studioId },
+      where: scopeWhere(actorOfStudio(studioId, 'ADMIN')),
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -236,7 +238,7 @@ export class ProcessBlacklistService {
       where.companionId = companionId;
     } else {
       const companions = await this.prisma.companion.findMany({
-        where: { studioId },
+        where: scopeWhere(actorOfStudio(studioId, 'ADMIN')),
         select: { id: true },
       });
       where.companionId = { in: companions.map((c) => c.id) };
@@ -315,7 +317,7 @@ export class ProcessBlacklistService {
       where.companionId = companionId;
     } else {
       const companions = await this.prisma.companion.findMany({
-        where: { studioId },
+        where: scopeWhere(actorOfStudio(studioId, 'ADMIN')),
         select: { id: true },
       });
       where.companionId = { in: companions.map((c) => c.id) };
@@ -344,7 +346,7 @@ export class ProcessBlacklistService {
 
   async getStudioCompanionIds(studioId: string): Promise<string[]> {
     const companions = await this.prisma.companion.findMany({
-      where: { studioId },
+      where: scopeWhere(actorOfStudio(studioId, 'ADMIN')),
       select: { id: true },
     });
     return companions.map((c) => c.id);

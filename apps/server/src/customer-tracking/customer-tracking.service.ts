@@ -5,6 +5,7 @@ import { businessDayOf } from '../common/business-day';
 import { CompanionQuotaService } from '../orders/companion-quota.service';
 import { UserRole } from '@chunlv/shared';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 interface AuthUser {
   id: string;
@@ -134,7 +135,8 @@ export class CustomerTrackingService {
     if (user.companionId) {
       where.companionId = user.companionId;
     } else if (user.studioId) {
-      where.studioId = user.studioId;
+      // 统一作用域：本店（值确定非空，等价于老的 `where.studioId = user.studioId`）
+      Object.assign(where, scopeWhere(actorOfStudio(user.studioId)));
     }
     return this.prisma.customerTrack.findMany({
       where,
@@ -151,7 +153,8 @@ export class CustomerTrackingService {
     if (user.companionId) {
       where.companionId = user.companionId;
     } else if (user.studioId) {
-      where.studioId = user.studioId;
+      // 统一作用域：本店
+      Object.assign(where, scopeWhere(actorOfStudio(user.studioId)));
     }
     return this.prisma.customer.findMany({
       where,
@@ -167,7 +170,10 @@ export class CustomerTrackingService {
   /** 客户全链路轨迹：把进入系统、派单/重派、抢单、服务、联系、资金等按时间串联成一条时间线。 */
   async getJourney(user: AuthUser, customerId: string) {
     const where: any = { id: customerId };
-    if (user.role !== 'OWNER' && user.studioId) where.studioId = user.studioId;
+    if (user.role !== 'OWNER' && user.studioId) {
+      // 统一作用域：本店（老板不传店 = 全站，跟老逻辑一致）
+      Object.assign(where, scopeWhere(actorOfStudio(user.studioId)));
+    }
 
     const customer = await this.prisma.customer.findUnique({
       where,
@@ -335,7 +341,8 @@ export class CustomerTrackingService {
     if (user.companionId) {
       where.companionId = user.companionId;
     } else if (user.studioId) {
-      where.studioId = user.studioId;
+      // 统一作用域：本店
+      Object.assign(where, scopeWhere(actorOfStudio(user.studioId)));
     }
     return this.prisma.deletionRequest.findMany({
       where,
@@ -397,7 +404,7 @@ export class CustomerTrackingService {
   }
 
   async getKpi(user: AuthUser) {
-    const studioWhere: any = user.studioId ? { studioId: user.studioId } : {};
+    const studioWhere: any = scopeWhere(actorOfStudio(user.studioId));
     const [totalCustomers, consumedCustomers, retainedCustomers, trackedRecent, noReply, deletePending, notConsumed, trackedTimelyCustomers] =
       await Promise.all([
         this.prisma.customer.count({ where: studioWhere }),
@@ -431,7 +438,7 @@ export class CustomerTrackingService {
   }
 
   async listAnomalies(user: AuthUser) {
-    const studioWhere: any = user.studioId ? { studioId: user.studioId } : {};
+    const studioWhere: any = scopeWhere(actorOfStudio(user.studioId));
     const keys = ['anomaly.spend_drop_percent', 'anomaly.revenue_drop_percent', 'anomaly.hours_drop_percent'];
     const cfg = await resolveConfigsRaw(this.prisma, user.studioId ?? null, keys);
     const pct = typeof cfg['anomaly.spend_drop_percent'] === 'number' ? cfg['anomaly.spend_drop_percent'] : 50;

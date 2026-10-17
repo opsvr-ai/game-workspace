@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 @Injectable()
 export class AnalyticsService {
@@ -7,7 +8,7 @@ export class AnalyticsService {
 
   async customerAnalytics(studioId: string) {
     const customers = await this.prisma.customer.findMany({
-      where: { studioId },
+      where: scopeWhere(actorOfStudio(studioId)),
       include: {
         profile: true,
         companion: { include: { user: { select: { username: true } } } },
@@ -63,7 +64,7 @@ export class AnalyticsService {
 
   async companionAnalytics(studioId: string) {
     const companions = await this.prisma.companion.findMany({
-      where: { studioId },
+      where: scopeWhere(actorOfStudio(studioId)),
       include: {
         user: { select: { username: true } },
         orders: { where: { status: 'DONE' } },
@@ -115,7 +116,7 @@ export class AnalyticsService {
 
   async csAnalytics(studioId: string) {
     const users = await this.prisma.user.findMany({
-      where: { studioId, role: 'CS' },
+      where: { ...scopeWhere(actorOfStudio(studioId)), role: 'CS' },
       include: { csOrders: true, claimedOrders: true },
     });
     return users
@@ -144,7 +145,7 @@ export class AnalyticsService {
 
   async adminAnalytics(studioId: string) {
     const users = await this.prisma.user.findMany({
-      where: { studioId, role: 'ADMIN' },
+      where: { ...scopeWhere(actorOfStudio(studioId)), role: 'ADMIN' },
       include: { csOrders: true },
     });
     return users

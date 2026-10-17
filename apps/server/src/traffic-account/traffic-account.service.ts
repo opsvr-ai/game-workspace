@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 @Injectable()
 export class TrafficAccountService {
@@ -10,11 +11,12 @@ export class TrafficAccountService {
     const where: any = {};
     if (scope === 'studio') {
       // 发布订单等场景：显示本工作室全部引流账号（客服可替请假的同事看账号）
-      if (user.studioId) where.studioId = user.studioId;
+      if (user.studioId) Object.assign(where, scopeWhere(actorOfStudio(user.studioId)));
     } else if (user.role === 'COMPANION' || user.role === 'CS') {
       where.userId = user.id;
     } else if (user.studioId) {
-      where.studioId = user.studioId;
+      // 统一作用域：本店
+      Object.assign(where, scopeWhere(actorOfStudio(user.studioId)));
     }
     return this.prisma.trafficAccount.findMany({
       where,

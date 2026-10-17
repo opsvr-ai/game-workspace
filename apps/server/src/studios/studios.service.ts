@@ -2,6 +2,7 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertCanManage } from '../common/role-hierarchy';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 import * as bcrypt from 'bcryptjs';
 import { currentBusinessDayRange } from '../common/business-day';
 
@@ -168,7 +169,8 @@ export class StudiosService {
 
   async getEmployees(studioId?: string, studioType?: string, roleFilter?: string) {
     const where: any = { role: { not: 'OWNER' } };
-    if (studioId) where.studioId = studioId;
+    // 统一作用域：老板（不传店）看全部，传了店只看那家店（老代码 `if (studioId)` 同口径）
+    if (studioId) Object.assign(where, scopeWhere(actorOfStudio(studioId)));
     if (roleFilter) where.role = roleFilter;
     if (studioType) {
       where.studio = { type: studioType };
@@ -379,7 +381,8 @@ export class StudiosService {
 
   async getPaymentAccounts(studioId?: string) {
     return this.prisma.studioPaymentAccount.findMany({
-      where: studioId ? { studioId } : undefined,
+      // 统一作用域：老板（不传店）看全站，传了店只看那家店（null 时与老代码 `undefined` 等价：不加过滤）
+      where: scopeWhere(actorOfStudio(studioId)),
       orderBy: { createdAt: 'asc' },
     });
   }

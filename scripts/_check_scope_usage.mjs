@@ -226,6 +226,8 @@ const summary = {
 
 if (args.has('--json')) {
   console.log(JSON.stringify(summary, null, 2));
+  // 纯 JSON 模式：输出完就退出，别在后面掺人类可读报告（CI / 看板要能直接 JSON.parse）
+  if (!args.has('--update') && !args.has('--check')) process.exit(0);
 }
 
 if (args.has('--update')) {

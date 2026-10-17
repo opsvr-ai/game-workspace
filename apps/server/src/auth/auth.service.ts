@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { assertCanManage } from '../common/role-hierarchy';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 import {
   isResignedUser,
   pendingReviewWhere,
@@ -97,7 +98,7 @@ export class AuthService {
     if (user.role === 'OWNER' || user.role === 'ADMIN') {
       if (user.role === 'ADMIN' && user.studioId) {
         pendingReviewCount = await this.prisma.user.count({
-          where: { ...pendingReviewWhere(), studioId: user.studioId },
+          where: { ...pendingReviewWhere(), ...scopeWhere(actorOfStudio(user.studioId, 'ADMIN')) },
         });
       } else {
         pendingReviewCount = await this.prisma.user.count({ where: pendingReviewWhere() });
@@ -207,7 +208,7 @@ export class AuthService {
     if (user.role === 'OWNER' || user.role === 'ADMIN') {
       if (user.role === 'ADMIN' && user.studioId) {
         pendingReviewCount = await this.prisma.user.count({
-          where: { ...pendingReviewWhere(), studioId: user.studioId },
+          where: { ...pendingReviewWhere(), ...scopeWhere(actorOfStudio(user.studioId, 'ADMIN')) },
         });
       } else {
         pendingReviewCount = await this.prisma.user.count({ where: pendingReviewWhere() });
@@ -266,7 +267,7 @@ export class AuthService {
     await this.prisma.user.delete({ where: { id: userId } }).catch(() => {});
     // Also delete auto-created studio if it only has this user
     if (user?.studioId) {
-      const count = await this.prisma.user.count({ where: { studioId: user.studioId } });
+      const count = await this.prisma.user.count({ where: { ...scopeWhere(actorOfStudio(user.studioId, 'ADMIN')) } });
       if (count === 0) {
         await this.prisma.studio.delete({ where: { id: user.studioId } }).catch(() => {});
       }

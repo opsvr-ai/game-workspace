@@ -2,6 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BridgeService } from '../studios/bridge.service';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 /**
  * 待处理工作台（老板 2026-10-06）。
@@ -64,7 +65,13 @@ export class TodosService {
       isOwner || !studioId
         ? null
         : await this.bridge.getVisibleStudioIds(studioId).catch(() => [studioId]);
-    const studioWhere: any = visible ? { studioId: { in: visible } } : {};
+    // 统一作用域：本店 + 桥接店（visible 非空时 studioId 一定非空）；
+    // 老板 / 没有店的账号 = 不加过滤（跟老代码 `visible ? {...} : {}` 一致）。
+    const studioWhere: any = visible
+      ? scopeWhere(actorOfStudio(studioId as string, 'ADMIN'), {
+          bridgedIds: visible.filter((id) => id !== studioId),
+        })
+      : {};
     const companionScope: any = visible ? { companion: { studioId: { in: visible } } } : {};
 
     const orderReviewHref = isOwner ? '/owner/order-review' : isAdmin ? '/admin/order-review' : '/cs/order-review';
@@ -463,7 +470,8 @@ export class TodosService {
     if (isCs || isAdmin || isOwner) {
       const shots = await this.prisma.battleScreenshot
         .findMany({
-          where: { ...(studioId ? { studioId } : {}), status: 'PENDING' },
+          // 统一作用域：老板（没传店）看全部，店长 / 客服只看本店
+          where: { ...scopeWhere(actorOfStudio(studioId)), status: 'PENDING' },
           orderBy: { createdAt: 'asc' },
           take: 300,
           select: { id: true, createdAt: true, companion: { select: { user: { select: { displayName: true, username: true } } } } },

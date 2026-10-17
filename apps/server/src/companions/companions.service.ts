@@ -21,7 +21,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { StudiosService } from '../studios/studios.service';
 import { presence } from '../common/presence';
 import { notResignedWhere } from '../common/offboarding';
-import { actorOfUser, scopeWhere } from '../common/scope';
+import { actorOfStudio, actorOfUser, scopeWhere } from '../common/scope';
 import { logger } from '../common/logger';
 
 /**
@@ -1140,7 +1140,8 @@ export class CompanionsService {
       },
     });
     const onlineCompanions = await this.prisma.companion.findMany({
-      where: { studioId: companion?.studioId, status: { in: ['AVAILABLE', 'BUSY', 'ENTERTAINMENT'] } },
+      // 统一作用域：严格本店（陪玩档案没挂店就一条都不给，老代码 `{ studioId }` 的 null 语义不变）
+      where: { ...scopeWhere(actorOfStudio(companion?.studioId, 'ADMIN')), status: { in: ['AVAILABLE', 'BUSY', 'ENTERTAINMENT'] } },
       select: {
         id: true,
         status: true,
@@ -1523,7 +1524,8 @@ export class CompanionsService {
   // ── Status Blacklist CRUD ──
   async getStatusBlacklist(studioId: string, status: string) {
     return this.prisma.companionStatusBlacklist.findMany({
-      where: { studioId, status },
+      // 统一作用域：严格本店（没有店就一条都不给）
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), status },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -1541,7 +1543,8 @@ export class CompanionsService {
   async listStatusBlacklists(studioId: string) {
     studioId = await this.resolveStudioId(studioId);
     return this.prisma.companionStatusBlacklist.findMany({
-      where: { studioId },
+      // 统一作用域：严格本店（resolveStudioId 保证落到一家店；没店时 null 语义同老代码）
+      where: scopeWhere(actorOfStudio(studioId, 'ADMIN')),
       orderBy: { createdAt: 'desc' },
     });
   }

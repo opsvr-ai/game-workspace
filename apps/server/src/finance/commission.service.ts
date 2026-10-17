@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { settlementMonthRange, currentBusinessDayRange, businessDayOf } from '../common/business-day';
 import { yuanToCents, centsToYuan } from '../common/money';
 import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 import { successOrderWhere, outcomeOf, orderUnits, orderGrossYuan } from '../common/order-outcome';
 import {
   applyCsCommissionOverride,
@@ -27,7 +28,7 @@ export class CommissionService {
 
   async listRules(studioId: string) {
     studioId = await this.resolveStudioId(studioId);
-    return this.prisma.commissionRule.findMany({ where: { studioId }, orderBy: { role: 'asc' } });
+    return this.prisma.commissionRule.findMany({ where: scopeWhere(actorOfStudio(studioId, 'ADMIN')), orderBy: { role: 'asc' } });
   }
 
   async upsertRule(
@@ -170,7 +171,7 @@ export class CommissionService {
   async listLedgers(studioId: string, month: string) {
     studioId = await this.resolveStudioId(studioId);
     const rows = await this.prisma.commissionLedger.findMany({
-      where: { studioId, month },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), month },
       include: { user: { select: { username: true, displayName: true, role: true } } },
       orderBy: { amount: 'desc' },
     });
@@ -288,7 +289,7 @@ export class CommissionService {
     if (rates.offline <= 0 && rates.online <= 0) return { rows: [], rates };
 
     const admins = await this.prisma.user.findMany({
-      where: { studioId, role: { in: ['ADMIN', 'STORE_MANAGER'] } },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), role: { in: ['ADMIN', 'STORE_MANAGER'] } },
       select: { id: true, username: true, displayName: true },
       orderBy: { username: 'asc' },
     });
@@ -296,7 +297,7 @@ export class CommissionService {
 
     const orders = await this.prisma.order.findMany({
       where: {
-        studioId,
+        ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
         status: 'DONE',
         type: 'NEW',
         companionId: { not: null },
@@ -376,7 +377,7 @@ export class CommissionService {
   ) {
     return this.prisma.order.findMany({
       where: {
-        studioId,
+        ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
         type: { in: csCommissionOrderTypes(includeRenewal) },
         createdAt: { gte: start, lt: end },
         ...(userId
@@ -410,7 +411,7 @@ export class CommissionService {
   private async queryAllCsOrders(studioId: string, start: Date, end: Date, userId: string) {
     return this.prisma.order.findMany({
       where: {
-        studioId,
+        ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
         createdAt: { gte: start, lt: end },
         OR: [{ attributedCsUserId: userId }, { claimedCsUserId: userId }, { csUserId: userId }],
         companionId: { not: null },
@@ -444,7 +445,7 @@ export class CommissionService {
   private async buildCsSalaryRows(studioId: string, start: Date, end: Date, userId?: string) {
     const cfg = await this.csSalaryConfig(studioId);
     const users = await this.prisma.user.findMany({
-      where: { studioId, role: 'CS', ...(userId ? { id: userId } : {}) },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), role: 'CS', ...(userId ? { id: userId } : {}) },
       select: { id: true, username: true, displayName: true },
       orderBy: { username: 'asc' },
     });
@@ -458,7 +459,7 @@ export class CommissionService {
     // 客服档位（老板 2026-09-29）：按人填了底薪就用他的，没填就用「工资规则」里客服那一个数；
     // 2026-09-30 起同一份档位里还能存「这个人单独一套提成」（没填的项仍用店里的）。
     const profiles = await this.prisma.csProfile
-      .findMany({ where: { studioId } })
+      .findMany({ where: scopeWhere(actorOfStudio(studioId, 'ADMIN')) })
       .catch(
         () => [] as Array<{ userId: string; baseSalaryYuan: number | null; commissionConfig?: unknown }>,
       );
@@ -686,13 +687,13 @@ export class CommissionService {
     const { start, end } = settlementMonthRange(month);
     const cfg = await this.csConfig(studioId);
     const users = await this.prisma.user.findMany({
-      where: { studioId, role: 'CS', ...(userId ? { id: userId } : {}) },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), role: 'CS', ...(userId ? { id: userId } : {}) },
       select: { id: true, username: true, displayName: true },
     });
     const rows: Array<Record<string, unknown>> = [];
     // 按人一套提成（老板 2026-09-30）：这个人填了就用他的
     const profiles = await this.prisma.csProfile
-      .findMany({ where: { studioId } })
+      .findMany({ where: scopeWhere(actorOfStudio(studioId, 'ADMIN')) })
       .catch(() => [] as Array<{ userId: string; commissionConfig?: unknown }>);
     const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
     for (const u of users) {
@@ -778,7 +779,7 @@ export class CommissionService {
 
     const [orders, csUsers, profiles, monthBuilt] = await Promise.all([
       this.prisma.order.findMany({
-        where: { studioId, createdAt: { gte: start, lt: end } },
+        where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), createdAt: { gte: start, lt: end } },
         include: {
           companion: {
             include: {
@@ -791,10 +792,10 @@ export class CommissionService {
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.user.findMany({
-        where: { studioId, role: 'CS' },
+        where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), role: 'CS' },
         select: { id: true, username: true, displayName: true },
       }),
-      this.prisma.csProfile.findMany({ where: { studioId } }).catch(() => []),
+      this.prisma.csProfile.findMany({ where: scopeWhere(actorOfStudio(studioId, 'ADMIN')) }).catch(() => []),
       this.buildCsSalaryRows(studioId, settlementMonthRange(dateLabel.slice(0, 7)).start, settlementMonthRange(dateLabel.slice(0, 7)).end).catch(
         () => ({ rows: [] as any[] }),
       ),
@@ -1032,7 +1033,7 @@ export class CommissionService {
     const { start, end } = currentBusinessDayRange();
     const orders = await this.prisma.order.findMany({
       where: {
-        studioId,
+        ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
         createdAt: { gte: start, lt: end },
         OR: [{ attributedCsUserId: userId }, { claimedCsUserId: userId }, { csUserId: userId }],
       },
@@ -1187,11 +1188,11 @@ export class CommissionService {
     const resolved = await this.resolveStudioId(studioId);
     const [users, profiles] = await Promise.all([
       this.prisma.user.findMany({
-        where: { studioId: resolved, role: 'CS' },
+        where: { ...scopeWhere(actorOfStudio(resolved, 'ADMIN')), role: 'CS' },
         select: { id: true, username: true, displayName: true },
         orderBy: { username: 'asc' },
       }),
-      this.prisma.csProfile.findMany({ where: { studioId: resolved } }).catch(() => []),
+      this.prisma.csProfile.findMany({ where: scopeWhere(actorOfStudio(resolved, 'ADMIN')) }).catch(() => []),
     ]);
     const payroll = await this.prisma.payrollConfig.findUnique({ where: { role: 'CS' } });
     const byUser = new Map(profiles.map((p) => [p.userId, p]));
@@ -1282,7 +1283,7 @@ export class CommissionService {
   /** 找到或创建一个店长（ADMIN）提成锚点规则。 */
   private async ensureAdminAnchorRule(studioId: string) {
     const existing = await this.prisma.commissionRule.findFirst({
-      where: { studioId, role: 'ADMIN' },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), role: 'ADMIN' },
       orderBy: { createdAt: 'asc' },
     });
     if (existing) return existing;
@@ -1294,7 +1295,7 @@ export class CommissionService {
   /** 找到或创建一个 CS 提成锚点规则。 */
   private async ensureCsAnchorRule(studioId: string) {
     const existing = await this.prisma.commissionRule.findFirst({
-      where: { studioId, role: 'CS' },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), role: 'CS' },
       orderBy: { createdAt: 'asc' },
     });
     if (existing) return existing;

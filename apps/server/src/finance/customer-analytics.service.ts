@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { isBelowPriceFloor, isRenewalSegment, partnerUnitPriceYuan, priceStatsFloor, resolvePriceMode } from '../common/price-rules';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 interface OrderRow {
   id: string;
@@ -54,7 +55,7 @@ export class CustomerAnalyticsService {
   async getRiskQueue(studioId: string | null): Promise<CompanionRisk[]> {
     const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
     // 老板没有工作室：不筛工作室 = 看全站（以前传 null 会筛出 0 个人，老板那儿一直是空的）。
-    const studioWhere = studioId ? { studioId } : {};
+    const studioWhere = scopeWhere(actorOfStudio(studioId));
 
     const companions = await this.prisma.companion.findMany({
       where: { ...studioWhere },
@@ -80,7 +81,7 @@ export class CustomerAnalyticsService {
     // 单价低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）：**只统计、不拦单**（老板 2026-10-04）。
     const belowFloorSessions = await this.prisma.orderSession
       .findMany({
-        where: { startedAt: { gte: since }, ...(studioId ? { parentOrder: { studioId } } : {}) },
+        where: { startedAt: { gte: since }, ...(studioId ? { parentOrder: scopeWhere(actorOfStudio(studioId, 'ADMIN')) } : {}) },
         select: {
           id: true,
           companionId: true,
@@ -187,7 +188,7 @@ export class CustomerAnalyticsService {
     const since = new Date(Date.now() - Math.max(1, days) * 24 * 60 * 60 * 1000);
     const sessions = await this.prisma.orderSession
       .findMany({
-        where: { startedAt: { gte: since }, ...(studioId ? { parentOrder: { studioId } } : {}) },
+        where: { startedAt: { gte: since }, ...(studioId ? { parentOrder: scopeWhere(actorOfStudio(studioId, 'ADMIN')) } : {}) },
         select: {
           id: true,
           companionId: true,

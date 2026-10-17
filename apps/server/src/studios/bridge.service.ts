@@ -6,6 +6,7 @@ import { companionOrderRevenue } from '../common/order-revenue';
 import { effectiveTenureMonths, computeSharePct } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
 import { resolveConfigs } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 import {
   bridgeDirection,
   groupByPeer,
@@ -338,7 +339,8 @@ export class BridgeService {
       where: {
         status: 'DONE',
         createdAt: { gte: start, lt: end },
-        studioId: { in: [studioId, ...bridgedIds] },
+        // 统一作用域：本店 + 桥接店（上面已保证 studioId 非空）
+        ...scopeWhere(actorOfStudio(studioId), { bridgedIds }),
       },
       select: {
         id: true,

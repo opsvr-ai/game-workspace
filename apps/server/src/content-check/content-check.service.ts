@@ -9,6 +9,7 @@ import {
 } from './content-check.lexicon';
 import { CONTENT_PLAN_TEMPLATES } from './content-plan.templates';
 import { CONTENT_KEYWORDS } from './content-keywords';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 interface DraftInput {
   id?: string;
@@ -983,7 +984,7 @@ ${cleanNotes
     const storedMatches: SimilarityItem[] = [];
     if (input.includeStoredNotes !== false && user?.studioId) {
       const notes = await this.prisma.trafficNote.findMany({
-        where: { studioId: user.studioId, title: { not: null } },
+        where: { ...scopeWhere(actorOfStudio(user.studioId)), title: { not: null } },
         select: { id: true, title: true, note: true, publishDate: true },
         orderBy: { createdAt: 'desc' },
         take: 500,
@@ -1086,7 +1087,7 @@ ${cleanNotes
 
     if (input.includeStoredNotes !== false && user?.studioId) {
       const notes = await this.prisma.trafficNote.findMany({
-        where: { studioId: user.studioId, title: { not: null } },
+        where: { ...scopeWhere(actorOfStudio(user.studioId)), title: { not: null } },
         select: { id: true, title: true, note: true },
         orderBy: { createdAt: 'desc' },
         take: 200,

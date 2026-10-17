@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { presence } from '../common/presence';
 import { activeThrottledDownloads } from '../common/throttled-file';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -419,7 +420,8 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
     const companions = await this.prisma.companion.findMany({
       where: {
         status: { not: 'OFFLINE' },
-        ...(studioId ? { studioId } : {}),
+        // 统一作用域：老板（没传店）看全站，传了店只看本店
+        ...scopeWhere(actorOfStudio(studioId)),
       },
       select: {
         id: true,

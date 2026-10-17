@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 import { bridgeMetOrderWhere } from '../common/order-outcome';
 
 @Injectable()
@@ -59,7 +60,8 @@ export class PayrollService {
 
   async listStaff(studioId: string) {
     return this.prisma.user.findMany({
-      where: { studioId, role: { in: ['CS', 'ADMIN'] } },
+      // 统一作用域：严格本店（没有店就一条都不给，绝不因为 studioId 为空漏全站）
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), role: { in: ['CS', 'ADMIN'] } },
       select: { id: true, username: true, role: true },
       orderBy: { username: 'asc' },
     });
@@ -73,7 +75,7 @@ export class PayrollService {
     const bridgeTarget = Number(scoped['commission.cs_daily_bridge_target'] ?? 10);
     const bridgeCounts = await this.bridgeOrderCounts(studioId, start, end);
     // 客服档位（老板 2026-09-29）：按人填了底薪就用他的，没填就用「工资规则」里的
-    const csProfiles = await this.prisma.csProfile.findMany({ where: { studioId } }).catch(() => []);
+    const csProfiles = await this.prisma.csProfile.findMany({ where: scopeWhere(actorOfStudio(studioId, 'ADMIN')) }).catch(() => []);
     const profileByUser = new Map(csProfiles.map((p) => [p.userId, p]));
     const records = [];
     for (const user of staff) {
@@ -101,7 +103,7 @@ export class PayrollService {
         : 0;
       // 派单提成：直接引用已确认（CONFIRMED）的提成明细，分 → 元，四舍五入到毛
       const ledgerAgg = await this.prisma.commissionLedger.aggregate({
-        where: { userId: user.id, month, studioId, status: 'CONFIRMED' },
+        where: { userId: user.id, month, ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), status: 'CONFIRMED' },
         _sum: { amount: true },
       });
       const commissionYuan = Number(((ledgerAgg._sum.amount ?? 0) / 100).toFixed(1));
@@ -150,7 +152,7 @@ export class PayrollService {
   private async bridgeOrderCounts(studioId: string, start: Date, end: Date): Promise<Map<string, number>> {
     const orders = await this.prisma.order.findMany({
       where: {
-        studioId,
+        ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
         createdAt: { gte: start, lt: end },
         // 桥接达标口径走 common/order-outcome.ts（和「今日看板」用的是同一个）：
         // 跑了多少桥接单，只排除明确不成功 / 退款 / 取消的；接单方还没反馈的照算 ——

@@ -8,6 +8,7 @@ import { currentBusinessDayRange, settlementMonthRange } from '../common/busines
 import { computeWithdrawable } from '../common/withdrawable';
 import { roundToJiao } from '../common/money';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 @Injectable()
 export class BillingService {
@@ -134,7 +135,7 @@ export class BillingService {
   async getExpenses(studioId: string) {
     if (!studioId) return [];
     return this.prisma.expense.findMany({
-      where: { studioId },
+      where: scopeWhere(actorOfStudio(studioId, 'ADMIN')),
       orderBy: { date: 'desc' },
     });
   }

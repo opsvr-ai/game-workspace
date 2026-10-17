@@ -7,7 +7,8 @@ export class CompanionWechatService {
   constructor(private prisma: PrismaService) {}
 
   async listWorkWechats(studioId: string, user?: any) {
-    const where: any = { studioId };
+    // 统一作用域：严格本店（没有店就一条都不给；老代码 `{ studioId }` 的 null 语义不变）
+    const where: any = scopeWhere(actorOfStudio(studioId, 'ADMIN'));
     // 客服（老板 2026-10-03 报「邵泽慧怎么不显示陪玩的微信列表？」）：
     //  - 「陪玩工作微信」是本店的全部都要能看（客服本来就要在这张表上审核陪玩提的号，
     //    也要知道哪个号在谁手里）——以前这里一刀切成 `type='STUDIO' AND csUserId=我`，

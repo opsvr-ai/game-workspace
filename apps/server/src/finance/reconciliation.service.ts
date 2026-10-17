@@ -5,6 +5,7 @@ import { yuanToCents, centsToYuan } from '../common/money';
 import { resolveCompanionPctTiered, effectiveTenureMonths } from '../common/revenue-calculator';
 import { orderGrossYuan, orderUnits } from '../common/order-outcome';
 import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 @Injectable()
 export class ReconciliationService {
@@ -51,7 +52,7 @@ export class ReconciliationService {
   async getDailyReconciliation(studioId: string, day: string) {
     const { start, end } = businessDayRange(day);
     const companions = await this.prisma.companion.findMany({
-      where: { studioId },
+      where: scopeWhere(actorOfStudio(studioId, 'ADMIN')),
       select: { id: true, user: { select: { username: true, displayName: true } } },
     });
 
@@ -89,7 +90,7 @@ export class ReconciliationService {
   async getAccountReconciliation(studioId: string, day: string) {
     const { start, end } = businessDayRange(day);
     const orders = await this.prisma.order.findMany({
-      where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), status: 'DONE', createdAt: { gte: start, lt: end } },
       select: { amount: true, companionFeeAccount: true, companionFeeStatus: true },
     });
     const map = new Map<string, { account: string; count: number; amountCents: number; unpaid: number }>();
@@ -121,7 +122,7 @@ export class ReconciliationService {
     const [orders, juejuCfg] = await Promise.all([
       this.prisma.order.findMany({
         where: {
-          studioId,
+          ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
           status: { in: ['CONFIRMED', 'DONE'] },
           createdAt: { gte: start, lt: end },
         },
@@ -206,7 +207,7 @@ export class ReconciliationService {
     const start = new Date(year, mon - 1, 1);
     const end = new Date(year, mon, 1);
     const records = await this.prisma.expense.findMany({
-      where: { studioId, category: 'BRIDGE_RETURN', date: { gte: start, lt: end } },
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), category: 'BRIDGE_RETURN', date: { gte: start, lt: end } },
       orderBy: { date: 'desc' },
     });
     const total = records.reduce((s, r) => s + Number(r.amount || 0), 0);
@@ -281,7 +282,7 @@ export class ReconciliationService {
     const [orders, scopedCfg, expenseItems] = await Promise.all([
       this.prisma.order.findMany({
         where: {
-          studioId,
+          ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
           status: { in: ['CONFIRMED', 'DONE'] },
           createdAt: { gte: start, lt: end },
         },
@@ -449,7 +450,7 @@ export class ReconciliationService {
     const [orders, scopedCfg] = await Promise.all([
       this.prisma.order.findMany({
         where: {
-          studioId,
+          ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
           status: { in: ['CONFIRMED', 'DONE'] },
           createdAt: { gte: start, lt: end },
           companionId: { not: null },

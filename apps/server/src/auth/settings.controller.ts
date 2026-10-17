@@ -29,6 +29,7 @@ import {
   OWNER_ONLY_PREFIXES,
 } from '../common/default-config';
 import { assertValidConfigEntries, configDefault } from '../common/config-keys';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 import {
   resolveConfigsDetailed,
   resetStudioConfigs,
@@ -286,7 +287,8 @@ export class SettingsController {
       // 先让缓存失效，保证推出去的名单已经按新开关算过。
       this.wsGateway.invalidateBlacklistSwitchCache();
       const companions = await this.prisma.companion.findMany({
-        where: studioId ? { studioId } : undefined,
+        // 统一作用域：传了店只看那家店；老板（不传店）保持老写法 `undefined` = 不加过滤推所有店
+        where: studioId ? scopeWhere(actorOfStudio(studioId)) : undefined,
         select: { id: true, studioId: true },
       });
       for (const c of companions) {

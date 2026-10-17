@@ -11,6 +11,7 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
 import { notResignedWhere, pendingReviewWhere } from '../common/offboarding';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 import { RolesGuard, Roles } from './roles.guard';
 import { WsGateway } from '../ws/ws.gateway';
 import { UserRole } from '@chunlv/shared';
@@ -217,7 +218,7 @@ export class RegisterController {
     const where: any = pendingReviewWhere();
     // ADMIN can only see users in their own studio; OWNER sees all
     if (req.user.role === 'ADMIN' && req.user.studioId) {
-      where.studioId = req.user.studioId;
+      Object.assign(where, scopeWhere(actorOfStudio(req.user.studioId, 'ADMIN')));
     }
     const data = await this.prisma.user.findMany({
       where,
@@ -239,7 +240,7 @@ export class RegisterController {
   async listCsUsers(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.prisma.user.findMany({
       // 离职的客服不再出现在绑定名单里（否则工作微信会被派给已经走的人）
-      where: { studioId: req.user.studioId, role: 'CS', ...notResignedWhere() },
+      where: { ...scopeWhere(actorOfStudio(req.user.studioId, 'ADMIN')), role: 'CS', ...notResignedWhere() },
       select: { id: true, username: true, displayName: true },
       orderBy: { createdAt: 'asc' },
     });
@@ -254,7 +255,7 @@ export class RegisterController {
     const where: any = { reviewStatus: 'PENDING' };
     // ADMIN/CS can only see companions in their own studio; OWNER sees all
     if ((req.user.role === 'ADMIN' || req.user.role === 'CS') && req.user.studioId) {
-      where.studioId = req.user.studioId;
+      Object.assign(where, scopeWhere(actorOfStudio(req.user.studioId, 'ADMIN')));
     }
     const data = await this.prisma.companion.findMany({
       where: { ...where, isResigned: false },

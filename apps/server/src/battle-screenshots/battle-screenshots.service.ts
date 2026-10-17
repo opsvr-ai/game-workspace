@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { actorOfStudio, scopeWhere } from '../common/scope';
 
 @Injectable()
 export class BattleScreenshotsService {
@@ -48,7 +49,8 @@ export class BattleScreenshotsService {
 
   async listAll(studioId: string, status?: string) {
     return this.prisma.battleScreenshot.findMany({
-      where: { studioId, ...(status ? { status } : {}) },
+      // 统一作用域：严格本店（没有店就一条都不给，老代码 `{ studioId }` 的 null 语义不变）
+      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), ...(status ? { status } : {}) },
       orderBy: { createdAt: 'desc' },
       include: {
         companion: { include: { user: { select: { username: true, displayName: true, avatar: true } } } },
