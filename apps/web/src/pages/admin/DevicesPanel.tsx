@@ -146,6 +146,16 @@ interface DeviceRow extends MachineItem {
   wakeMac: string;
 }
 
+/** 看门狗构建号比较：只把「本机比云端旧」算待更新；本机比云端新（云端配置滞后）算最新。 */
+function watchdogBuildNumber(v: unknown): number {
+  return Number(String(v ?? '').replace(/\D/g, '')) || 0;
+}
+function isWatchdogBehind(build: unknown, latest: unknown): boolean {
+  const b = watchdogBuildNumber(build);
+  const l = watchdogBuildNumber(latest);
+  return b > 0 && l > 0 && b < l;
+}
+
 const DevicesPanel: React.FC = () => {
   const [items, setItems] = useState<MachineItem[]>([]);
   const [stats, setStats] = useState({
@@ -335,7 +345,10 @@ const DevicesPanel: React.FC = () => {
   const clientless = useMemo(() => items.filter((i) => i.source !== 'machine'), [items]);
 
   const wdBehind = useMemo(
-    () => (stats.watchdogLatestBuild ? rows.filter((m) => m.watchdogBuild !== stats.watchdogLatestBuild) : []),
+    () =>
+      stats.watchdogLatestBuild
+        ? rows.filter((m) => isWatchdogBehind(m.watchdogBuild, stats.watchdogLatestBuild))
+        : [],
     [rows, stats.watchdogLatestBuild],
   );
 
@@ -593,7 +606,7 @@ const DevicesPanel: React.FC = () => {
       key: 'appVersion',
       width: 190,
       render: (_: unknown, r: DeviceRow) => {
-        const wdOld = !!r.watchdogBuild && !!stats.watchdogLatestBuild && r.watchdogBuild !== stats.watchdogLatestBuild;
+        const wdOld = isWatchdogBehind(r.watchdogBuild, stats.watchdogLatestBuild);
         return (
           <Space direction='vertical' size={0}>
             <Space size={6} wrap={false}>

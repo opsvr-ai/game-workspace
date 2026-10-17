@@ -33,6 +33,11 @@ function isMachineSelfSource(source: unknown): boolean {
   return isClientSource(source) || String(source ?? '').trim() === 'watchdog';
 }
 
+/** 看门狗构建号比较：只有「本机比云端旧」才需要补；本机比云端新说明云端配置滞后，别反复派任务。 */
+function watchdogBuildNumber(v: unknown): number {
+  return Number(String(v ?? '').replace(/\D/g, '')) || 0;
+}
+
 /**
  * 这一行有没有「客户端心跳 / 看门狗自己写过」的**证据**。
  *
@@ -498,7 +503,12 @@ export class MachineService {
     const target = await this.watchdogTargetBuild();
     const build = String(record.watchdogBuild || '');
     const needsRemote = !record.remoteReady;
-    const needsWatchdog = !!target && build !== target;
+    // 2026-10-18：以前用 `build !== target` 判断，云端配置（watchdog.latest_build）一旦滞后于
+    // 客户端实际构建号，就会永远判「待更新」，每 2 小时派一次 enable-remote 白折腾。
+    // 现在只在本机确实比云端旧、或本机没报构建号时才补。
+    const targetNum = watchdogBuildNumber(target);
+    const buildNum = watchdogBuildNumber(build);
+    const needsWatchdog = !!target && (!buildNum || buildNum < targetNum);
     if (!needsRemote && !needsWatchdog) return;
 
     const rows = await this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.task.' } } });

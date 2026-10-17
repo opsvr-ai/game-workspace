@@ -238,10 +238,14 @@ describe('什么时候才真的换版（老板 2026-10-08：包下好就直接�
     await expect(__test__.mayApplyUpdateNow('t', { busy: () => true, pollMs: 1, maxWaitMs: 5 })).resolves.toBe(false);
   });
 
-  it('默认判据就是本机状态（lastStatus=BUSY 才算在接单）', async () => {
+  it('默认判据就是本机状态：BUSY / ENTERTAINMENT 都等，AVAILABLE / RESTING 才装', async () => {
     storeMock.get.mockImplementation((k: string) => (k === 'lastStatus' ? 'BUSY' : undefined));
     await expect(__test__.mayApplyUpdateNow('t', { pollMs: 1, maxWaitMs: 5 })).resolves.toBe(false);
+    storeMock.get.mockImplementation((k: string) => (k === 'lastStatus' ? 'ENTERTAINMENT' : undefined));
+    await expect(__test__.mayApplyUpdateNow('t', { pollMs: 1, maxWaitMs: 5 })).resolves.toBe(false);
     storeMock.get.mockImplementation((k: string) => (k === 'lastStatus' ? 'AVAILABLE' : undefined));
+    await expect(__test__.mayApplyUpdateNow('t', { pollMs: 1, maxWaitMs: 5 })).resolves.toBe(true);
+    storeMock.get.mockImplementation((k: string) => (k === 'lastStatus' ? 'RESTING' : undefined));
     await expect(__test__.mayApplyUpdateNow('t', { pollMs: 1, maxWaitMs: 5 })).resolves.toBe(true);
   });
 });
