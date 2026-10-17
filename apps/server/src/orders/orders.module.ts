@@ -8,6 +8,8 @@ import { OrderExceptionService } from './order-exception.service';
 import { OrderSessionService } from './order-session.service';
 import { OrderTransferService } from './order-transfer.service';
 import { CsFinanceService } from './cs-finance.service';
+import { OrderCsService } from './order-cs.service';
+import { OrderCreateService } from './order-create.service';
 import { OrdersController } from './orders.controller';
 import { OrderWorkflowService } from './order-workflow.service';
 import { CompanionQuotaService } from './companion-quota.service';
@@ -25,6 +27,8 @@ import { DirectAssignmentReminderService } from './direct-assignment-reminder.se
   controllers: [OrdersController],
   providers: [
     OrdersService,
+    OrderCsService,
+    OrderCreateService,
     OrderQueryService,
     OrderExceptionService,
     OrderSessionService,
