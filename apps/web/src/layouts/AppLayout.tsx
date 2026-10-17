@@ -1,11 +1,11 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Tag, Modal, Badge, Popover, notification, Form, Input, Alert } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Tag, Modal, Badge, Popover, notification, Form, Input } from 'antd';
 import { message } from '../utils/feedback';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
-import { usePolling } from '../hooks/usePolling';
+import { useMenuBadges } from '../hooks/useMenuBadges';
 import http from '../api/client';
 import { configApi } from '../api/config';
 import { ordersApi } from '../api/orders';
@@ -22,13 +22,14 @@ import VoiceCallBar from '../components/VoiceCallBar';
 import { useVoiceCall } from '../hooks/useVoiceCall';
 import { showSystemNotification, showBannerNotification, playNotificationSound } from '../utils/notify';
 import { notifyNotice, recordNotice } from '../utils/notice';
-import { useNotifStore, selectUnreadNotices, noticePath } from '../stores/notifStore';
+import { noticePath } from '../stores/notifStore';
 import { usePartnerInviteStore } from '../stores/partnerInviteStore';
 import { decideBuildRefresh } from '../utils/buildRefresh';
 import { installUnloadGuard, isAnyBusy } from '../utils/busyGuard';
 import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
-import { NoticeList } from '../components/NoticeList';
+import NotificationPanel from '../components/shell/NotificationPanel';
+import NoticePathBanner from '../components/shell/NoticePathBanner';
 import LeftMessagePanel from '../components/LeftMessagePanel';
 import SalaryDetailModal from '../components/SalaryDetailModal';
 import GrabSuccessModal from '../components/GrabSuccessModal';
@@ -72,7 +73,7 @@ if (!document.getElementById('menu-sub-bg-css')) {
   document.head.appendChild(s3);
 }
 
-import { BellOutlined, MessageOutlined } from '@ant-design/icons';
+import { MessageOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
 import { useOrderStore } from '../stores/orderStore';
@@ -90,15 +91,6 @@ const InviteCountdown: React.FC<{ seconds: number }> = ({ seconds }) => {
     <span style={{ color: SEMANTIC.danger, fontWeight: 600 }}>⏳ {left} 秒后自动取消</span>
   );
 };
-
-function loadSeenCount(key: string): number {
-  try {
-    const v = parseInt(localStorage.getItem(key) || '0', 10);
-    return Number.isFinite(v) && v > 0 ? v : 0;
-  } catch {
-    return 0;
-  }
-}
 
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
@@ -263,96 +255,38 @@ const AppLayout: React.FC = () => {
   );
   // 群聊未读只展示在左侧消息面板，不再计入铃铛和导航聊天角标。
   const directUnread = Math.max(0, totalUnread - groupUnread);
-  // 右上角铃铛 = 只放通知（老板 2026-09-30：「铃铛那里去除聊天的信息，只保留其他的通知」）。
-  // 聊天未读不再进铃铛：左侧消息面板（私聊 + 群聊）+ 导航角标 + 提示音/Windows 通知都还在。
-  const unreadNotices = useNotifStore(selectUnreadNotices);
-  useEffect(() => {
-    useNotifStore.getState().hydrate(user?.id || null);
-  }, [user?.id]);
-  // 老板 2026-10-04：提醒除了「右下角弹窗 + 右上角铃铛」，左侧栏对应菜单也要挂角标。
-  // 每条通知都指着一个页面（href），按归一化路径分堆，菜单项就按自己的路由领角标。
-  const notifItems = useNotifStore((s) => s.items);
-  const markNoticesReadByPath = useNotifStore((s) => s.markReadByPath);
-  const { unreadByPath, titlesByPath } = useMemo(() => {
-    const map: Record<string, number> = {};
-    const titles: Record<string, string[]> = {};
-    for (const it of notifItems) {
-      if (it.read) continue;
-      const path = noticePath(it.href);
-      if (!path) continue;
-      map[path] = (map[path] || 0) + 1;
-      (titles[path] || (titles[path] = [])).push(it.title);
-    }
-    return { unreadByPath: map, titlesByPath: titles };
-  }, [notifItems]);
-  // 老板 2026-10-05：「工作抽查异常」的通知点进「陪玩管理」什么都没有。
-  // 根因：这类通知早先的跳转地址指向泛泛的审核页（老板账号是 /owner/review），
-  // 左侧栏角标和页面横幅自然都挂在那张页面上，人却按提示去「陪玩管理」找。
-  // 这里按标题里的名字，把这一类老通知的 href 校正到「陪玩管理 → 这个人的工作记录」。
-  const patchNotice = useNotifStore((s) => s.patch);
-  const markNoticeRead = useNotifStore((s) => s.markRead);
-  const workAlertBase = user?.role === 'CS' ? '/cs/employees' : '/admin/companions';
-  const workAlertHref = (name: string) =>
-    `${workAlertBase}?role=COMPANION&workName=${encodeURIComponent(name)}`;
-  useEffect(() => {
-    for (const it of notifItems) {
-      const title = String(it.title || '');
-      if (!title.startsWith('工作抽查异常 · ')) continue;
-      if (it.href && (it.href.includes('workName') || it.href.includes('workCompanion'))) continue;
-      const name = title.slice('工作抽查异常 · '.length).trim();
-      if (!name) continue;
-      patchNotice(it.id, { href: workAlertHref(name) });
-    }
-    // 校正过一条 href 就带 workName 了，下一轮不会再匹配 —— 不会打转。
-  }, [notifItems, patchNotice, workAlertBase]);
-  // 老板 2026-10-05：「订单管理有未读，我点进去也没看到什么变化」——
-  // 点菜单只把角标数字清掉、页面里什么都不留，人根本不知道刚才那几条提醒是什么。
-  // 所以「刚点掉的是哪几条」按页面路径记在这，进到那一页顶头再写一遍（见下面内容区横幅）。
-  const CLEARED_TTL_MS = 10 * 60 * 1000;
-  const [clearedNotices, setClearedNotices] = React.useState<
-    Record<string, { titles: string[]; at: number }>
-  >({});
-  const rememberCleared = useCallback((path: string, titles: string[]) => {
-    if (!path || !titles.length) return;
-    setClearedNotices((prev) => {
-      const old = prev[path];
-      const fresh = old && Date.now() - old.at < CLEARED_TTL_MS ? old.titles : [];
-      // 合并去重：点菜单时通知角标和「待开始订单」角标可能一起被清掉，两条提示都要留着。
-      const merged = Array.from(new Set([...fresh, ...titles]));
-      return { ...prev, [path]: { titles: merged, at: Date.now() } };
-    });
-  }, []);
-  const forgetCleared = useCallback((path: string) => {
-    setClearedNotices((prev) => {
-      if (!prev[path]) return prev;
-      const next = { ...prev };
-      delete next[path];
-      return next;
-    });
-  }, []);
+  // ── 菜单角标（9 组）+ 通知 → 菜单角标 ──
+  // state / 拉取 / 轮询 / 可见性判断 / 实时事件触发刷新，全部在 hooks/useMenuBadges（原样搬出，行为不变）。
+  const {
+    pendingBadge,
+    todosBadge,
+    todosHint,
+    bridgePendingBadge,
+    billingBadge,
+    workWechatBadge,
+    reviewBadge,
+    setReviewBadge,
+    contactBadge,
+    pendingStartBadge,
+    outcomeReviewBadge,
+    markSeen,
+    markBridgeSeen,
+    markBillingSeen,
+    markReviewSeen,
+    markContactSeen,
+    markPendingStartSeen,
+    notifItems,
+    unreadByPath,
+    titlesByPath,
+    clearedNotices,
+    clearNoticesByKey,
+    rememberCleared,
+    forgetCleared,
+    markNoticesReadByPath,
+    markNoticeRead,
+    workAlertHref,
+  } = useMenuBadges(user);
 
-  // 点左侧栏那一项 = 把指向这个页面的未读通知都消掉（跟点铃铛条目、点弹窗一个效果）。
-  const clearNoticesByKey = useCallback(
-    (key: string) => {
-      const path = noticePath(key);
-      if (!path) return;
-      // 老板 2026-10-05：「点进去发现没任何变化」——角标一点就消、又不说是什么，人会懵。
-      // 一边把刚标为已读的是哪几条记下来（页面顶头横幅再写一遍，不会被一闪而过的提示漏看），
-      // 一边用一条轻提示念出来兜底。
-      const titles = titlesByPath[path] || [];
-      if (titles.length) {
-        rememberCleared(path, titles);
-        message.info(
-          `这里刚才有 ${titles.length} 条提醒（已标已读）：${titles.slice(0, 2).join(' · ')}${
-            titles.length > 2 ? ` 等 ${titles.length} 条` : ''
-          }`,
-          6,
-        );
-      }
-      markNoticesReadByPath(path);
-    },
-    [markNoticesReadByPath, titlesByPath, rememberCleared],
-  );
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
 
   // Notification bell
@@ -363,285 +297,6 @@ const AppLayout: React.FC = () => {
     participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
     orderInfo?: string | null;
   } | null>(null);
-  // Badge: raw count from API, with seen-tracking via ref (not state)
-  const [pendingBadge, setPendingBadge] = React.useState(0);
-  const seenRef = React.useRef(0);
-
-  useEffect(() => {
-    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
-    const seenKey = `pending-seen-${user?.id || 'anon'}`;
-    seenRef.current = loadSeenCount(seenKey);
-    const doFetch = async () => {
-      try {
-        const { data } = await http.get('/users/pending-review');
-        const total = (data.data || []).length;
-        if (seenRef.current > total) {
-          seenRef.current = total;
-          localStorage.setItem(seenKey, String(total));
-        }
-        setPendingBadge(Math.max(0, total - seenRef.current));
-      } catch {}
-    };
-    doFetch();
-    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
-    return () => clearInterval(t);
-  }, [user?.role, user?.id]);
-
-
-  // 待处理总数（老板 2026-10-06）：店长 / 老板 / 客服上班先看这个数。
-  // 跟别的角标不一样 —— 这个是**真实待办条数**，不是「点过就消」的未读：活儿没干完数字就一直在。
-  const [todosBadge, setTodosBadge] = React.useState(0);
-  const [todosHint, setTodosHint] = React.useState('');
-  React.useEffect(() => {
-    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
-    let alive = true;
-    const doFetch = async () => {
-      try {
-        const { data } = await http.get('/todos');
-        if (!alive) return;
-        const d = data?.data || {};
-        setTodosBadge(Number(d.total) || 0);
-        setTodosHint(
-          (Array.isArray(d.groups) ? d.groups : [])
-            .slice(0, 4)
-            .map((g: any) => `${g.label}：${g.count} 条`)
-            .join('\n'),
-        );
-      } catch {}
-    };
-    doFetch();
-    const t = setInterval(() => {
-      if (document.visibilityState === 'visible') doFetch();
-    }, 120000);
-    return () => { alive = false; clearInterval(t); };
-  }, [user?.role, user?.id]);
-
-  // Bridge pending badge for ADMIN (same pattern as pendingBadge above)
-  const [bridgePendingBadge, setBridgePendingBadge] = React.useState(0);
-  const bridgeSeenRef = React.useRef(0);
-
-  useEffect(() => {
-    if (user?.role !== 'ADMIN') return;
-    const seenKey = `bridge-pending-seen-${user?.id || 'anon'}`;
-    bridgeSeenRef.current = loadSeenCount(seenKey);
-    const doFetch = async () => {
-      try {
-        const { data } = await http.get('/bridges');
-        const pending = data.data?.pending || [];
-        const total = pending.length;
-        if (bridgeSeenRef.current > total) {
-          bridgeSeenRef.current = total;
-          localStorage.setItem(seenKey, String(total));
-        }
-        setBridgePendingBadge(Math.max(0, total - bridgeSeenRef.current));
-      } catch {}
-    };
-    doFetch();
-    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
-    return () => clearInterval(t);
-  }, [user?.role, user?.id]);
-
-  // Billing pending badge (报账审核 + 支出审批 + 支取审批)
-  const [billingBadge, setBillingBadge] = React.useState(0);
-  const billingSeenRef = React.useRef(0);
-
-  useEffect(() => {
-    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
-    const seenKey = `billing-pending-seen-${user?.id || 'anon'}`;
-    billingSeenRef.current = loadSeenCount(seenKey);
-    const doFetch = async () => {
-      try {
-        const { data } = await http.get('/billing/pending-count');
-        const total = data.data?.total || 0;
-        if (billingSeenRef.current > total) {
-          billingSeenRef.current = total;
-          localStorage.setItem(seenKey, String(total));
-        }
-        setBillingBadge(Math.max(0, total - billingSeenRef.current));
-      } catch {}
-    };
-    doFetch();
-    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
-    return () => clearInterval(t);
-  }, [user?.role, user?.id]);
-
-  // 工作微信待审 badge（老板 2026-10-17）：
-  // 以前只靠 socket 那一条实时通知挂左侧角标；客户端刚好在重连 / 刷新 / 没在线时，
-  // 这条消息就永久丢了（页面自己 30 秒轮询又不会点亮菜单），hanlei2 的徐瑜申请就是这样。
-  // 这里直接问服务端「现在还有几条待审」，实时事件只负责让数字立刻刷新。
-  const [workWechatBadge, setWorkWechatBadge] = React.useState(0);
-  useEffect(() => {
-    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
-    let alive = true;
-    const doFetch = async () => {
-      try {
-        const { data } = await http.get('/companions/work-wechat-requests/pending-count');
-        if (!alive) return;
-        setWorkWechatBadge(Number(data?.data?.count) || 0);
-      } catch {}
-    };
-    doFetch();
-    // 和页面自己的轮询对齐：30 秒内一定能亮，不依赖那一条 socket 消息。
-    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 30000);
-    const onRefresh = () => { void doFetch(); };
-    window.addEventListener('chunlv:work-wechat-refresh', onRefresh);
-    return () => {
-      alive = false;
-      clearInterval(t);
-      window.removeEventListener('chunlv:work-wechat-refresh', onRefresh);
-    };
-  }, [user?.role, user?.id]);
-
-  // 工作抽查 badge（ADMIN/OWNER）
-  const [reviewBadge, setReviewBadge] = React.useState(0);
-  const reviewSeenRef = React.useRef(0);
-  useEffect(() => {
-    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
-    const doFetch = async () => {
-      try {
-        const { data } = await http.get('/admin/review-queue-count');
-        const count = data.data?.count || 0;
-        if (reviewSeenRef.current > count) {
-          reviewSeenRef.current = count;
-        }
-        setReviewBadge(Math.max(0, count - reviewSeenRef.current));
-      } catch {}
-    };
-    doFetch();
-    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
-    return () => clearInterval(t);
-  }, [user?.role]);
-
-  const markReviewSeen = () => {
-    setReviewBadge((prev) => {
-      const total = prev + reviewSeenRef.current;
-      reviewSeenRef.current = total;
-      return 0;
-    });
-  };
-
-  const markBillingSeen = () => {
-    const seenKey = `billing-pending-seen-${user?.id || 'anon'}`;
-    setBillingBadge((prev) => {
-      const total = prev + billingSeenRef.current;
-      billingSeenRef.current = total;
-      localStorage.setItem(seenKey, String(total));
-      return 0;
-    });
-  };
-
-  const markBridgeSeen = () => {
-    const seenKey = `bridge-pending-seen-${user?.id || 'anon'}`;
-    setBridgePendingBadge((prev) => {
-      const total = prev + bridgeSeenRef.current;
-      bridgeSeenRef.current = total;
-      localStorage.setItem(seenKey, String(total));
-      return 0;
-    });
-  };
-
-  const markSeen = () => {
-    // Read current total from state to set seen
-    const seenKey = `pending-seen-${user?.id || 'anon'}`;
-    setPendingBadge((prev) => {
-      const total = prev + seenRef.current; // reconstruct: badge + seen = total
-      seenRef.current = total;
-      localStorage.setItem(seenKey, String(total));
-      return 0;
-    });
-  };
-
-  // Contact pending badge (联系状态待处理 — for CS/ADMIN/OWNER)
-  const [contactBadge, setContactBadge] = React.useState(0);
-  const contactSeenRef = React.useRef(0);
-
-  useEffect(() => {
-    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
-    const seenKey = `contact-pending-seen-${user?.id || 'anon'}`;
-    contactSeenRef.current = loadSeenCount(seenKey);
-    const doFetch = async () => {
-      try {
-        const { data } = await http.get('/orders/pending-contact-count');
-        const total = data?.data || 0;
-        if (contactSeenRef.current > total) {
-          contactSeenRef.current = total;
-          localStorage.setItem(seenKey, String(total));
-        }
-        setContactBadge(Math.max(0, total - contactSeenRef.current));
-      } catch {}
-    };
-    doFetch();
-    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
-    return () => clearInterval(t);
-  }, [user?.role, user?.id]);
-
-  const markContactSeen = () => {
-    const seenKey = `contact-pending-seen-${user?.id || 'anon'}`;
-    setContactBadge((prev) => {
-      const total = prev + contactSeenRef.current;
-      contactSeenRef.current = total;
-      localStorage.setItem(seenKey, String(total));
-      return 0;
-    });
-  };
-
-  // 陪玩待开始订单角标：已抢单/已确认但还没点首单的订单数（订单管理菜单红点）
-  const [pendingStartBadge, setPendingStartBadge] = React.useState(0);
-  const pendingStartSeenRef = React.useRef(0);
-
-  useEffect(() => {
-    if (user?.role !== 'COMPANION') return;
-    const seenKey = `pending-start-seen-${user?.id || 'anon'}`;
-    pendingStartSeenRef.current = loadSeenCount(seenKey);
-    const doFetch = async () => {
-      try {
-        const { data } = await http.get('/orders/pending-start');
-        const total = (data?.data || []).length;
-        if (pendingStartSeenRef.current > total) {
-          pendingStartSeenRef.current = total;
-          localStorage.setItem(seenKey, String(total));
-        }
-        setPendingStartBadge(Math.max(0, total - pendingStartSeenRef.current));
-      } catch {}
-    };
-    doFetch();
-    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 60000);
-    return () => clearInterval(t);
-  }, [user?.role, user?.id]);
-
-  const markPendingStartSeen = () => {
-    const seenKey = `pending-start-seen-${user?.id || 'anon'}`;
-    setPendingStartBadge((prev) => {
-      const total = prev + pendingStartSeenRef.current;
-      pendingStartSeenRef.current = total;
-      localStorage.setItem(seenKey, String(total));
-      return 0;
-    });
-  };
-
-  /**
-   * 「成交核对」角标（老板 2026-10-06）：「最好每天要求管理端去核对」——
-   * 客服 / 店长 / 老板的「订单管理 → 成交核对」上挂一个红数字，就是**待店长拍板的失败单**有几张。
-   * 这不是「看过就消」的通知角标，而是真有一张没拍板就一直在（拍完自动消失）。
-   */
-  const [outcomeReviewBadge, setOutcomeReviewBadge] = React.useState(0);
-  useEffect(() => {
-    if (!user || !['OWNER', 'ADMIN', 'CS'].includes(user.role)) return;
-    const doFetch = async () => {
-      try {
-        const { data } = await http.get('/orders/reviews/summary');
-        setOutcomeReviewBadge(Number(data?.data?.waiting || 0));
-      } catch {
-        /* 拿不到就当作没有，别把菜单弄崩 */
-      }
-    };
-    doFetch();
-    const t = setInterval(() => {
-      if (document.visibilityState === 'visible') doFetch();
-    }, 60000);
-    return () => clearInterval(t);
-  }, [user?.role, user?.id]);
-
   // Chat 3.0: notification handled by ChatProvider
 
   // 打开一个聊天窗口：优先开成「独立的系统窗口」（陪玩端 / 客服端是真的应用窗口，任务栏有
@@ -2127,71 +1782,7 @@ const AppLayout: React.FC = () => {
             </Badge>
             <Space size="middle" style={{ marginLeft: 'auto' }}>
               {/* Notification bell */}
-              {user && (
-                <Popover
-                  open={notifOpen}
-                  onOpenChange={setNotifOpen}
-                  trigger="click"
-                  placement="bottomRight"
-                  title="通知"
-                  content={
-                    <NoticeList
-                      onClose={() => setNotifOpen(false)}
-                      onNavigate={(href, item) => {
-                        // 「工作抽查异常」的老通知：href 里没带陪玩 id，点进去只到陪玩列表、
-                        // 什么都没标出来。按标题里的名字补一次，直接落到那个人的工作记录
-                        // （老板 2026-10-05）。
-                        const title = String(item?.title || '');
-                        const PREFIX = '工作抽查异常 · ';
-                        if (
-                          title.startsWith(PREFIX) &&
-                          href &&
-                          !href.includes('workCompanion') &&
-                          !href.includes('workName')
-                        ) {
-                          const name = title.slice(PREFIX.length).trim();
-                          if (name) {
-                            const base = user?.role === 'CS' ? '/cs/employees' : '/admin/companions';
-                            navigate(`${base}?role=COMPANION&workName=${encodeURIComponent(name)}`);
-                            return;
-                          }
-                        }
-                        navigate(href);
-                      }}
-                    />
-                  }
-                >
-                  <Badge
-                    count={unreadNotices}
-                    overflowCount={99}
-                    size="default"
-                    offset={[-2, 8]}
-                    className={unreadNotices > 0 ? 'badge-pop-active' : undefined}
-                  >
-                    <div
-                      style={{
-                        borderRadius: 8,
-                        ...(unreadNotices > 0
-                          ? {
-                              animation: 'bell-glow 2s ease-in-out infinite',
-                              boxShadow: '0 0 12px rgba(255, 77, 79, 0.5)',
-                            }
-                          : {}),
-                      }}
-                    >
-                      <Button
-                        type="text"
-                        icon={React.createElement(BellOutlined)}
-                        style={{
-                          color: unreadNotices > 0 ? SEMANTIC.danger : commander.textSecondary,
-                          fontSize: 20,
-                        }}
-                        className={unreadNotices > 0 ? 'bell-glow-active' : ''}
-                      />
-                    </div>
-                  </Badge>
-                </Popover>
-              )}
+              {user && <NotificationPanel open={notifOpen} onOpenChange={setNotifOpen} />}
               {user?.role === 'COMPANION' && (
                 <Popover
                   open={partnerInviteOpen}
@@ -2415,98 +2006,19 @@ const AppLayout: React.FC = () => {
               boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)',
             }}
           >
-            {/* 老板 2026-10-05：「有未读，点进去发现没任何变化」——进到这一页顶头就直接写清
-                这条路由上挂着几条提醒、分别是什么。
-                ① 还有没读的：蓝色横幅 + 「全部已读」（角标 / 铃铛同步）；
-                ② 刚从左侧栏点进来、角标已经被点掉的：橙色横幅把「刚才清掉的是哪几条」再写一遍，
-                   数字一没也知道刚才那条提醒是啥（点「知道了」才收）。 */}
-            {(() => {
-              // 必须带上 query：`陪玩工作微信` / `客服工作微信` 是**同一个路径**下按
-              // `type` 区分的两个菜单，只看 pathname 的话这两页的横幅永远匹配不上（老板 2026-10-05）。
-              const curPath = noticePath(location.pathname + (location.search || ''));
-              if (!curPath) return null;
-              const titles = titlesByPath[curPath] || [];
-              const just = clearedNotices[curPath];
-              const justTitles = just && Date.now() - just.at < CLEARED_TTL_MS ? just.titles : [];
-              if (!titles.length && !justTitles.length) return null;
-              const unread = titles.length > 0;
-              const list = unread ? titles : justTitles;
-              // 「订单管理」这一页的提醒八成是「待审核：补单申请」——给个按钮直接打开补单审核，
-              // 别让老板在一长串订单里自己找（那个按钮在订单页右上角）。
-              const ordersPath = rolePage(user?.role, 'orders');
-              const canGoSupplement =
-                user?.role !== 'COMPANION' &&
-                !!ordersPath &&
-                curPath === noticePath(ordersPath) &&
-                list.some((t) => t.includes('补单'));
-              // 「工作抽查异常」的横幅里直接把人的名字做成按钮 —— 点一下就到他的工作记录，
-              // 不用再让人从一长串提醒里猜「具体是哪一条」（老板 2026-10-05）。
-              const workNames = Array.from(
-                new Set(
-                  list
-                    .filter((t) => t.startsWith('工作抽查异常 · '))
-                    .map((t) => t.slice('工作抽查异常 · '.length).trim())
-                    .filter(Boolean),
-                ),
-              );
-              return (
-                <Alert
-                  type={unread ? 'info' : 'warning'}
-                  showIcon
-                  style={{ marginBottom: 12 }}
-                  message={
-                    unread
-                      ? `这里还有 ${titles.length} 条未读提醒`
-                      : `刚才这里清掉了 ${justTitles.length} 条提醒（已标已读）`
-                  }
-                  description={`${list.slice(0, 5).join(' · ')}${
-                    list.length > 5 ? ` … 等 ${list.length} 条` : ''
-                  }`}
-                  action={
-                    <Space size={8}>
-                      {workNames.slice(0, 3).map((n) => (
-                        <Button
-                          key={n}
-                          size="small"
-                          danger
-                          onClick={() => {
-                            notifItems
-                              .filter((it) => !it.read && String(it.title).slice('工作抽查异常 · '.length).trim() === n && String(it.title).startsWith('工作抽查异常 · '))
-                              .forEach((it) => markNoticeRead(it.id));
-                            navigate(workAlertHref(n));
-                          }}
-                        >
-                          🔎 {n} 的工作记录
-                        </Button>
-                      ))}
-                      {canGoSupplement && (
-                        <Button
-                          size="small"
-                          onClick={() => window.dispatchEvent(new CustomEvent('supplement:open'))}
-                        >
-                          🧾 去补单审核
-                        </Button>
-                      )}
-                      {unread ? (
-                        <Button
-                          size="small"
-                          onClick={() => {
-                            rememberCleared(curPath, titles);
-                            markNoticesReadByPath(curPath);
-                          }}
-                        >
-                          全部已读
-                        </Button>
-                      ) : (
-                        <Button size="small" onClick={() => forgetCleared(curPath)}>
-                          知道了
-                        </Button>
-                      )}
-                    </Space>
-                  }
-                />
-              );
-            })()}
+            {/* 老板 2026-10-05：进到这一页顶头直接写清这条路由上挂着几条提醒、刚清掉的是哪几条。
+                渲染在 components/shell/NoticePathBanner，数据来自 useMenuBadges。 */}
+            <NoticePathBanner
+              role={user?.role}
+              titlesByPath={titlesByPath}
+              clearedNotices={clearedNotices}
+              notifItems={notifItems}
+              onRememberCleared={rememberCleared}
+              onForgetCleared={forgetCleared}
+              onMarkNoticesReadByPath={markNoticesReadByPath}
+              onMarkNoticeRead={markNoticeRead}
+              workAlertHref={workAlertHref}
+            />
             <ErrorBoundary>
               <Outlet />
             </ErrorBoundary>
