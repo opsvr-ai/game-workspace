@@ -465,6 +465,33 @@ const AppLayout: React.FC = () => {
     return () => clearInterval(t);
   }, [user?.role, user?.id]);
 
+  // 工作微信待审 badge（老板 2026-10-17）：
+  // 以前只靠 socket 那一条实时通知挂左侧角标；客户端刚好在重连 / 刷新 / 没在线时，
+  // 这条消息就永久丢了（页面自己 30 秒轮询又不会点亮菜单），hanlei2 的徐瑜申请就是这样。
+  // 这里直接问服务端「现在还有几条待审」，实时事件只负责让数字立刻刷新。
+  const [workWechatBadge, setWorkWechatBadge] = React.useState(0);
+  useEffect(() => {
+    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
+    let alive = true;
+    const doFetch = async () => {
+      try {
+        const { data } = await http.get('/companions/work-wechat-requests/pending-count');
+        if (!alive) return;
+        setWorkWechatBadge(Number(data?.data?.count) || 0);
+      } catch {}
+    };
+    doFetch();
+    // 和页面自己的轮询对齐：30 秒内一定能亮，不依赖那一条 socket 消息。
+    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 30000);
+    const onRefresh = () => { void doFetch(); };
+    window.addEventListener('chunlv:work-wechat-refresh', onRefresh);
+    return () => {
+      alive = false;
+      clearInterval(t);
+      window.removeEventListener('chunlv:work-wechat-refresh', onRefresh);
+    };
+  }, [user?.role, user?.id]);
+
   // 工作抽查 badge（ADMIN/OWNER）
   const [reviewBadge, setReviewBadge] = React.useState(0);
   const reviewSeenRef = React.useRef(0);
@@ -1323,6 +1350,8 @@ const AppLayout: React.FC = () => {
         desc: text,
         href: rolePage(user?.role, 'work-wechats'),
       });
+      // 左侧「陪玩工作微信」的数字直接按服务端待审数刷新，不靠这条消息本身“活着”。
+      window.dispatchEvent(new Event('chunlv:work-wechat-refresh'));
     },
     onSupplementRequest: (data: any) => {
       // 陪玩点了「添加失败」提交补单申请（老板 2026-10-04：这种交互双方都要有提示）
@@ -1743,6 +1772,9 @@ const AppLayout: React.FC = () => {
     const OUTCOME_REVIEW_LABELS = ['成交核对'];
     // 工作抽查异常挂在「陪玩列表 / 人员管理」上（以前挂在折叠的「陪玩管理」上，点不动）。
     const REVIEW_WORK_LABELS = ['陪玩列表', '人员管理'];
+    // 「陪玩工作微信」这条路由（带 type，避免和客服工作微信串台）：
+    // 服务端待审数也挂到这条菜单上，漏掉 socket 消息也不会漏提示。
+    const workWechatPath = noticePath(rolePage(user.role, 'work-wechats'));
     // ── 菜单角标 ──
     // 表驱动：命中 label 的菜单项就在后面挂一个红点 / 黄点（一级、二级、分组标题都能挂）。
     // 老板 2026-10-08 起左侧菜单最多两级，第三级变成不折叠的分组标题，所以这里按 label 递归找。
@@ -1854,7 +1886,12 @@ const AppLayout: React.FC = () => {
               const ts = cp ? titlesByPath[cp] || [] : [];
               // ch.label 可能已被 decorateMenu 换成节点（带业绩比例那种），只对字符串拼提示。
               const name = typeof ch.label === 'string' ? ch.label : '';
-              return ts.length ? `${name ? name + '：' : ''}${ts[0]}${ts.length > 1 ? ` 等 ${ts.length} 条` : ''}` : '';
+              const parts: string[] = [];
+              if (ts.length) parts.push(`${ts[0]}${ts.length > 1 ? ` 等 ${ts.length} 条` : ''}`);
+              if (cp && cp === workWechatPath && workWechatBadge > 0) {
+                parts.push(`${workWechatBadge} 条陪玩提交的工作微信待审核`);
+              }
+              return parts.length ? `${name ? name + '：' : ''}${parts.join('；')}` : '';
             })
             .filter(Boolean)
             .join('\n');
@@ -1866,11 +1903,17 @@ const AppLayout: React.FC = () => {
         }
         const path = noticePath(item.key);
         const n = path ? unreadByPath[path] || 0 : 0;
-        total += n;
-        if (!n) return item;
+        // 同一条菜单只挂一个角标：通知未读和服务端待审数取大的那个。
+        const pending = path && path === workWechatPath ? workWechatBadge : 0;
+        const count = Math.max(n, pending);
+        total += count;
+        if (!count) return item;
         const ts = (path ? titlesByPath[path] : []) || [];
-        const hint = ts.slice(0, 3).join('\n') + (ts.length > 3 ? `\n… 等 ${ts.length} 条` : '');
-        return { ...item, label: menuBadgeLabel(item.label, n, hint || undefined) };
+        let hint = ts.slice(0, 3).join('\n') + (ts.length > 3 ? `\n… 等 ${ts.length} 条` : '');
+        if (pending > n) {
+          hint += (hint ? '\n' : '') + `${pending} 条陪玩提交的工作微信待审核`;
+        }
+        return { ...item, label: menuBadgeLabel(item.label, count, hint || undefined) };
       });
       return { items, count: total };
     };
@@ -1890,7 +1933,7 @@ const AppLayout: React.FC = () => {
     // 「最多两级」这条规矩不变（老板 2026-10-08），展开 / 收起改由那一行右边的箭头管。
     // 必须放在徽标 / 业绩比例之后：那些是按 label 字符串比对的，先换成节点就比不中了。
     return makeTitlesClickable(withTodosBadge, (key) => navigate(key));
-  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, reviewBadge, outcomeReviewBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey, rememberCleared, navigate, markSeen, markBridgeSeen, markBillingSeen, markReviewSeen, markContactSeen, markPendingStartSeen, todosBadge, todosHint]);
+  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, reviewBadge, outcomeReviewBadge, shareRatios, unreadByPath, titlesByPath, workWechatBadge, clearNoticesByKey, rememberCleared, navigate, markSeen, markBridgeSeen, markBillingSeen, markReviewSeen, markContactSeen, markPendingStartSeen, todosBadge, todosHint]);
 
   const selectedKeys = useMemo(() => {
     // 高亮当前页。菜单 key 有的一级直接就是页面（单子菜单会被平铺），有的藏在二级 / 分组里，

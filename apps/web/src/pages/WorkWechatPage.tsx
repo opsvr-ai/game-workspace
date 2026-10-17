@@ -98,6 +98,7 @@ const WorkWechatPage: React.FC = () => {
       message.success('已通过，这个号从现在起生效');
       fetchRequests();
       fetch();
+      window.dispatchEvent(new Event('chunlv:work-wechat-refresh'));
     } catch (e: any) {
       message.error(e?.response?.data?.message || '审核失败');
     }
@@ -114,6 +115,7 @@ const WorkWechatPage: React.FC = () => {
       setRejectId(null);
       setRejectReason('');
       fetchRequests();
+      window.dispatchEvent(new Event('chunlv:work-wechat-refresh'));
     } catch (e: any) {
       message.error(e?.response?.data?.message || '驳回失败');
     } finally {

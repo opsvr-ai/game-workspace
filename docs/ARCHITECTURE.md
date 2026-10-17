@@ -240,7 +240,9 @@
 - **陪玩自己提交工作微信 + 管理端审核（2026-10-02）**: 新表 `WorkWechatRequest`（`PENDING|APPROVED|REJECTED`）只存「申请」；
   真正生效 / 界面显示 / 抢单判重用的仍是 `WorkWechat` —— 只有管理端点通过才会去改它（回滚友好：换了号没过审也不影响在用号）。
   陪玩端 `GET|POST /companions/me/work-wechat`；管理端 `GET /companions/work-wechat-requests` +
-  `PUT .../:id/approve|reject`。审核通过在一个事务里：先把该陪玩原绑的号置 `AVAILABLE`，再把新号 `type=COMPANION, status=BOUND`
+  `PUT .../:id/approve|reject`；左侧栏角标另走 `GET /companions/work-wechat-requests/pending-count`
+  （老板全站、店长 / 客服本店）。**角标按服务端待审数算，不依赖 socket 消息一定送到** —— 2026-10-17
+  hanlei2 漏掉徐瑜的申请就是客户端当时没收到实时事件、页面 30 秒轮询又不点亮菜单。审核通过在一个事务里：先把该陪玩原绑的号置 `AVAILABLE`，再把新号 `type=COMPANION, status=BOUND`
   绑上去（没有这条 `WorkWechat` 就新建），同一人的其它待审申请一并置 `REJECTED`。
   提交与通过都走 `assertWechatUsable()`（别人的号 / 客服在用的号 / `type=STUDIO` 的号一律拒绝）。
   WS：`work-wechat:request`（→ 本店老板/店长/客服的 `user:${id}`）、`work-wechat:updated`（→ 陪玩 `companion:${id}`）。
@@ -814,6 +816,9 @@ sequenceDiagram
 - **工作微信审核事件（老板 2026-10-02）**：陪玩提交后，服务端用 `WsGateway.notifyUser()` 逐个推给本店
   老板 / 店长 / 客服的 `user:${id}` 房间（`work-wechat:request`，前端 `useSocket.onWorkWechatRequest` → 弹提醒 + 进通知中心）；
   管理端审核完用 `notifyCompanion()` 推 `work-wechat:updated`（`useSocket.onWorkWechatUpdated`）。
+  **左侧栏「陪玩工作微信」角标不只看这条消息**：`AppLayout` 每 30 秒拉一次
+  `GET /companions/work-wechat-requests/pending-count`，收到 `work-wechat:request` 时再立即刷新一次，
+  所以重连 / 刷新 / 当时没在线都不会漏（2026-10-17 修）。
   陪玩端「我的工作微信」卡片另外每 30 秒 + 切回窗口时对一次，审核通过后不用刷新页面也能看到新号。
 
 **在线状态口径（2026-09-26 起统一在服务端判定）:**

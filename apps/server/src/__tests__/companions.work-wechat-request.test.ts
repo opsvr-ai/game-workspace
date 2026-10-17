@@ -270,6 +270,15 @@ describe('陪玩提交工作微信 + 管理端审核', () => {
       studioId: 'studio-1',
     });
   });
+
+  it('老板（全站）计数：studioId 为空时不加工作室过滤', async () => {
+    (prisma.workWechatRequest.count as any).mockResolvedValue(5);
+    const n = await svc.countPendingWorkWechatRequests('');
+    expect(n).toBe(5);
+    expect((prisma.workWechatRequest.count as any).mock.calls[0][0].where).toEqual({
+      status: 'PENDING',
+    });
+  });
 });
 
 /**

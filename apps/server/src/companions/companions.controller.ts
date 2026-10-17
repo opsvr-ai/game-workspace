@@ -466,6 +466,25 @@ export class CompanionsController {
     return { code: 200, message: '已提交，等管理端审核', data };
   }
 
+  /**
+   * 管理端：待审核的陪玩工作微信号数量。
+   *
+   * 左侧栏「陪玩工作微信」用它挂服务端角标 —— 不能只靠 socket 那一下：
+   * 客户端重连 / 刷新 / 当时没在线都会漏掉实时消息，页面自己的 30 秒轮询又会
+   * 让店长以为「没提示」，等看到时往往已经审完了（2026-10-17 hanlei2 的徐瑜申请）。
+   */
+  @Get('companions/work-wechat-requests/pending-count')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async pendingWorkWechatCount(@Req() req: any): Promise<ApiResponse<unknown>> {
+    // 老板看全站；店长 / 客服只看本店。老板账号 studioId 可能为空，
+    // 不能走 sid()（它会退化成「第一个工作室」，等于只算一家店）。
+    const allStudios = req.user?.role === UserRole.OWNER;
+    const count = await this.companionsService.countPendingWorkWechatRequests(
+      allStudios ? '' : await this.sid(req),
+    );
+    return { code: 200, message: 'ok', data: { count } };
+  }
+
   /** 管理端：陪玩提交的微信号申请列表 */
   @Get('companions/work-wechat-requests')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)

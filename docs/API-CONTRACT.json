@@ -9,7 +9,7 @@
   "httpPrefix": "/api",
   "stats": {
     "controllers": 28,
-    "endpoints": 410,
+    "endpoints": 412,
     "socketEmitters": 3,
     "socketInbound": 15,
     "socketOutbound": 19
@@ -647,6 +647,13 @@
     },
     {
       "method": "GET",
+      "path": "/api/companions/work-wechat-requests/pending-count",
+      "controller": "CompanionsController",
+      "handler": "pendingWorkWechatCount",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
       "path": "/api/companions/work-wechats",
       "controller": "CompanionsController",
       "handler": "listWorkWechats",
@@ -1091,6 +1098,13 @@
       "path": "/api/orders/cs-wechat-flow",
       "controller": "OrdersController",
       "handler": "csWechatFlow",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/dispatch-summary",
+      "controller": "OrdersController",
+      "handler": "dispatchSummary",
       "file": "apps/server/src/orders/orders.controller.ts"
     },
     {
