@@ -323,6 +323,12 @@ node scripts/_export_api_contract.mjs --check
 
 ### 5.5 已知风险与收尾
 
+- **Nest `forwardRef` 占位实例会覆盖构造期状态（2026-10-17 线上踩过）**：`WsConnectionService.runtime` 在网关构造期
+  `attach` 后，会被 Nest 的 `Object.assign(占位实例, new WsConnectionService(...))` 用类字段 `runtime=null` 覆盖，
+  导致服务能启动、第一个 WebSocket 连接就崩。修法是 `WsGateway.attachRuntimes()` 在构造期与 `afterInit()`
+  各挂一次（`afterInit` 在所有 provider 合并完成之后），并补了 `Object.assign` 模拟回归测试。
+  新增类似「构造期注入运行时依赖」的子服务时，一律用「构造 + afterInit 幂等重挂」，不要只挂构造期。
+
 - 共享连接在 SPA 内「不刷新页面直接换账号」时不会被重建；当前登出 / 顶号路径都是整页跳转，没有这条路径。
 - 每个 `useSocket` 消费者仍注册整套事件包装（旧契约允许运行时替换回调）；多消费者时是几次 no-op 判断，开销可忽略。
 - `orders` / `ws` / `AppLayout` 都采用「可选参数 + 兜底实例」写法保证老单测可手写 `new`；生产环境仍由 Nest DI 注入，
