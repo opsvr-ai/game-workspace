@@ -218,6 +218,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **「下载安装包」不再按管理端 / 陪玩端分两个包（老板 2026-10-17，网页）。**
+  老板指着弹窗问「现在不是不区分管理端跟陪玩端了么，这些是不是都重复了」。核对后：
+  `/api/agent/download/exe` 和 `/api/agent/download/cs` 仍是两个不同的壳（线上 92MB / 82MB），
+  但按「登录什么就是什么」，通用包已经能覆盖客服 / 店长 / 老板，弹窗再单列客服端只会让人选错。
+  - 弹窗收敛为两块：绿框「新电脑一键装机」（`setup-pc.bat`，推荐）+「通用客户端安装包」（`/download/exe`）；
+    删掉「陪玩端 / 客服端」两个独立块，通用包说明写明「登录什么就是什么」。
+  - 登录页注册成功后的自动下载也统一走通用包，不再按客服角色去下 `/download/cs`。
+  - 顺手修 `useShellBranding` 的客户端类型判断：客服端外壳 2026-10-17 也补了 `setRole`，
+    原来用 `api.setRole` 判断会把它误报成陪玩端；改成用陪玩端专属的 `onStatusChanged` 判断，
+    客服端版本仍拿 `cs.latest_version` 比，不会被误标「未更新」。
+  - 旧客服端包（`/download/cs`）保留给老客服机器原样修复 / 自动更新，不再出现在新装机弹窗里。
+  验证：`pnpm --filter @chunlv/web typecheck` 通过、网页全量测试 **164 / 164** 通过、`vite build` 通过。
+
 - **平台结构重构批次 26–28：订单服务 1,385 行 / 外壳 895 行 / 网关 561 行（2026-10-17，dev）。**
   全部行为等价：HTTP 路由、响应字段、socket 事件名与 payload、业务口径零变化；每项都跑过 typecheck + 全量测试。
   - **`orders.service.ts` 4,244 → 1,385 行**：拆出 `order-exception.service.ts`（1,234 行，补单 / 退单 / 报结果 / 复核）、

@@ -202,8 +202,10 @@ const DevicesPanel: React.FC = () => {
 
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
   const downloadOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-  const companionDownloadUrl = downloadOrigin + '/api/agent/download/exe';
-  const csDownloadUrl = downloadOrigin + '/api/agent/download/cs';
+  // 2026-10-17 起不再区分「管理端 / 陪玩端」安装包：登录什么就是什么。
+  // 陪玩端这个包已经能覆盖客服 / 店长 / 老板（外壳按登录角色开关陪玩专属能力），
+  // 所以弹窗里只留这一个通用包，避免再让人从两个 exe 里选。
+  const clientDownloadUrl = downloadOrigin + '/api/agent/download/exe';
   // 发给对方的那条「新电脑一键装机」链接：服务端 uploads/ 下的固定文件（改一个文件 = 改所有新装机）
   const setupPcUrl = downloadOrigin + '/uploads/setup-pc.bat';
 
@@ -1356,7 +1358,7 @@ const DevicesPanel: React.FC = () => {
       >
         <Space direction='vertical' style={{ width: '100%' }} size='middle'>
           <div style={{ background: SEMANTIC.successSoft, border: '1px solid ' + SEMANTIC.successBorder, borderRadius: 8, padding: 12 }}>
-            <Text strong>🖥️ 新电脑一键装机（发给对方的就是这一条链接）</Text>
+            <Text strong>🖥️ 新电脑一键装机（推荐，发给对方的就是这一条链接）</Text>
             <div style={{ marginTop: 6 }}>
               <Input value={setupPcUrl} readOnly />
             </div>
@@ -1367,32 +1369,27 @@ const DevicesPanel: React.FC = () => {
             </Space>
             <div style={{ marginTop: 6 }}>
               <Text type='secondary' style={{ fontSize: 12 }}>
-                对方双击它 → 自动建 Windows 运维账号（随机口令）+ 装好客户端 + 自动打开；
+                对方双击它 → 自动建 Windows 运维账号（随机口令）+ 装好通用客户端 + 自动打开；
                 账号和口令会自动回传到「客户端管理 → 电脑」，不用问他。
               </Text>
             </div>
           </div>
           <Divider style={{ margin: 0 }} />
           <div>
-            <Text strong>🎮 陪玩端（陪玩管理）</Text>
+            <Text strong>📦 通用客户端安装包（陪玩 / 客服 / 店长 / 老板都装这一个）</Text>
             <div style={{ marginTop: 6 }}>
-              <Input value={companionDownloadUrl} readOnly />
+              <Input value={clientDownloadUrl} readOnly />
             </div>
             <Space style={{ marginTop: 8 }}>
-              <Button type='primary' icon={<DownloadOutlined />} href={companionDownloadUrl}>下载</Button>
-              <Button icon={<CopyOutlined />} onClick={() => copyText(companionDownloadUrl, '陪玩端链接')}>复制链接</Button>
+              <Button type='primary' icon={<DownloadOutlined />} href={clientDownloadUrl}>下载</Button>
+              <Button icon={<CopyOutlined />} onClick={() => copyText(clientDownloadUrl, '客户端链接')}>复制链接</Button>
             </Space>
-          </div>
-          <Divider style={{ margin: 0 }} />
-          <div>
-            <Text strong>💬 客服端</Text>
             <div style={{ marginTop: 6 }}>
-              <Input value={csDownloadUrl} readOnly />
+              <Text type='secondary' style={{ fontSize: 12 }}>
+                登录什么就是什么：登陪玩账号就是陪玩端，登客服 / 店长 / 老板账号就是管理端；
+                不再按「管理端 / 陪玩端」发两个安装包。新电脑优先用上面的「一键装机」。
+              </Text>
             </div>
-            <Space style={{ marginTop: 8 }}>
-              <Button type='primary' icon={<DownloadOutlined />} href={csDownloadUrl}>下载</Button>
-              <Button icon={<CopyOutlined />} onClick={() => copyText(csDownloadUrl, '客服端链接')}>复制链接</Button>
-            </Space>
           </div>
           <Text type='secondary' style={{ fontSize: 12 }}>
             把「复制链接」得到的地址发给对方，对方浏览器打开即可下载安装（服务端已经是公网地址，外地工作室直接用这个就行）。

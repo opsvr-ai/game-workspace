@@ -23,16 +23,16 @@ const CLIENT_VERSION = '1.0.20261003';
 
 /**
  * 触发一次客户端下载。
- * 客服角色给客服端安装包，其余（陪玩 / 店长 —— 店长也是用陪玩端窗口）给陪玩端安装包。
+ * 2026-10-17 起不再按角色分安装包：一个通用包装给所有人，登录什么就是什么。
+ * （外壳按真实登录角色开关陪玩专属能力，客服 / 店长 / 老板登进来不会跑录屏 / 进程管控。）
  * 「注册成功」和「邀请链接开通成功」都会自动调它，这样一条注册链接就能把软件一起带下去。
  */
-const triggerClientDownload = (registerRole?: string) => {
+const triggerClientDownload = () => {
   // 手机上注册也装不了 exe，别白下 80 多 MB；页面底部有下载入口
   if (/Android|iPhone|iPad|iPod|HarmonyOS|Mobile/i.test(navigator.userAgent)) return;
-  const isCs = registerRole === 'OFFLINE_CS' || registerRole === 'ONLINE_CS';
   const a = document.createElement('a');
-  a.href = `${isCs ? '/api/agent/download/cs' : '/api/agent/download/exe'}?v=${CLIENT_VERSION}`;
-  a.download = isCs ? '客服管理-Setup.exe' : '陪玩管理-Setup.exe';
+  a.href = `/api/agent/download/exe?v=${CLIENT_VERSION}`;
+  a.download = '陪玩管理-Setup.exe';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -386,7 +386,7 @@ const LoginPage: React.FC = () => {
       if (res.data?.code === 201) {
         message.success('✅ 注册成功！客户端已开始下载，等管理员审核通过后用它登录', 8);
         // 注册完就把软件带下去，省得对方自己找下载入口（跟邀请开通那条一致）
-        setTimeout(() => triggerClientDownload(registerRole), 800);
+        setTimeout(() => triggerClientDownload(), 800);
         setMode('login');
       } else {
         message.error(res.data?.message || '注册失败', 8);
