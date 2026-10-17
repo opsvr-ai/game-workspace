@@ -237,9 +237,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     「设置中心 → 客户端管理 → 电脑 → 换端 → 通用客户端」一次性迁移（脚本会装通用包、清旧客服端目录/快捷方式/自启、搬账号密码）。
     发布链路只保留 `scripts/_publish_client.py`；`_publish_cs_client.py` 只留作老客服机紧急修复。
     文档见 `docs/DEPLOYMENT.md` 5.0、`scripts/README.md`、`docs/USER_MANUAL.md`。
-  - 安装包已构建：`apps/companion-electron/release/陪玩管理 Setup 1.0.20261026.exe`（87.9 MB，
+  - 安装包：`apps/companion-electron/release/陪玩管理 Setup 1.0.20261026.exe`（87.9 MB，
     SHA256 `ADD008282D024A5307747C174C11BE79F53172B3CA753AFD9D5C633ECADD53E2`）。
-    **自动更新尚未推送**（按规矩需老板确认后再发）。
+  - **已发布到自动更新通道（2026-10-17 23:07）**：`agent.latest_version = 1.0.20261026`，
+    zip 包与装机包已上传并校验（`unzip -t` 通过、装机包 SHA256 与本地一致、`/api/agent/download/latest` 200、
+    服务健康 200）。客户端每 15 分钟自查一次，接单中先等待、打完立刻装，看门狗换文件、健康失败自动回滚；
+    不是强制推送，铺开需要一段时间。发布前旧包已备份为 `uploads/*.bak-20261017-2310`，
+    如需回滚可恢复文件并把 `agent.latest_version` 设回 `1.0.20261025`。
+  - 旧客服端 `cs.latest_version` 保持 `1.0.20260941` 不动（legacy 冻结，不再发新版）。
 
 - **结构重构批次 31–34：订单 549 行 / 外壳 521 行 / 网关 341 行 / 作用域 166→73（2026-10-17，dev）。**
   全部行为等价（412 接口 / 90 路由 / socket 事件名与 payload / 响应字段 / 业务口径零变化），每项都跑过 typecheck + 全量测试。

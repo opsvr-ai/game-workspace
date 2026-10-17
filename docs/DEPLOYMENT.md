@@ -597,6 +597,9 @@ Electron 客户端 是运行在陪玩师电脑上的桌面客户端，通过 Web
   npx electron-builder
   ```
   安装包输出 `release/陪玩管理 Setup <版本>.exe`（artifact 名沿用旧名，避免改发布脚本/下载路径）。
+- **当前线上版本：`1.0.20261026`（2026-10-17 发布，`agent.latest_version`）**；发布前旧包备份在
+  `uploads/chunlv-latest.zip.bak-20261017-2310` / `agent-setup.exe.bak-20261017-2310`，
+  回滚时恢复文件并把 `agent.latest_version` 改回 `1.0.20261025`。
 
 ### 5.1 编译 Agent
 
