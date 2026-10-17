@@ -127,7 +127,7 @@ describe("语音通话中继", () => {
     await gw.handleCallAnswer(bob as never, { targetUserId: "u-alice" });
     await gw.handleCallHangup(alice as never, { targetUserId: "u-bob" });
 
-    const sessions = (gw as any).callSessions as Map<string, unknown>;
+    const sessions = (gw as any).voice.callSessions as Map<string, unknown>;
     expect(sessions.has("u-alice")).toBe(false);
     expect(sessions.has("u-bob")).toBe(false);
   });
@@ -140,21 +140,21 @@ describe("语音通话中继", () => {
       await gw.handleCallOffer(alice as never, { targetUserId: "u-bob" });
       emits.length = 0;
 
-      (gw as any).scheduleCallEndOnDisconnect({ id: "u-alice", username: "王昊", role: "COMPANION", studioId: "s1" });
+      (gw as any).voice.scheduleCallEndOnDisconnect({ id: "u-alice", username: "王昊", role: "COMPANION", studioId: "s1" });
 
       // 断线瞬间只提示「对方网络抖动」，不能挂断
       expect(emits.map((e) => e.event)).toEqual(["call:peer-unstable"]);
-      expect(((gw as any).callSessions as Map<string, unknown>).has("u-alice")).toBe(true);
+      expect(((gw as any).voice.callSessions as Map<string, unknown>).has("u-alice")).toBe(true);
 
       // 宽限期过一半就重连回来了：通话保留、不再挂断
       presence.addSocket("u-alice");
       vi.advanceTimersByTime(20_000);
-      const pending = (gw as any).pendingCallEndTimers as Map<string, unknown>;
+      const pending = (gw as any).voice.pendingCallEndTimers as Map<string, unknown>;
       clearTimeout(pending.get("u-alice") as never);
       pending.delete("u-alice");
       vi.advanceTimersByTime(60_000);
       expect(emits.some((e) => e.event === "call:hangup")).toBe(false);
-      expect(((gw as any).callSessions as Map<string, unknown>).has("u-alice")).toBe(true);
+      expect(((gw as any).voice.callSessions as Map<string, unknown>).has("u-alice")).toBe(true);
     } finally {
       vi.useRealTimers();
     }
@@ -168,12 +168,12 @@ describe("语音通话中继", () => {
       await gw.handleCallOffer(alice as never, { targetUserId: "u-bob" });
       emits.length = 0;
 
-      (gw as any).scheduleCallEndOnDisconnect({ id: "u-alice", username: "王昊", role: "COMPANION", studioId: "s1" });
+      (gw as any).voice.scheduleCallEndOnDisconnect({ id: "u-alice", username: "王昊", role: "COMPANION", studioId: "s1" });
       presence.removeSocket("u-alice");
       vi.advanceTimersByTime(46_000);
 
       expect(emits.some((e) => e.room === "user:u-bob" && e.event === "call:hangup")).toBe(true);
-      expect(((gw as any).callSessions as Map<string, unknown>).has("u-alice")).toBe(false);
+      expect(((gw as any).voice.callSessions as Map<string, unknown>).has("u-alice")).toBe(false);
     } finally {
       vi.useRealTimers();
     }

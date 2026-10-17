@@ -51,11 +51,15 @@ const client = {
   handshake: { address: "::1" },
   data: { user: { id: "u1", username: "c1", role: "COMPANION", studioId: undefined, companionId: "c1" } },
 };
-const asPrivate = (gw: WsGateway) => gw as unknown as {
-  companionSockets: Map<string, Set<string>>;
-  cancelPendingOfflineTransition: (companionId: string) => boolean;
-  scheduleOfflineTransition: (companionId: string, studioId?: string) => Promise<void>;
-};
+// 拆分后连接状态在 WsConnectionService 上；这里只改内部状态的取址路径，断言一条没动。
+const asPrivate = (gw: WsGateway) =>
+  (gw as unknown as {
+    connection: {
+      companionSockets: Map<string, Set<string>>;
+      cancelPendingOfflineTransition: (companionId: string) => boolean;
+      scheduleOfflineTransition: (companionId: string, studioId?: string) => Promise<void>;
+    };
+  }).connection;
 
 describe("置离线宽限期：秒级闪断不算掉线", () => {
   beforeEach(() => vi.useFakeTimers());

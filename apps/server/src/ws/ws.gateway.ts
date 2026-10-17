@@ -9,39 +9,38 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Inject, forwardRef } from '@nestjs/common';
+import { Inject, forwardRef, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import type { JwtPayload } from '../auth/auth.service';
 import { logger, isDebugEnabled } from '../common/logger';
-import { presence } from '../common/presence';
-import * as fs from 'fs';
 import { CompanionsService } from '../companions/companions.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { BridgeService } from '../studios/bridge.service';
 import { HeartbeatService } from './heartbeat.service';
 import { BlacklistIngestService } from './blacklist-ingest.service';
 import { isLanOrigin } from '../common/http-auth';
-import { stripCustomerSourceDeep } from '../common/order-privacy';
-import { switchCompanionStatus } from '../common/companion-status-switch';
-import {
-  resolveCompanionOverrides,
-  resolveStudioBlacklistEnabled,
-} from '../common/blacklist-switch';
+import { WsEmitterService } from './ws-emitter.service';
+import { WsBlacklistService } from './ws-blacklist.service';
+import { WsVoiceService } from './ws-voice.service';
+import { WsConnectionService } from './ws-connection.service';
+import type { ConnectedUser } from './ws-connection.service';
 
-export interface ConnectedUser {
-  id: string;
-  username: string;
-  role: string;
-  studioId: string | null;
-  companionId?: string;
-}
+export type { ConnectedUser } from './ws-connection.service';
 
 const wsAllowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8000,http://localhost:3001').split(',');
 
-/** 语音通话中断线宽限期：比客户端自己的 30 秒稍长，让客户端先有机会重连上。 */
-const VOICE_RECONNECT_GRACE_MS = 45_000;
-
+/**
+ * WebSocket 网关 —— 只保留「入口 + 公开方法委托」。
+ *
+ * 原来的 1,553 行拆成四层，事件名 / payload / 权限与业务判断一个字节都没改：
+ *  - WsConnectionService：握手鉴权、房间编排、在线映射、断线宽限、kickUser
+ *  - WsEmitterService：订单 / 通知 / 聊天等广播语义（含客户来源脱敏）
+ *  - WsBlacklistService：黑名单开关缓存、名单下发、电脑识别
+ *  - WsVoiceService：call:* 处理、音频限流、通话日志与断线宽限挂断
+ *
+ * 这里保留 @WebSocketServer server、@SubscribeMessage 入口和原有公开方法（同名委托），
+ * 现有调用方（orders / auth / companions / billing / chat …）零改动。
+ */
 @WebSocketGateway({
   cors: {
     origin: (origin: string | undefined, callback: (err: Error | null, allowed?: boolean) => void) => {
@@ -58,19 +57,10 @@ const VOICE_RECONNECT_GRACE_MS = 45_000;
 export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server!: Server;
 
-  /** companionId -> socketId */
-  private companionSockets = new Map<string, Set<string>>();
-  /** 断开后「延迟置离线」的定时器：companionId -> timer */
-  private pendingOfflineTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  /** 置离线宽限期缓存（避免每次断开都查一次配置） */
-  private offlineGraceCache: { seconds: number; at: number } | null = null;
-  /** userId -> 该用户当前所有的连接 id（一个人可能同时开着网页 + 客户端 + 弹窗） */
-  private userSockets = new Map<string, Set<string>>();
-  /**
-   * 客服 / 店长「下班打卡」的延迟定时器：userId -> timer（老板 2026-10-04）。
-   * 刷新页面 / 网络抖动会断开几秒，直接记下班就天天误记早退，所以跟陪玩一样等宽限期真的没连回来才算。
-   */
-  private pendingStaffOfflineTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly emitter: WsEmitterService;
+  private readonly blacklist: WsBlacklistService;
+  private readonly voice: WsVoiceService;
+  private readonly connection: WsConnectionService;
 
   constructor(
     private readonly jwt: JwtService,
@@ -80,68 +70,34 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @Inject(forwardRef(() => ExcellenceService)) private readonly excellence: ExcellenceService,
     private readonly heartbeatService: HeartbeatService,
     private readonly blacklistIngestService: BlacklistIngestService,
-  ) {}
+    // 四个子服务在 WsModule 里注册成 provider，由 Nest 注入；
+    // 单测里直接 `new WsGateway(7 个旧参数)` 时兜底自建，保持老测试零改动。
+    @Optional() emitterService?: WsEmitterService,
+    @Optional() blacklistService?: WsBlacklistService,
+    @Optional() voiceService?: WsVoiceService,
+    @Optional() connectionService?: WsConnectionService,
+  ) {
+    this.emitter = emitterService ?? new WsEmitterService(this.prisma, this.bridgeService, this.excellence);
+    this.blacklist = blacklistService ?? new WsBlacklistService(this.prisma);
+    this.voice = voiceService ?? new WsVoiceService(this.prisma);
+    this.connection =
+      connectionService ?? new WsConnectionService(this.jwt, this.prisma, this.bridgeService, this.companionsService);
 
-  /**
-   * 老板 2026-09-20 报「日志里每天几十次 WebSocket invalid signature，失败期间收不到弹窗」。
-   * 根因：accessToken 只有 15 分钟寿命，陪玩端（特别是主进程那条连接）过了 15 分钟
-   * 还在拿旧令牌重连，握手被拒 → 弹窗链路直接断掉，只能等 15 秒轮询。
-   * 处理：令牌只要确实是本服务器签发的、仅仅是过期，就按宽限期放进来，
-   * HTTP 接口依旧严格按 15 分钟校验（这里只放宽「服务端主动推送」这条通道），
-   * 同时推 auth:stale_token 提醒客户端去换新令牌。
-   * 宽限期可在系统设置里改：ws.token_grace_hours，默认 168 小时（7 天）。
-   */
-  private async acceptExpiredOwnToken(
-    token: string,
-  ): Promise<{
-    payload: JwtPayload;
-    expiredAt: Date;
-    kind: 'access' | 'refresh';
-    /** 只是「过期但仍放行」才需要提示客户端换令牌；没过期的是正常连接 */
-    expired: boolean;
-  } | null> {
-    // 不看具体的报错类型：accessToken 过期报 TokenExpiredError，
-    // refreshToken（另一把密钥）过期会先报 invalid signature —— 两种情况都是
-    // 「本服务器签发、只是过期」，一并按宽限期处理。
-    let payload: JwtPayload | null = null;
-    let kind: 'access' | 'refresh' = 'access';
-    try {
-      payload = this.jwt.verify<JwtPayload>(token, {
-        secret: process.env.JWT_SECRET,
-        ignoreExpiration: true,
-      });
-    } catch {
-      kind = 'refresh';
-      try {
-        payload = this.jwt.verify<JwtPayload>(token, {
-          secret: process.env.JWT_REFRESH_SECRET,
-          ignoreExpiration: true,
-        });
-      } catch {
-        // 两个密钥都验不过 = 不是本服务器签发的，走原来的失败流程
-        return null;
-      }
-    }
-    const exp = Number((payload as any)?.exp);
-    if (!Number.isFinite(exp)) return null;
-    const expiredAt = new Date(exp * 1000);
-    const age = Date.now() - expiredAt.getTime();
-    // 还没过期：这是正常连接（典型场景＝主进程拿 7 天有效的 refreshToken 连），
-    // 原样放行、不用提示换令牌。
-    if (age <= 0) return { payload, expiredAt, kind, expired: false };
-    const graceHours = await this.tokenGraceHours();
-    if (graceHours <= 0) return null;
-    if (age > graceHours * 3600 * 1000) return null;
-    return { payload, expiredAt, kind, expired: true };
-  }
-
-  private async tokenGraceHours(): Promise<number> {
-    const cfg = await this.prisma.systemConfig
-      .findUnique({ where: { key: 'ws.token_grace_hours' } })
-      .catch(() => null);
-    const raw = cfg?.value as unknown;
-    const value = typeof raw === 'number' ? raw : Number(raw);
-    return Number.isFinite(value) ? value : 168;
+    // @WebSocketServer server 要等 Nest 完成注入才有值（单测里是构造后手动挂），
+    // 所以子服务拿的是取址回调，而不是构造期的 server 实例。
+    const getServer = () => this.server;
+    const notifyUser = (userId: string, event: string, data: unknown) => this.notifyUser(userId, event, data);
+    const notifyCompanion = (companionId: string, event: string, data: unknown) =>
+      this.notifyCompanion(companionId, event, data);
+    this.emitter.attach({
+      getServer,
+      notifyUser,
+      notifyCompanion,
+      isCompanionConnected: (companionId) => this.isCompanionConnected(companionId),
+    });
+    this.voice.attach({ notifyUser });
+    this.blacklist.attach({ getServer });
+    this.connection.attach({ getServer, emitter: this.emitter, blacklist: this.blacklist, voice: this.voice });
   }
 
   // ── lifecycle ──────────────────────────────────────────────────────
@@ -164,444 +120,17 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  /**
-   * 把某个用户现有的所有连接踢掉（老板 2026-10-01）：管理 / 客服账号被顶号时，
-   * 旧的那台要立刻断开 —— 否则它虽然接不了接口，却还能继续收实时消息和抢单弹窗。
-   */
+  /** 把某个用户现有的所有连接踢掉（老板 2026-10-01，见 WsConnectionService.kickUser）。 */
   kickUser(userId: string): number {
-    const ids = this.userSockets.get(userId);
-    if (!ids?.size) return 0;
-    let kicked = 0;
-    for (const sid of Array.from(ids)) {
-      const socket = this.server?.sockets?.sockets?.get(sid);
-      if (!socket) continue;
-      try {
-        socket.emit('auth:replaced', { message: '该账号已在别的电脑上登录' });
-        socket.disconnect(true);
-        kicked += 1;
-      } catch { /* 单条连接失败不影响别的 */ }
-    }
-    this.userSockets.delete(userId);
-    return kicked;
+    return this.connection.kickUser(userId);
   }
 
   async handleConnection(client: Socket): Promise<void> {
-    try {
-      const token = (client.handshake.auth?.token || client.handshake.query?.token) as string | undefined;
-      if (!token) {
-        client.disconnect(true);
-        return;
-      }
-
-      // 客户端主进程可能用 accessToken 或 refreshToken 连接（两者签名密钥不同）
-      let payload: JwtPayload;
-      let staleToken: { expiredAt: Date; kind: 'access' | 'refresh' } | null = null;
-      // 记录这条连接用的是哪种令牌（access=网页 / refresh=陪玩端主进程），
-      // 排查「谁在反复掉线」时能一眼看出是哪条连接在抖。
-      let tokenKind: 'access' | 'refresh' = 'access';
-      try {
-        payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_SECRET });
-      } catch (accessErr) {
-        // 先看是不是「我们自己签发、只是过期了」：是就按宽限期放行，
-        // 否则再试 refreshToken，最后才判定为非法令牌。
-        const stale = await this.acceptExpiredOwnToken(token);
-        if (stale) {
-          payload = stale.payload;
-          tokenKind = stale.kind;
-          if (stale.expired) {
-            staleToken = { expiredAt: stale.expiredAt, kind: stale.kind };
-          }
-        } else {
-        try {
-          const refreshed = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
-          payload = refreshed;
-          tokenKind = 'refresh';
-        } catch (refreshErr) {
-          // 两个密钥都验不过 = 这个令牌不是这台服务器签发的。
-          // 老板 2026-09-20 报「日志里每天几十次 invalid signature」：
-          // 之前只记了一句 message，看不出是谁、什么时候签的，没法定位是哪台机器。
-          // 现在把令牌里的身份和时间一起记下来（不记令牌本体），并明确告诉客户端去换令牌。
-          let info: any = {};
-          try {
-            info = this.jwt.decode(token) || {};
-          } catch {
-            /* 令牌格式都解析不了 */
-          }
-          logger.error('WebSocket auth failed', {
-            accessError: (accessErr as Error).message,
-            refreshError: (refreshErr as Error).message,
-            username: info?.username,
-            role: info?.role,
-            userId: info?.sub,
-            issuedAt: info?.iat ? new Date(info.iat * 1000).toISOString() : null,
-            expiresAt: info?.exp ? new Date(info.exp * 1000).toISOString() : null,
-            address: client.handshake?.address,
-          });
-          client.emit('auth:failed', { reason: (accessErr as Error).message });
-          // 先把「你去换令牌」这句话发出去再断开，否则客户端只看到自己被踢，
-          // 不知道为什么，也不知道要做什么。
-          setTimeout(() => client.disconnect(true), 200);
-          return;
-        }
-        }
-      }
-
-      if (staleToken) {
-        logger.warn('WebSocket accepted with expired token (within grace)', {
-          username: (payload as any)?.username,
-          userId: (payload as any)?.sub,
-          tokenKind: staleToken.kind,
-          expiredAt: staleToken.expiredAt.toISOString(),
-          address: client.handshake?.address,
-        });
-        // 告诉客户端去换新令牌，下一次重连就恢复正常
-        client.emit('auth:stale_token', {
-          tokenKind: staleToken.kind,
-          expiredAt: staleToken.expiredAt.toISOString(),
-        });
-      }
-
-      // 单点登录（老板 2026-10-01）：管理 / 客服账号的令牌里带着 sessionVersion，
-      // 对不上 DB 里当前的号码 = 已经在别处登录过，这条连接直接拒掉。
-      // 陪玩的 sv 从不变化（不顶号），老令牌没有 sv 也不判，
-      // 避免发布当刻把正在接单的陪玩掉下线。
-      if (typeof (payload as any).sv === 'number') {
-        const svRow = await this.prisma.user
-          .findUnique({ where: { id: payload.sub }, select: { sessionVersion: true } })
-          .catch(() => null);
-        if (!svRow || (payload as any).sv !== svRow.sessionVersion) {
-          logger.info('Socket rejected: session replaced', {
-            userId: payload.sub,
-            username: payload.username,
-            role: payload.role,
-          });
-          client.emit('auth:replaced', { message: '该账号已在别的电脑上登录' });
-          setTimeout(() => client.disconnect(true), 200);
-          return;
-        }
-      }
-
-      const user: ConnectedUser = {
-        id: payload.sub,
-        username: payload.username,
-        role: payload.role,
-        studioId: payload.studioId,
-        companionId: payload.companionId,
-      };
-      client.data.user = user;
-      client.data.tokenKind = tokenKind;
-      client.data.transport = client.conn?.transport?.name ?? 'unknown';
-      // 客户端连接活着 = 这个人现在在线（不管窗口有没有最小化）。
-      presence.addSocket(user.id);
-      // 以前只记陪玩的连接/断开，客服、店长、老板的连接完全没日志，
-      // 老板一报「谁又掉线了」就只能拿时间猜。现在所有角色都记一条。
-      if (!user.companionId) {
-        logger.info('Socket connected', {
-          userId: user.id,
-          username: user.username,
-          role: user.role,
-          tokenKind,
-          transport: client.data.transport,
-          address: client.handshake?.address,
-        });
-        // 客服 / 店长的上班卡：客户端（客服端 / 店长端）一开机连上就打；
-        // 宽限期内又连回来 = 没走过，把「下班打卡」定时器撤掉。
-        this.cancelPendingStaffOffline(user.id);
-        try {
-          await this.companionsService?.ensureStaffAttendance(user.id, user.role);
-        } catch (err) {
-          logger.warn('Staff attendance punch-in failed', { userId: user.id, error: (err as Error).message });
-        }
-      }
-
-      const pendingCallEnd = this.pendingCallEndTimers.get(user.id);
-      if (pendingCallEnd) {
-        clearTimeout(pendingCallEnd);
-        this.pendingCallEndTimers.delete(user.id);
-        const session = this.callSessions.get(user.id);
-        if (session) {
-          logger.info('Voice call survived reconnect', {
-            userId: user.id,
-            username: user.username,
-            peerUserId: session.peerId,
-          });
-          this.notifyUser(session.peerId, 'call:peer-stable', { peerUserId: user.id });
-        }
-      }
-
-      void client.join(`user:${user.id}`);
-      if (!this.userSockets.has(user.id)) this.userSockets.set(user.id, new Set());
-      this.userSockets.get(user.id)!.add(client.id);
-      if (user.studioId) {
-        void client.join(`studio:${user.studioId}`);
-        // Join all bridged studio rooms for cross-studio real-time events
-        this.bridgeService
-          .getBridgedStudioIds(user.studioId)
-          .then((bridgedIds) => {
-            for (const bridgedId of bridgedIds) {
-              void client.join(`studio:${bridgedId}`);
-            }
-          })
-          .catch((err) => {
-            logger.error('Failed to join bridged studio rooms', {
-              error: (err as Error).message,
-              studioId: user.studioId,
-            });
-          });
-      }
-      if (user.companionId) {
-        void client.join(`companion:${user.companionId}`);
-        void client.join(`pc:${user.companionId}`);
-        if (!this.companionSockets.has(user.companionId)) {
-          this.companionSockets.set(user.companionId, new Set());
-        }
-        this.companionSockets.get(user.companionId)!.add(client.id);
-        // 刚刚那次断开只是刷新页面 / 网络抖一下 / 服务端发版重启？连回来就把
-        // 「置离线」的定时器撤掉，状态保持原样，控制台里不会闪一下「掉线」。
-        if (this.cancelPendingOfflineTransition(user.companionId)) {
-          logger.info('Companion reconnected within grace, offline transition cancelled', {
-            companionId: user.companionId,
-          });
-        }
-        logger.debug('Companion connected', { companionId: user.companionId, username: user.username });
-        void this.pushCurrentBlacklist(user.companionId, user.studioId);
-        void this.syncManagedPc(client.handshake?.address, user.username);
-
-        // 重连补发未处理的搭档邀请，避免发送时客户端恰好断线导致收不到。
-        const pendingInvite = await this.prisma.orderSession.findFirst({
-          where: {
-            coCompanionId: user.companionId,
-            status: 'ACTIVE',
-            startedAt: null,
-            createdAt: { gte: new Date(Date.now() - 60 * 1000) },
-          },
-          include: {
-            parentOrder: { select: { id: true, gameName: true, customerId: true, companionId: true } },
-            companion: { select: { user: { select: { displayName: true, username: true } } } },
-          },
-          orderBy: { createdAt: 'desc' },
-        }).catch(() => null);
-        if (pendingInvite) {
-          this.pushOrder(user.companionId, {
-            ...pendingInvite,
-            orderId: pendingInvite.parentOrder?.id,
-            gameName: pendingInvite.parentOrder?.gameName,
-            customerId: pendingInvite.parentOrder?.customerId,
-            companionId: pendingInvite.companionId,
-            inviterName: pendingInvite.companion?.user?.displayName || pendingInvite.companion?.user?.username || '',
-            type: 'DUAL_INVITE',
-            expiresInSec: 60,
-          });
-        }
-
-        const current = await this.prisma.companion
-          .findUnique({ where: { id: user.companionId }, select: { status: true } })
-          .catch(() => null);
-        const nextStatus = await this.companionsService.resolvePresenceStatus(
-          user.companionId,
-          current?.status,
-        );
-        await this.prisma.companion.update({
-          where: { id: user.companionId },
-          data: { status: nextStatus },
-        });
-
-        // 这里不再补推黑名单：连接时的状态只是按「在线 = 空闲」猜出来的，
-        // 而上面一步已经推过一次。猜出来的状态不能发给客户端，
-        // 否则会把正在「娱乐中」打游戏的陪玩当成空闲处理（随即误杀游戏进程）。
-
-        // Record attendance on connection
-        await this.companionsService.ensureAttendance(user.companionId);
-
-        if (user.studioId) {
-          this.broadcastToBridgedStudios(user.studioId, 'status:broadcast', {
-            companionId: user.companionId,
-            status: nextStatus,
-          });
-        }
-      }
-    } catch (err) {
-      logger.error('WebSocket connection failed', { error: (err as Error).message });
-      client.disconnect(true);
-    }
+    return this.connection.handleConnection(client);
   }
 
   async handleDisconnect(client: Socket): Promise<void> {
-
-    const user = client.data.user as ConnectedUser | undefined;
-    if (!user) return;
-    presence.removeSocket(user.id);
-    // 同一客户端可能有好几条连接（网页 + 陪玩端主进程），只有一条都不剩才算真的走了，
-    // 不然主进程那条连接一抖就把正在进行的语音通话掐断。
-    if (!presence.hasSocket(user.id)) {
-      this.scheduleCallEndOnDisconnect(user);
-    }
-    // 只摘掉自己这条连接；这个人还有别的窗口连着就不能当成掉线（以前会把整条记录删掉，
-    // 剩下的连接从此收不到点对点推送）。
-    const mySockets = this.userSockets.get(user.id);
-    if (mySockets) {
-      mySockets.delete(client.id);
-      if (mySockets.size === 0) this.userSockets.delete(user.id);
-    }
-    if (!user.companionId) {
-      // 客服 / 店长 / 老板 的断开以前一条日志都没有，只能靠人员列表「离线」反推。
-      logger.info('Socket disconnected', {
-        userId: user.id,
-        username: user.username,
-        role: user.role,
-        tokenKind: (client.data as any).tokenKind,
-        transport: (client.data as any).transport,
-        address: client.handshake?.address,
-        stillConnected: presence.hasSocket(user.id),
-      });
-      // 客服 / 店长：一条连接都不剩了才安排「下班打卡」，等宽限期（默认 60 秒）；
-      // 期间连回来就撤掉（撤销在 handleConnection 里），不会误记早退。
-      if (!presence.hasSocket(user.id)) {
-        await this.scheduleStaffOffline(user.id, user.role);
-      }
-      return;
-    }
-    const sockets = this.companionSockets.get(user.companionId);
-    if (sockets) {
-      sockets.delete(client.id);
-      if (sockets.size === 0) {
-        this.companionSockets.delete(user.companionId);
-      } else {
-        // 还有别的连接（主进程 / 页面），状态先不动
-        logger.info('Companion partial disconnect', {
-          companionId: user.companionId,
-          remaining: sockets.size,
-          tokenKind: (client.data as any).tokenKind,
-          transport: (client.data as any).transport,
-          address: client.handshake?.address,
-        });
-        return;
-      }
-    }
-    logger.info('Companion disconnected', {
-      companionId: user.companionId,
-      tokenKind: (client.data as any).tokenKind,
-      transport: (client.data as any).transport,
-      address: client.handshake?.address,
-    });
-
-    // 老板 2026-09-21 报「软件动不动就掉线」：客户端刷新页面、网络抖一下、或者服务端
-    // 发版重启，都会把连接断掉几秒——以前这里立刻把人置成 OFFLINE，控制台里就闪一下
-    // 「掉线」。现在改成「宽限期内连回来 = 没掉过线」，超过宽限期（默认 60 秒，
-    // 系统设置里可改 ws.offline_grace_seconds）才真的置离线。
-    await this.scheduleOfflineTransition(user.companionId, user.studioId || undefined);
-  }
-
-  /**
-   * 宽限期内连回来了 → 撤掉「置离线」定时器，返回 true。
-   * 这样刷新页面 / 网络抖动 / 服务端发版重启都不会在控制台里闪出「掉线」。
-   */
-  private cancelPendingOfflineTransition(companionId: string): boolean {
-    const pending = this.pendingOfflineTimers.get(companionId);
-    if (!pending) return false;
-    clearTimeout(pending);
-    this.pendingOfflineTimers.delete(companionId);
-    return true;
-  }
-
-  /** 宽限期内客服 / 店长又连回来 → 撤掉「下班打卡」定时器。 */
-  private cancelPendingStaffOffline(userId: string): boolean {
-    const pending = this.pendingStaffOfflineTimers.get(userId);
-    if (!pending) return false;
-    clearTimeout(pending);
-    this.pendingStaffOfflineTimers.delete(userId);
-    return true;
-  }
-
-  /** 客服 / 店长最后一条连接断开 → 宽限期后记下班（早于下班时间就是早退）。 */
-  private async scheduleStaffOffline(userId: string, role: string): Promise<void> {
-    if (role !== 'CS' && role !== 'ADMIN') return; // 老板不考勤
-    // 考勤永远不能反过来影响连接处理：读配置 / 写库失败都只记一条日志。
-    try {
-      const existing = this.pendingStaffOfflineTimers.get(userId);
-      if (existing) clearTimeout(existing);
-      const graceMs = await this.offlineGraceMs();
-      const apply = async () => {
-        this.pendingStaffOfflineTimers.delete(userId);
-        if (presence.hasSocket(userId)) return;
-        try {
-          await this.companionsService?.finalizeStaffAttendance(userId, role);
-        } catch (err) {
-          logger.warn('Staff attendance punch-out failed', { userId, error: (err as Error).message });
-        }
-      };
-      if (graceMs <= 0) {
-        await apply();
-        return;
-      }
-      const timer = setTimeout(() => void apply(), graceMs);
-      if (typeof (timer as any).unref === 'function') (timer as any).unref();
-      this.pendingStaffOfflineTimers.set(userId, timer);
-    } catch (err) {
-      logger.warn('Staff attendance punch-out scheduling failed', { userId, error: (err as Error).message });
-    }
-  }
-
-  /** 安排「延迟置离线」；重复断开只保留最后一个定时器 */
-  private async scheduleOfflineTransition(companionId: string, studioId?: string): Promise<void> {
-    const existing = this.pendingOfflineTimers.get(companionId);
-    if (existing) clearTimeout(existing);
-    const graceMs = await this.offlineGraceMs();
-    if (graceMs <= 0) {
-      await this.applyOfflineTransition(companionId, studioId);
-      return;
-    }
-    const timer = setTimeout(() => {
-      this.pendingOfflineTimers.delete(companionId);
-      void this.applyOfflineTransition(companionId, studioId);
-    }, graceMs);
-    if (typeof (timer as any).unref === 'function') (timer as any).unref();
-    this.pendingOfflineTimers.set(companionId, timer);
-  }
-
-  /** 宽限期到点、且确实还没连回来 → 置离线（有服务在身则保持忙碌） */
-  private async applyOfflineTransition(companionId: string, studioId?: string): Promise<void> {
-    if (this.companionSockets.get(companionId)?.size) return;
-    const inService = await this.companionsService.hasActiveServiceSession(companionId).catch(() => false);
-    const disconnectStatus = inService ? 'BUSY' : 'OFFLINE';
-    // 走统一入口：掉线时把还开着的那段计时日志封口
-    // （不封的话，人走了日志还开着，在线时长会一直涨到营业日结束）。
-    await switchCompanionStatus(this.prisma, companionId, disconnectStatus).catch((err) => {
-      logger.error('Failed to update companion status on disconnect', {
-        companionId,
-        error: (err as Error).message,
-      });
-    });
-
-    // Finalize attendance on disconnect
-    await this.companionsService.finalizeAttendance(companionId);
-    logger.info('Companion marked offline after grace', {
-      companionId,
-      status: disconnectStatus,
-    });
-
-    if (studioId) {
-      this.broadcastToBridgedStudios(studioId, 'status:broadcast', {
-        companionId,
-        status: disconnectStatus,
-      });
-    }
-  }
-
-  /** 置离线宽限期（秒）：配置 ws.offline_grace_seconds，默认 60，结果缓存 60 秒 */
-  private async offlineGraceMs(): Promise<number> {
-    const now = Date.now();
-    if (this.offlineGraceCache && now - this.offlineGraceCache.at < 60_000) {
-      return this.offlineGraceCache.seconds * 1000;
-    }
-    const cfg = await this.prisma.systemConfig
-      .findUnique({ where: { key: 'ws.offline_grace_seconds' } })
-      .catch(() => null);
-    const raw = cfg?.value as unknown;
-    const value = typeof raw === 'number' ? raw : Number(raw);
-    const seconds = Number.isFinite(value) ? Math.max(0, value) : 60;
-    this.offlineGraceCache = { seconds, at: now };
-    return seconds * 1000;
+    return this.connection.handleDisconnect(client);
   }
 
   // ── inbound ────────────────────────────────────────────────────────
@@ -796,528 +325,134 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return this.blacklistIngestService.processUpdateAck(user!, data);
   }
 
-  // ── outbound ───────────────────────────────────────────────────────
+  // ── outbound（事件语义层委托，见 WsEmitterService）────────────────
 
   sendCommand(companionId: string, command: string, params?: unknown): boolean {
-    const sockets = this.companionSockets.get(companionId);
-    if (!sockets || sockets.size === 0) {
-      logger.warn('SEND pc:command FAILED (offline)', { companionId, command });
-      return false;
-    }
-    logger.debug('SEND pc:command', { companionId, command, params });
-    // 客户端主进程目前按平铺字段处理，例如 update 需要 { command, downloadUrl, version }，
-    // 因此这里不能包在 params 里，否则旧客户端收不到 downloadUrl。
-    const payload: any = { command };
-    if (params && typeof params === 'object') {
-      Object.assign(payload, params);
-    }
-    this.server.to(`companion:${companionId}`).emit('pc:command', payload);
-    return true;
+    return this.emitter.sendCommand(companionId, command, params);
   }
 
   pushOrder(companionId: string, order: unknown): void {
-    logger.info('SEND order:new', { companionId, orderId: (order as any)?.id });
-    // 陪玩端一律不收「客户来源 / 来源账号」（老板 2026-09-29「陪玩端 隐藏 客户小红书信息」）：
-    // 这条通道只发给陪玩，所以在这里统一摘掉，不用每个调用点各记一次。
-    this.server.to(`companion:${companionId}`).emit('order:new', stripCustomerSourceDeep(order));
+    this.emitter.pushOrder(companionId, order);
   }
 
   pushToCompanion(companionId: string, event: string, data: unknown): void {
-    this.server.to(`companion:${companionId}`).emit(event, stripCustomerSourceDeep(data));
-  }
-
-  /**
-   * 发给**工作室房间**的事件一律先摘掉「客户来源」那一组字段
-   * （来源平台 / 引流账号 / 客户昵称 / 客户账号ID —— 老板 2026-10-02：只有发单工作室的管理端能看）。
-   *
-   * 为什么工作室房间也要摘：房间成员不只是发单工作室自己的人 —— 桥接工作室的用户连上来时
-   * 会把 `studio:<对方工作室>` 也 join 上（见 onConnection），所以房间里混着接单方。
-   * 这些事件在前端只是「刷新一下」的信号（详情都按各自身份重新拉，见 CustomerSourceMaskInterceptor），
-   * 所以摘掉不影响功能，只是别让数据在推送里裸奔。
-   */
-  private stripSource<T>(data: T): T {
-    return stripCustomerSourceDeep(data);
+    this.emitter.pushToCompanion(companionId, event, data);
   }
 
   broadcastToStudio(studioId: string, event: string, data: unknown): void {
-    this.server.to(`studio:${studioId}`).emit(event, this.stripSource(data));
+    this.emitter.broadcastToStudio(studioId, event, data);
   }
 
   async broadcastToBridgedStudios(studioId: string, event: string, data: unknown): Promise<void> {
-    const safe = this.stripSource(data);
-    this.server.to(`studio:${studioId}`).emit(event, safe);
-    try {
-      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
-      for (const bridgedId of bridgedIds) {
-        this.server.to(`studio:${bridgedId}`).emit(event, safe);
-      }
-    } catch (err) {
-      logger.error('broadcastToBridgedStudios failed for bridged studios', {
-        error: (err as Error).message,
-        studioId,
-        event,
-      });
-    }
+    return this.emitter.broadcastToBridgedStudios(studioId, event, data);
   }
 
-  /**
-   * 「新单弹窗」该推给谁 —— **全站唯一一份规则**，本店广播和桥接推送都用它。
-   *
-   * 老板 2026-10-01 定的口径：
-   *  - **空闲 / 挂机（休息）一律弹**，不受开关影响；
-   *  - **娱乐中 / 接单中可以自己关**（娱乐中默认弹 `notifyWhileEntertainment`，
-   *    接单中默认不打扰 `notifyWhileBusy`）。
-   *
-   * 沿革：老板 2026-09-22 定的是「空闲 + 娱乐中一律弹，只有接单中默认不打扰」；
-   * 2026-10-01 又把「挂机（休息）」加进来，并把「娱乐中」也改成可自己关。
-   */
-  private urgentRecipientWhere(studioId: string) {
-    return {
-      studioId,
-      // 已离职的人不再收到抢单弹窗（离职后状态会被置为 OFFLINE，这里再兜一道）
-      isResigned: false,
-      OR: [
-        { status: 'AVAILABLE' },
-        // 挂机 / 休息：老板 2026-10-01「空闲+挂机状态也照样弹」
-        { status: 'RESTING' },
-        { status: 'ENTERTAINMENT', notifyWhileEntertainment: true },
-        { status: 'BUSY', notifyWhileBusy: true },
-      ],
-    };
-  }
-
-  /**
-   * 广播新单（右下角弹窗抢单）。
-   *
-   * 收件人规则见 urgentRecipientWhere（空闲 + 娱乐中必推；接单中看本人开关）。
-   * 返回实际推送人数，方便排查「为什么没人收到」。
-   */
   async broadcastNewOrder(studioId: string, data: unknown): Promise<number> {
-    try {
-      const companions = await this.prisma.companion.findMany({
-        where: this.urgentRecipientWhere(studioId),
-        select: { id: true, status: true, user: { select: { username: true } } },
-      });
-      let sent = 0;
-      const notConnected: string[] = [];
-      // 陪玩端一律看不到客户来源那一组字段（老板 2026-09-29 / 2026-10-02）
-      const safe = stripCustomerSourceDeep(data);
-      // 谁被命中、各是什么状态：以后问「娱乐中的到底弹没弹」，直接看日志。
-      const byStatus: Record<string, number> = {};
-      for (const c of companions) {
-        byStatus[c.status] = (byStatus[c.status] ?? 0) + 1;
-        // 命中 ≠ 收到：客户端没连着的人，这条弹窗只会发进空气里。
-        if (!this.companionSockets.get(c.id)?.size) {
-          notConnected.push(c.user?.username || c.id);
-        }
-        this.server.to(`companion:${c.id}`).emit('order:urgent', safe);
-        sent += 1;
-      }
-      // 老板 2026-09-22 报「邵泽慧发广播单，所有人都没弹窗」：这条路径以前一句日志都没有，
-      // 出问题只能靠猜。现在把「命中几人 / 真正在线几人 / 谁不在线」都记下来。
-      logger.info('SEND order:urgent (broadcast)', {
-        studioId,
-        orderCode: (data as any)?.orderCode,
-        matched: sent,
-        connected: sent - notConnected.length,
-        byStatus,
-        notConnected,
-      });
-      if (sent === 0) {
-        logger.warn('Broadcast order reached nobody (no idle companion in studio)', {
-          studioId,
-          orderCode: (data as any)?.orderCode,
-        });
-      }
-      return sent;
-    } catch (err) {
-      logger.error('broadcastNewOrder failed', { error: (err as Error).message, studioId });
-      return 0;
-    }
+    return this.emitter.broadcastNewOrder(studioId, data);
   }
 
-  /** 只推送给「空闲且上等马」的线下陪玩，返回实际推送人数。 */
   async broadcastToQualifiedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
-    try {
-      const idle = await this.prisma.companion.findMany({
-        where: { studioId, status: 'AVAILABLE' },
-        select: { id: true },
-      });
-      const safe = stripCustomerSourceDeep(data);
-      let sent = 0;
-      for (const c of idle) {
-        if (await this.excellence.isExcellent(c.id)) {
-          this.server.to(`companion:${c.id}`).emit(event, safe);
-          sent += 1;
-        }
-      }
-      return sent;
-    } catch (err) {
-      logger.error('broadcastToQualifiedIdleCompanions failed', { error: (err as Error).message, studioId, event });
-      return 0;
-    }
+    return this.emitter.broadcastToQualifiedIdleCompanions(studioId, event, data);
   }
 
-  /**
-   * 推送给桥接工作室的陪玩，返回实际推送人数。
-   * 收件人规则和本店广播**同一份**（见 urgentRecipientWhere）：桥接那边娱乐中的也能弹，
-   * 接单中的同样看他自己的开关 —— 不然「娱乐中一定弹」在两个店会变成两套口径。
-   */
   async broadcastToBridgedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
-    try {
-      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
-      const safe = stripCustomerSourceDeep(data);
-      let sent = 0;
-      for (const bid of bridgedIds) {
-        const idle = await this.prisma.companion.findMany({
-          where: this.urgentRecipientWhere(bid),
-          select: { id: true },
-        });
-        for (const c of idle) {
-          this.server.to(`companion:${c.id}`).emit(event, safe);
-          sent += 1;
-        }
-      }
-      return sent;
-    } catch (err) {
-      logger.error('broadcastToBridgedIdleCompanions failed', { error: (err as Error).message, studioId, event });
-      return 0;
-    }
+    return this.emitter.broadcastToBridgedIdleCompanions(studioId, event, data);
   }
 
-  /** 推送给桥接工作室中指定类型（DIRECT=线下 / RENTAL=线上俱乐部）的空闲陪玩，返回实际推送人数。 */
   async broadcastToBridgedIdleCompanionsByType(
     studioId: string,
     studioType: 'DIRECT' | 'RENTAL',
     event: string,
     data: unknown,
   ): Promise<number> {
-    try {
-      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
-      if (bridgedIds.length === 0) return 0;
-      const studios = await this.prisma.studio.findMany({
-        where: { id: { in: bridgedIds }, type: studioType },
-        select: { id: true },
-      });
-      const safe = stripCustomerSourceDeep(data);
-      let sent = 0;
-      for (const st of studios) {
-        const idle = await this.prisma.companion.findMany({
-          where: { studioId: st.id, status: 'AVAILABLE' },
-          select: { id: true },
-        });
-        for (const c of idle) {
-          this.server.to(`companion:${c.id}`).emit(event, safe);
-          sent += 1;
-        }
-      }
-      return sent;
-    } catch (err) {
-      logger.error('broadcastToBridgedIdleCompanionsByType failed', {
-        error: (err as Error).message,
-        studioId,
-        studioType,
-        event,
-      });
-      return 0;
-    }
+    return this.emitter.broadcastToBridgedIdleCompanionsByType(studioId, studioType, event, data);
   }
 
-  /**
-   * 「广播」发单时，桥接工作室那边也弹一次抢单窗。
-   * 为了不打乱订单池的里程碑（上等马 → 桥接 → 中等马 ……），
-   * 这里和订单池保持一致：等「桥接工作室等待」到了才弹，本店陪玩仍然先有这段先手。
-   * 弹之前会重新确认订单还没被人抢走，避免弹一个已经被接掉的单。
-   */
   async broadcastUrgentToBridgedStudios(
     studioId: string,
     orderId: string,
     data: unknown,
     delayMs: number,
   ): Promise<number> {
-    if (delayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-    try {
-      const fresh = await this.prisma.order.findUnique({
-        where: { id: orderId },
-        select: { status: true, companionId: true, claimedCsUserId: true },
-      });
-      if (!fresh || fresh.status !== 'PENDING' || fresh.companionId || fresh.claimedCsUserId) {
-        return 0;
-      }
-      const sent = await this.broadcastToBridgedIdleCompanions(studioId, 'order:urgent', data);
-      if (sent > 0) {
-        logger.info('SEND order:urgent to bridged studios', { studioId, orderId, sent });
-      }
-      return sent;
-    } catch (err) {
-      logger.error('broadcastUrgentToBridgedStudios failed', {
-        error: (err as Error).message,
-        studioId,
-        orderId,
-      });
-      return 0;
-    }
+    return this.emitter.broadcastUrgentToBridgedStudios(studioId, orderId, data, delayMs);
   }
 
   notifyUser(userId: string, event: string, data: unknown): void {
-    this.server.to(`user:${userId}`).emit(event, data);
+    this.emitter.notifyUser(userId, event, data);
   }
 
   notifyCompanion(companionId: string, event: string, data: unknown): void {
-    this.server.to(`companion:${companionId}`).emit(event, stripCustomerSourceDeep(data));
+    this.emitter.notifyCompanion(companionId, event, data);
   }
 
-  /**
-   * 这个陪玩的客户端现在有没有连着。
-   *
-   * 给「客服指定单」那道补喊用（`DirectAssignmentReminderService`）：人不在就别把这次提醒
-   * 记账，等他上线的那一轮再喊，免得三次全弹给一个没开的客户端、等于没提醒。
-   */
+  /** 这个陪玩的客户端现在有没有连着。 */
   isCompanionConnected(companionId: string): boolean {
-    return !!this.companionSockets.get(companionId)?.size;
+    return this.connection.isCompanionConnected(companionId);
   }
 
-  /**
-   * 把「有人提交了东西等你审核」推给本店客服 / 店长 + 全站老板。
-   *
-   * 老板 2026-10-04：「其他需要交互的地方也都双方都能提示了么」——
-   * 以前只有补单做了双向实时提示，报账 / 战绩图 / 支取 / 客户删除申请这些
-   * 管理端只能靠页面每 60 秒轮询的红点，陪玩端连审核结果都不知道。
-   */
   async notifyStudioManagers(
     studioId: string | null | undefined,
     event: string,
     data: unknown,
   ): Promise<void> {
-    const where: any = { isAuthorized: true, role: { in: ['OWNER', 'ADMIN', 'CS'] } };
-    if (studioId) where.OR = [{ studioId }, { role: 'OWNER', studioId: null }];
-    else where.role = 'OWNER';
-    const found = await this.prisma.user.findMany({ where, select: { id: true } }).catch(() => []);
-    for (const u of Array.isArray(found) ? (found as any[]) : []) {
-      this.notifyUser(u.id, event, data);
-    }
+    return this.emitter.notifyStudioManagers(studioId, event, data);
   }
 
   /** 通用「审核 / 交互」提醒 —— 管理端一侧（本店客服 / 店长 + 全站老板）。 */
   notifyManagers(studioId: string | null | undefined, payload: Record<string, any>): void {
-    void this.notifyStudioManagers(studioId, 'review:notice', { ...payload, audience: 'MGMT' });
+    this.emitter.notifyManagers(studioId, payload);
   }
 
   /** 通用「审核 / 交互」提醒 —— 陪玩本人一侧（我提交的东西有结果了）。 */
   notifyCompanionNotice(companionId: string, payload: Record<string, any>): void {
-    this.notifyCompanion(companionId, 'review:notice', { ...payload, audience: 'COMPANION' });
+    this.emitter.notifyCompanionNotice(companionId, payload);
   }
 
-  // 前端有些入口会把 companionId 当成 userId 传过来（例如陪玩端订单池）。
-  // 这里统一归一化为 User id，保证语音信令能投递到正确的 user:{id} 房间。
-  private async resolveUserId(id: string | undefined | null): Promise<string> {
-    if (!id) return '';
-    const user = await this.prisma.user.findUnique({ where: { id }, select: { id: true } });
-    if (user) return id;
-    const companion = await this.prisma.companion.findUnique({ where: { id }, select: { userId: true } });
-    return companion?.userId || id;
-  }
-
-  // ── 语音通话：音频走这条 WebSocket 中转 ──────────────────────────
-  //
-  // 老板 2026-09-21 报「王昊给邵泽慧打语音，互相听不到声音，之前是好的」。
-  // 原来走 WebRTC 点对点打洞：只有 Google STUN，服务器没配 TURN
-  // （云安全组只放通 22 / 3001，3478 和中继端口外面根本进不来，抓包 0 个包）。
-  // 而办公室这边是多线 NAT，同一台机器先后映射成 122.6.117.75 / 122.6.112.252
-  // 两个公网 IP，出口一变打好的洞就废，界面还显示「已接通」。
-  // 现在直接把同一条 socket 当音频通道：NAT / 出口怎么变都不影响，
-  // 网络抖动断线后 socket 自动重连，声音接着走。
-  //
-  // 会话表只用于「记通话日志 + 校验音频只发给通话对端」，纯内存不落库。
-  private callSessions = new Map<
-    string,
-    { peerId: string; peerRawId: string; startedAt: number; frames: number }
-  >();
-  private audioFrameBudget = new Map<string, { windowStart: number; count: number }>();
-  /** 断开后「等一会儿再收尾」的定时器：userId -> timer */
-  private pendingCallEndTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-  /** 音频帧限速：每人每秒最多 100 帧（正常 50 帧/秒），防异常客户端刷爆通道。 */
-  private allowAudioFrame(userId: string): boolean {
-    const now = Date.now();
-    const budget = this.audioFrameBudget.get(userId);
-    if (!budget || now - budget.windowStart >= 1000) {
-      this.audioFrameBudget.set(userId, { windowStart: now, count: 1 });
-      return true;
-    }
-    budget.count += 1;
-    return budget.count <= 100;
-  }
-
-  private rememberCall(userId: string, peerId: string, peerRawId: string): void {
-    this.callSessions.set(userId, { peerId, peerRawId, startedAt: Date.now(), frames: 0 });
-  }
-
-  /** 记一条通话日志（谁跟谁、打了多久、传了多少音频帧），并清掉会话。 */
-  private logCallEnd(userId: string, username: string | undefined, reason: string, message = 'Voice call ended'): void {
-    const session = this.callSessions.get(userId);
-    if (!session) return;
-    this.callSessions.delete(userId);
-    this.audioFrameBudget.delete(userId);
-    logger.info(message, {
-      userId,
-      username,
-      peerUserId: session.peerId,
-      reason,
-      seconds: Math.round((Date.now() - session.startedAt) / 1000),
-      audioFrames: session.frames,
-    });
-  }
-
-  /**
-   * 客户端断开时**不要立刻掐断通话**：办公室/家宽是多线 NAT，出口 IP 一换
-   * WebSocket 就会断一次（实测邵泽慧的连接每 1~2 分钟掉一回），
-   * 但客户端通常 1~2 秒就自动连回来了。
-   * 所以先告诉对端「对方网络抖动」，等超过宽限期还没回来才真的挂断并记日志。
-   */
-  private scheduleCallEndOnDisconnect(user: ConnectedUser): void {
-    const session = this.callSessions.get(user.id);
-    if (!session) return;
-    if (this.pendingCallEndTimers.has(user.id)) return;
-    this.notifyUser(session.peerId, 'call:peer-unstable', { peerUserId: user.id });
-    const timer = setTimeout(() => {
-      this.pendingCallEndTimers.delete(user.id);
-      const current = this.callSessions.get(user.id);
-      if (!current) return;
-      if (presence.hasSocket(user.id)) return; // 已经连回来了，通话继续
-      this.notifyUser(current.peerId, 'call:hangup', {});
-      this.logCallEnd(user.id, user.username, 'socket-closed', 'Voice call dropped (socket closed)');
-    }, VOICE_RECONNECT_GRACE_MS);
-    // 别让这个定时器拖住进程退出
-    if (typeof (timer as { unref?: () => void }).unref === 'function') timer.unref();
-    this.pendingCallEndTimers.set(user.id, timer);
-  }
+  // ── 语音通话（见 WsVoiceService）───────────────────────────────────
 
   @SubscribeMessage('call:offer')
   async handleCallOffer(@ConnectedSocket() client: Socket, @MessageBody() data: any): Promise<void> {
-    const user = (client.data as any)?.user as ConnectedUser | undefined;
-    const raw = typeof data?.targetUserId === 'string' ? data.targetUserId : '';
-    const targetUserId = await this.resolveUserId(raw);
-    if (!user || !targetUserId) return;
-    this.rememberCall(user.id, targetUserId, raw);
-    // 通话量很小，这里按 info 记：以后老板再问「谁打给谁、接通没有、打了多久」直接查日志。
-    logger.info('Voice call ringing', { userId: user.id, username: user.username, peerUserId: targetUserId });
-    // sdp 只对旧版客户端有意义（它们还在用 WebRTC 直连）；
-    // 新版客户端不带 sdp，音频走下面的 call:audio 中转。
-    this.notifyUser(targetUserId, 'call:offer', {
-      fromUserId: user.id,
-      callerName: user.username,
-      sdp: data?.sdp,
-    });
+    return this.voice.handleCallOffer(client, data);
   }
 
   @SubscribeMessage('call:answer')
   async handleCallAnswer(@ConnectedSocket() client: Socket, @MessageBody() data: any): Promise<void> {
-    const user = (client.data as any)?.user as ConnectedUser | undefined;
-    const raw = typeof data?.targetUserId === 'string' ? data.targetUserId : '';
-    const targetUserId = await this.resolveUserId(raw);
-    if (!user || !targetUserId) return;
-    this.rememberCall(user.id, targetUserId, raw);
-    logger.info('Voice call answered', { userId: user.id, username: user.username, peerUserId: targetUserId });
-    this.notifyUser(targetUserId, 'call:answer', { fromUserId: user.id, sdp: data?.sdp });
+    return this.voice.handleCallAnswer(client, data);
   }
 
   /** 音频帧转发：只允许发给本通话的对端，单帧 ≤ 8KB，每秒 ≤ 100 帧。 */
   @SubscribeMessage('call:audio')
   handleCallAudio(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
-    const user = (client.data as any)?.user as ConnectedUser | undefined;
-    if (!user) return;
-    const to = typeof data?.to === 'string' ? data.to : '';
-    const pcm = data?.pcm;
-    if (!to || !pcm) return;
-    const bytes = (pcm as any).byteLength ?? (pcm as any).length ?? 0;
-    if (bytes <= 0 || bytes > 8192) return;
-    const session = this.callSessions.get(user.id);
-    if (!session) return;
-    if (to !== session.peerId && to !== session.peerRawId) return;
-    if (!this.allowAudioFrame(user.id)) return;
-    session.frames += 1;
-    this.notifyUser(session.peerId, 'call:audio', { from: user.id, seq: data?.seq, pcm });
+    this.voice.handleCallAudio(client, data);
   }
 
-  /**
-   * ICE 候选透传：只有旧版客户端用得到（它们还在走 WebRTC 直连）。
-   * 新版客户端这段通路已经不用了，但留着不占什么成本，
-   * 手上还装着老客户端的陪玩也不会因为服务端升级而变哑。
-   */
   @SubscribeMessage('call:ice-candidate')
   async handleCallIce(@ConnectedSocket() _client: Socket, @MessageBody() data: any): Promise<void> {
-    const targetUserId = await this.resolveUserId(data?.targetUserId);
-    if (targetUserId) this.notifyUser(targetUserId, 'call:ice-candidate', { candidate: data?.candidate });
+    return this.voice.handleCallIce(data);
   }
 
   @SubscribeMessage('call:hangup')
   async handleCallHangup(@ConnectedSocket() client: Socket, @MessageBody() data: any): Promise<void> {
-    const user = (client.data as any)?.user as ConnectedUser | undefined;
-    const targetUserId = await this.resolveUserId(data?.targetUserId);
-    if (!user || !targetUserId) return;
-    this.logCallEnd(user.id, user.username, 'hangup');
-    // 对端不会自己再发一次挂断，这里顺手把他的会话也收掉，避免会话表越攒越多。
-    const peerSession = this.callSessions.get(targetUserId);
-    if (peerSession && (peerSession.peerId === user.id || peerSession.peerRawId === user.id)) {
-      this.logCallEnd(targetUserId, undefined, 'peer-hangup');
-    }
-    this.notifyUser(targetUserId, 'call:hangup', {});
+    return this.voice.handleCallHangup(client, data);
   }
 
   notifyChat(studioId: string, companionName: string, _chatKey: string, companionId?: string, orderId?: string): void {
-    this.server.to(`studio:${studioId}`).emit('chat:notify', {
-      companionName,
-      companionId,
-      orderId,
-      timestamp: new Date().toISOString(),
-    });
+    this.emitter.notifyChat(studioId, companionName, _chatKey, companionId, orderId);
   }
 
-  // ── blacklist outbound ─────────────────────────────────────────────
+  // ── blacklist outbound（见 WsBlacklistService）────────────────────
 
-  /**
-   * 本店「黑名单是否生效」开关（StudioConfig: blacklist.enabled，店长自己拨）——
-   * 这是「杀进程动不动手」的**唯一开关**（老板 2026-09-24：不要全站总闸）。
-   *
-   * 关着 / 没拨过 = 这家店的名单只记录不下发，本店陪玩一个进程都不会被结束。
-   * 加 5 秒缓存：一次工作室广播会给每个在线陪玩各查一次，避免把库打满。
-   */
   async isStudioBlacklistEnabled(studioId: string | null | undefined): Promise<boolean> {
-    // 分不出是哪家店时等于「不生效」（解析器会返回 false）：说不清就绝不动手。
-    if (!studioId) return false;
-    const now = Date.now();
-    const cached = this.studioBlacklistCache.get(studioId);
-    if (cached && now - cached.at < 5000) return cached.value;
-    const value = await resolveStudioBlacklistEnabled(this.prisma as never, studioId);
-    this.studioBlacklistCache.set(studioId, { at: now, value });
-    return value;
+    return this.blacklist.isStudioBlacklistEnabled(studioId);
   }
-
-  /** 各店「黑名单是否生效」的短缓存，见 isStudioBlacklistEnabled()。 */
-  private studioBlacklistCache = new Map<string, { at: number; value: boolean }>();
 
   /** 开关刚改完时调用，避免还把旧值缓存最长 5 秒。 */
   invalidateBlacklistSwitchCache(): void {
-    this.studioBlacklistCache.clear();
-    this.companionOverridesCache.clear();
+    this.blacklist.invalidateBlacklistSwitchCache();
   }
 
-  /**
-   * 「按人特批」表（见 common/blacklist-switch.ts）：键 = 陪玩 id，值 = 单独开 / 单独关。
-   * 跟本店开关同一个 5 秒口径；一次工作室广播会给每个人各查一次，缓存一下避免把库打满。
-   */
-  private companionOverridesCache = new Map<string, { at: number; value: Record<string, boolean> }>();
-
   async getCompanionBlacklistOverrides(studioId: string): Promise<Record<string, boolean>> {
-    const now = Date.now();
-    const cached = this.companionOverridesCache.get(studioId);
-    if (cached && now - cached.at < 5000) return cached.value;
-    const value = await resolveCompanionOverrides(this.prisma as never, studioId);
-    this.companionOverridesCache.set(studioId, { at: now, value });
-    return value;
+    return this.blacklist.getCompanionBlacklistOverrides(studioId);
   }
 
   /**
@@ -1328,13 +463,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     companionId: string | null | undefined,
     studioId: string | null | undefined,
   ): Promise<boolean> {
-    // 分不出是哪家店 = 不生效：说不清就绝不动手。
-    if (!studioId) return false;
-    const overrides = await this.getCompanionBlacklistOverrides(studioId);
-    if (companionId && Object.prototype.hasOwnProperty.call(overrides, companionId)) {
-      return overrides[companionId] === true;
-    }
-    return this.isStudioBlacklistEnabled(studioId);
+    return this.blacklist.isCompanionBlacklistEnabled(companionId, studioId);
   }
 
   async sendBlacklistUpdate(
@@ -1346,23 +475,15 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     authoritative = false,
     studioId?: string | null,
   ): Promise<void> {
-    // 本店开关 + 按人特批合成：不生效就下发空名单，客户端收到空名单会当场停掉杀进程
-    // （连没升级的老客户端同样有效）。
-    const killEnabled = await this.isCompanionBlacklistEnabled(companionId, studioId);
-    const effective = killEnabled ? blacklist : [];
-    logger.info('SEND blacklist:update', {
+    return this.blacklist.sendBlacklistUpdate(
       companionId,
-      blacklistCount: effective.length,
-      suppressed: effective.length === 0 && blacklist.length > 0,
-      killEnabled,
-      whitelistCount: whitelist.length,
+      blacklist,
+      whitelist,
       version,
       status,
       authoritative,
-    });
-    this.server
-      .to(`companion:${companionId}`)
-      .emit('blacklist:update', { blacklist: effective, whitelist, version, status, authoritative });
+      studioId,
+    );
   }
 
   async broadcastBlacklistToStudio(
@@ -1370,136 +491,24 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     blacklist: { processName: string; processPath: string | null }[],
     whitelist: { processName: string; isSystem: boolean }[],
   ): Promise<void> {
-    const companions = await this.prisma.companion.findMany({ where: { studioId }, select: { id: true } });
-    const version = Date.now();
-    let pushed = 0;
-    for (const c of companions) {
-      await this.sendBlacklistUpdate(
-        c.id,
-        blacklist,
-        whitelist.map((w) => ({ ...w, isSystem: false })),
-        version,
-        undefined,
-        false,
-        studioId,
-      );
-      pushed++;
-    }
-    logger.info('SEND blacklist:update (broadcast)', { studioId, total: companions.length, pushed, version });
+    return this.blacklist.broadcastBlacklistToStudio(studioId, blacklist, whitelist);
   }
 
-  /**
-   * 推送当前状态对应的黑名单，覆盖离线/未登录后补连接的情况。
-   *
-   * authoritative 只在「陪玩本人或管理端明确切换了状态」时为 true，
-   * 客户端拿它区分「是本人点的」还是「服务端顺手补推的」。
-   *
-   * 不管 authoritative 是真是假，status 都照发：客户端只在**本地已经明确选了**
-   * 娱乐中 / 休息时才拒绝服务端的空闲（见 companion-electron main.ts 的 blacklist:update），
-   * 本地状态是空的（重装 / 重启后没点过状态）就以服务端为准 ——
-   * 不然「老板在后台单独给某个人开了黑名单」在这台机器上会一直不生效
-   * （老板 2026-10-03 报的「三个人只杀了一个」）。
-   */
   async pushCurrentBlacklist(companionId: string, studioId: string | null, authoritative = false): Promise<void> {
-    if (!studioId) return;
-    try {
-      // 使用「状态黑名单」而不是旧的全局 ProcessBlacklist：陪玩处于哪个状态，就套用该状态下的黑名单。
-      const companion = await this.prisma.companion.findUnique({
-        where: { id: companionId },
-        select: { status: true },
-      });
-      const status = companion?.status ?? 'AVAILABLE';
-      const statusEntries = await this.prisma.companionStatusBlacklist.findMany({
-        where: { studioId, status },
-        select: { processName: true },
-      });
-      const blacklist = statusEntries.map((s) => ({ processName: s.processName, processPath: null }));
-      const whitelist = await this.prisma.processWhitelist.findMany({
-        where: { studioId },
-        select: { processName: true },
-      });
-      await this.sendBlacklistUpdate(
-        companionId,
-        blacklist,
-        whitelist.map((w) => ({ processName: w.processName, isSystem: false })),
-        Date.now(),
-        status,
-        authoritative,
-        studioId,
-      );
-    } catch (err) {
-      logger.warn('pushCurrentBlacklist failed', { companionId, error: (err as Error).message });
-    }
+    return this.blacklist.pushCurrentBlacklist(companionId, studioId, authoritative);
   }
 
   /** 服务端把陪玩状态切回空闲等状态后，重推一次黑名单，让客户端恢复杀进程。 */
   async refreshCompanionBlacklist(companionId: string): Promise<void> {
-    const companion = await this.prisma.companion
-      .findUnique({ where: { id: companionId }, select: { studioId: true, status: true } })
-      .catch(() => null);
-    if (!companion?.studioId) return;
-    await this.prisma.companionPC
-      .update({ where: { companionId }, data: { currentMode: companion.status } })
-      .catch(() => {});
-    await this.pushCurrentBlacklist(companionId, companion.studioId);
+    return this.blacklist.refreshCompanionBlacklist(companionId);
   }
 
   /** 陪玩端连接时，优先按 MAC / 登录账号识别电脑，不靠 IP（IP 会变）。 */
   async syncManagedPc(address: string, username: string): Promise<void> {
-    try {
-      const ip = address?.replace(/^::ffff:/, '') || '';
-      if (!ip || !/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return;
-      const mac = this.resolveMacFromArp(ip);
-
-      // 1. 优先按 MAC 识别（IP 会变，MAC 更稳定）
-      let pc = mac ? await this.prisma.managedPC.findFirst({ where: { macAddress: mac } }) : null;
-      // 2. 再按登录账号识别（同一人换电脑/IP 也能对上）
-      if (!pc) {
-        pc = await this.prisma.managedPC.findFirst({ where: { loginAccount: username } });
-      }
-      // 3. 最后兜底按 IP 识别
-      if (!pc) {
-        pc = await this.prisma.managedPC.findFirst({ where: { ip } });
-      }
-      if (!pc) {
-        // 新注册陪玩首次连接时自动登记电脑，后续远程开机就能直接看到。
-        pc = await this.prisma.managedPC.create({
-          data: {
-            ip,
-            loginAccount: username,
-            macAddress: mac || null,
-          },
-        }).catch(() => null);
-      }
-      if (!pc) return;
-      await this.prisma.managedPC.update({
-        where: { id: pc.id },
-        data: {
-          ip,
-          loginAccount: username,
-          ...(mac ? { macAddress: mac } : {}),
-          updatedAt: new Date(),
-        },
-      });
-    } catch {
-      // 电脑管理表可能尚未迁移，忽略即可
-    }
+    return this.blacklist.syncManagedPc(address, username);
   }
 
-  private resolveMacFromArp(ip: string): string | null {
-    try {
-      const raw = fs.readFileSync('/app/uploads/host-arp.txt', 'utf-8');
-      for (const line of raw.split('\n')) {
-        const parts = line.trim().split(/\s+/);
-        if (parts[0] === ip && parts[3] && /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(parts[3])) {
-          return parts[3].toLowerCase();
-        }
-      }
-    } catch {}
-    return null;
-  }
-
-  // ── chat inbound / outbound ──────────────────────────────────────────
+  // ── chat inbound / outbound ─────────────────────────────────────────
 
   @SubscribeMessage('chat:send')
   async handleChatSend(
@@ -1512,7 +521,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     logger.info('WS chat:send', { senderId: user.id, studioId: user.studioId, orderId: data.orderId });
 
     // Broadcast to entire studio (CS/admin/companion all in studio room)
-    this.server.to(`studio:${user.studioId}`).emit('chat:new', {
+    this.notifyChatMessage(user.studioId, {
       text: data.text,
       senderId: user.id,
       senderRole: user.role,
@@ -1523,7 +532,6 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  /** Notify studio about a new chat message (called from HTTP endpoint fallback) */
   /** Notify a specific user about a new chat message (via user room) */
   notifyNewMessage(
     userId: string,
@@ -1533,7 +541,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       message: { id: string; senderId: string; text: string; createdAt: string };
     },
   ): void {
-    this.server.to(`user:${userId}`).emit('chat:message', payload);
+    this.emitter.notifyNewMessage(userId, payload);
   }
 
   notifyChatMessage(
@@ -1548,6 +556,6 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       timestamp: string;
     },
   ): void {
-    this.server.to(`studio:${studioId}`).emit('chat:new', payload);
+    this.emitter.notifyChatMessage(studioId, payload);
   }
 }
