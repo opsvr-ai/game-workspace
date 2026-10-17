@@ -14,7 +14,7 @@ import { orderTypeConfig, dispatchTypeConfig, deltaMissionDefaultPrice } from '.
 import { clearDraft, loadDraft, saveDraft } from '../utils/draft';
 import { clearBusy, setBusy } from '../utils/busyGuard';
 
-import { SEMANTIC } from '../styles/tokens';
+import { SEMANTIC, TEXT } from '../styles/tokens';
 const { Option } = Select;
 
 const ORDER_TYPES = Object.entries(orderTypeConfig).filter(([k]) => k !== 'TIP');
@@ -49,6 +49,9 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
   const [trafficAccounts, setTrafficAccounts] = useState<any[]>([]);
   const [showInactiveAccounts, setShowInactiveAccounts] = useState(false);
   const [customerWechatQr, setCustomerWechatQr] = useState('');
+  // 老板 2026-10-18：「发布订单只填写房间码」—— 房间码单不需要客户微信 / 昵称 / 来源，
+  // 只填一个房间码就能发；陪玩抢到后走「进游戏 → 添加成功 / 添加失败」那条既有流程。
+  const [roomCodeOnly, setRoomCodeOnly] = useState(false);
   const [uploading, setUploading] = useState(false);
   // 老板 2026-10-08：「发布订单的时候软件经常刷新一下，输入的东西就全没了」——
   // ① 弹窗开着就登记「有人在写东西」，AppLayout 的自动换版刷新会被拦下（见 utils/busyGuard.ts）；
@@ -184,7 +187,18 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
       duration: editingOrder.duration,
     });
     setCustomerWechatQr(cf.customerWechatQr || '');
+    // 编辑既有单：带了房间码、又没有客户微信 / 昵称的，按房间码单回显。
+    setRoomCodeOnly(
+      cf.roomCodeOnly === true ||
+        (!!cf.customerRoomCode && !cf.customerWechat && !cf.customerNickname && !cf.customerAccountId),
+    );
   }, [open, editingOrder, form]);
+
+  // 新建单时回到普通模式；编辑单由上面的 effect 按订单内容回显。
+  useEffect(() => {
+    if (!open || editingOrder) return;
+    setRoomCodeOnly(false);
+  }, [open, editingOrder]);
 
   const uploadCustomerWechatQr = async (file: File) => {
     setUploading(true);
@@ -234,6 +248,21 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             }
           : {}),
       };
+      payload.roomCodeOnly = roomCodeOnly === true;
+      if (roomCodeOnly) {
+        // 只填房间码：客户来源 / 昵称 / 账号 / 微信 / YY / KOOK / 二维码一律不要求，
+        // 服务端会用一个占位客户，等陪玩「进游戏 → 添加成功」后再补真实客户信息。
+        payload.roomCodeOnly = true;
+        payload.customerRoomCode = String((v as any).customerRoomCode || '').trim();
+        payload.customerSource = '其他';
+        payload.customerSourceAccount = '';
+        payload.customerNickname = '房间码客户';
+        payload.customerAccountId = '';
+        payload.customerWechat = '';
+        payload.customerYy = '';
+        payload.customerPlatformAccount = '';
+        payload.customerWechatQr = undefined;
+      }
       if (editingOrder?.status === 'DONE') {
         delete payload.amount;
         delete payload.duration;
@@ -462,93 +491,135 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             </Form.Item>
           </>
         )}
-        <Form.Item label="来源 / 引流账号" required>
-          <Input.Group compact>
-            <Form.Item name="customerSource" noStyle rules={[{ required: true, message: '请选择客户来源' }]}>
-              <Select placeholder="来源" style={{ width: '30%' }}>
-                <Option value="小红书">小红书</Option>
-                <Option value="抖音">抖音</Option>
-                <Option value="快手">快手</Option>
-                <Option value="咸鱼">咸鱼</Option>
-                <Option value="B站">B站</Option>
-                <Option value="视频号">视频号</Option>
-                <Option value="转介绍">转介绍</Option>
-                <Option value="其他">其他</Option>
-                {trafficAccounts
-                  .map((a) => a.type)
-                  .filter((t, i, arr) => t && arr.indexOf(t) === i)
-                  .filter((t) => !['小红书', '抖音', '快手', '咸鱼', 'B站', '视频号', '转介绍', '其他'].includes(t))
-                  .map((t) => (
-                    <Option key={t} value={t}>
-                      {t}
-                    </Option>
-                  ))}
-              </Select>
+        {!directAddMode && (
+          <Form.Item label=" " colon={false} style={{ marginBottom: 8 }}>
+            <Checkbox
+              checked={roomCodeOnly}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setRoomCodeOnly(checked);
+                if (checked) {
+                  // 房间码单不填客户微信 / 昵称 / 来源；给服务端占位客户一个可读的默认值。
+                  form.setFieldsValue({
+                    customerSource: '其他',
+                    customerNickname: '房间码客户',
+                    customerAccountId: '',
+                    customerWechat: '',
+                    customerYy: '',
+                    customerPlatformAccount: '',
+                    customerWechatQr: '',
+                  });
+                  setCustomerWechatQr('');
+                }
+              }}
+            >
+              🏠 房间码单（客户信息只填房间码）
+            </Checkbox>
+            <div style={{ color: TEXT.secondary, fontSize: 12, lineHeight: '18px', marginTop: 4 }}>
+              不用填客户微信 / 昵称 / 来源。陪玩抢到后在订单管理点「进游戏」；进游戏要到微信就点「添加成功」，
+              客户不满意 / 不给微信就点「添加失败」。
+            </div>
+          </Form.Item>
+        )}
+        {roomCodeOnly ? (
+          <Form.Item
+            name="customerRoomCode"
+            label="房间码"
+            rules={[{ required: true, message: '请填写房间码' }]}
+          >
+            <Input placeholder="客户给的房间码，例如 OLJ9896" />
+          </Form.Item>
+        ) : (
+          <>
+            <Form.Item label="来源 / 引流账号" required>
+              <Input.Group compact>
+                <Form.Item name="customerSource" noStyle rules={[{ required: true, message: '请选择客户来源' }]}>
+                  <Select placeholder="来源" style={{ width: '30%' }}>
+                    <Option value="小红书">小红书</Option>
+                    <Option value="抖音">抖音</Option>
+                    <Option value="快手">快手</Option>
+                    <Option value="咸鱼">咸鱼</Option>
+                    <Option value="B站">B站</Option>
+                    <Option value="视频号">视频号</Option>
+                    <Option value="转介绍">转介绍</Option>
+                    <Option value="其他">其他</Option>
+                    {trafficAccounts
+                      .map((a) => a.type)
+                      .filter((t, i, arr) => t && arr.indexOf(t) === i)
+                      .filter((t) => !['小红书', '抖音', '快手', '咸鱼', 'B站', '视频号', '转介绍', '其他'].includes(t))
+                      .map((t) => (
+                        <Option key={t} value={t}>
+                          {t}
+                        </Option>
+                      ))}
+                  </Select>
+                </Form.Item>
+                <Form.Item name="customerSourceAccount" noStyle>
+                  <Select
+                    style={{ width: '70%' }}
+                    placeholder="引流账号"
+                    showSearch
+                    optionFilterProp="label"
+                    allowClear
+                    onChange={(nickname: string) => {
+                      const acc = trafficAccounts.find((a) => a.nickname === nickname);
+                      if (acc?.type) form.setFieldsValue({ customerSource: acc.type });
+                    }}
+                    dropdownRender={(menu) => (
+                      <>
+                        {menu}
+                        <div style={{ padding: '6px 8px', borderTop: '1px solid #f0f0f0' }}>
+                          <Checkbox checked={showInactiveAccounts} onChange={(e) => setShowInactiveAccounts(e.target.checked)}>
+                            显示已弃用账号
+                          </Checkbox>
+                        </div>
+                      </>
+                    )}
+                  >
+                    {trafficAccounts
+                      .filter((a) => showInactiveAccounts || a.status !== 'INACTIVE')
+                      .map((a) => (
+                        <Option key={a.id} value={a.nickname} label={`${a.type} - ${a.nickname}`}>
+                          {a.type} - {a.nickname}（{a.user?.displayName || a.user?.username || '未知'}）{a.status === 'INACTIVE' ? ' · 已弃用' : ''}
+                        </Option>
+                      ))}
+                  </Select>
+                </Form.Item>
+              </Input.Group>
             </Form.Item>
-            <Form.Item name="customerSourceAccount" noStyle>
-              <Select
-                style={{ width: '70%' }}
-                placeholder="引流账号"
-                showSearch
-                optionFilterProp="label"
-                allowClear
-                onChange={(nickname: string) => {
-                  const acc = trafficAccounts.find((a) => a.nickname === nickname);
-                  if (acc?.type) form.setFieldsValue({ customerSource: acc.type });
-                }}
-                dropdownRender={(menu) => (
-                  <>
-                    {menu}
-                    <div style={{ padding: '6px 8px', borderTop: '1px solid #f0f0f0' }}>
-                      <Checkbox checked={showInactiveAccounts} onChange={(e) => setShowInactiveAccounts(e.target.checked)}>
-                        显示已弃用账号
-                      </Checkbox>
-                    </div>
-                  </>
-                )}
-              >
-                {trafficAccounts
-                  .filter((a) => showInactiveAccounts || a.status !== 'INACTIVE')
-                  .map((a) => (
-                    <Option key={a.id} value={a.nickname} label={`${a.type} - ${a.nickname}`}>
-                      {a.type} - {a.nickname}（{a.user?.displayName || a.user?.username || '未知'}）{a.status === 'INACTIVE' ? ' · 已弃用' : ''}
-                    </Option>
-                  ))}
-              </Select>
+            <Form.Item
+              name="customerNickname"
+              label="客户昵称"
+              rules={!customerPreFill ? [{ required: true, message: '请填写客户昵称' }] : []}
+            >
+              <Input placeholder="客户昵称（小红书昵称/抖音昵称等）" />
             </Form.Item>
-          </Input.Group>
-        </Form.Item>
-        <Form.Item
-          name="customerNickname"
-          label="客户昵称"
-          rules={!customerPreFill ? [{ required: true, message: '请填写客户昵称' }] : []}
-        >
-          <Input placeholder="客户昵称（小红书昵称/抖音昵称等）" />
-        </Form.Item>
-        <Form.Item
-          name="customerAccountId"
-          label="客户账号ID"
-          rules={!customerPreFill ? [{ required: true, message: '请填写客户账号ID' }] : []}
-        >
-          <Input placeholder="客户自己的小红书ID/抖音号/快手号（具体是哪个客户）" />
-        </Form.Item>
-        <Form.Item label="客户联系方式">
-          <Input.Group compact>
-            <Form.Item name="customerWechat" noStyle>
-              <Input style={{ width: '25%' }} placeholder="微信" />
+            <Form.Item
+              name="customerAccountId"
+              label="客户账号ID"
+              rules={!customerPreFill ? [{ required: true, message: '请填写客户账号ID' }] : []}
+            >
+              <Input placeholder="客户自己的小红书ID/抖音号/快手号（具体是哪个客户）" />
             </Form.Item>
-            <Form.Item name="customerYy" noStyle>
-              <Input style={{ width: '25%' }} placeholder="YY号" />
+            <Form.Item label="客户联系方式">
+              <Input.Group compact>
+                <Form.Item name="customerWechat" noStyle>
+                  <Input style={{ width: '25%' }} placeholder="微信" />
+                </Form.Item>
+                <Form.Item name="customerYy" noStyle>
+                  <Input style={{ width: '25%' }} placeholder="YY号" />
+                </Form.Item>
+                <Form.Item name="customerPlatformAccount" noStyle>
+                  <Input style={{ width: '25%' }} placeholder="KOOK号" />
+                </Form.Item>
+                <Form.Item name="customerRoomCode" noStyle>
+                  <Input style={{ width: '25%' }} placeholder="房间码" />
+                </Form.Item>
+              </Input.Group>
             </Form.Item>
-            <Form.Item name="customerPlatformAccount" noStyle>
-              <Input style={{ width: '25%' }} placeholder="KOOK号" />
-            </Form.Item>
-            <Form.Item name="customerRoomCode" noStyle>
-              <Input style={{ width: '25%' }} placeholder="房间码" />
-            </Form.Item>
-          </Input.Group>
-        </Form.Item>
-        {directAddMode && (
+          </>
+        )}
+        {directAddMode && !roomCodeOnly && (
           <Form.Item
             name="workWechatId"
             label="工作微信"
@@ -565,14 +636,16 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             </Select>
           </Form.Item>
         )}
-        <Form.Item label="客户微信二维码">
-          <PasteImageBox onFile={uploadCustomerWechatQr}>
-            <Upload beforeUpload={uploadCustomerWechatQr} maxCount={1} accept="image/*">
-              <Button loading={uploading}>{customerWechatQr ? '重新上传二维码' : '上传客户微信二维码'}</Button>
-            </Upload>
-          </PasteImageBox>
-          <Form.Item name="customerWechatQr" hidden><Input /></Form.Item>
-        </Form.Item>
+        {!roomCodeOnly && (
+          <Form.Item label="客户微信二维码">
+            <PasteImageBox onFile={uploadCustomerWechatQr}>
+              <Upload beforeUpload={uploadCustomerWechatQr} maxCount={1} accept="image/*">
+                <Button loading={uploading}>{customerWechatQr ? '重新上传二维码' : '上传客户微信二维码'}</Button>
+              </Upload>
+            </PasteImageBox>
+            <Form.Item name="customerWechatQr" hidden><Input /></Form.Item>
+          </Form.Item>
+        )}
         <Form.Item name="billingMode" label="计费方式" initialValue="hour">
           <Select>
             <Option value="hour">按小时</Option>

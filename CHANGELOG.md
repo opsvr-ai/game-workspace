@@ -11,6 +11,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **发布订单支持「房间码单」：只填房间码（2026-10-18，网页 + 服务端）。**
+  老板：「发布订单只填写房间码；陪玩抢到订单，订单管理出现进入游戏，但进去之后客户可能不满意、
+  不给微信，需要选择添加成功或者失败。」
+  - **发布表单**：新增勾选 **「🏠 房间码单（客户信息只填房间码）」**。勾上后隐藏客户来源 / 引流账号 /
+    客户昵称 / 客户账号ID / 微信 / YY / KOOK / 二维码，只留一个**必填房间码**；其他订单字段（游戏、金额、
+    派单方式、时长等）照常。发布时给占位客户写 `customerSource=其他`、`customerNickname=房间码客户`，
+    订单 `customFields.roomCodeOnly=true` + `customerRoomCode`，不需要先有客户微信。
+  - **服务端**：`CreateOrderDto` 增加可选 `roomCodeOnly`，`order-create.service` 写入
+    `customFields.roomCodeOnly`（编辑订单也支持改标记），不新增表 / 不改任何已有字段。
+  - **陪玩端流程沿用 2026-10-17 已实现的口径**：订单管理里房间码单出现 **「进游戏」** → 只把陪玩切成
+    接单中（不杀游戏）→ 进游戏后客户愿意加微信点 **「添加成功」**；客户不满意 / 不给微信点 **「添加失败」**，
+    走原有补单审核。房间码单**不用先选工作微信**。
+  - 验证：web `tsc --noEmit` 通过、前端测试 **164/164**、lint 0 error；server `tsc --noEmit` 通过、
+    `orders.room-join` **6/6**。
+
 - **配置中心类型化 + ScopeContext 作用域收敛（2026-10-17，服务端，重构批次 29）。**
   行为等价：不改接口响应字段、排序口径与业务判断；新增的是「写库前校验」与「作用域唯一实现」。
   - **配置键类型化**：新增 `apps/server/src/common/config-keys.ts`（836 行），把 **118 个配置键**

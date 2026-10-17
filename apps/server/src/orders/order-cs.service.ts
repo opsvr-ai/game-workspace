@@ -260,6 +260,7 @@ export class OrderCsService {
       'customerWechatQr',
       'customerRoomCode',
       'customerYy',
+      'roomCodeOnly',
       'deltaMission',
       'deltaCount',
       'deltaNote',

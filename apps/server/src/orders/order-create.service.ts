@@ -179,6 +179,8 @@ export class OrderCreateService {
           customerWechat: dto.customerWechat,
           customerWechatQr: (dto as any).customerWechatQr || undefined,
           customerRoomCode: dto.customerRoomCode,
+          // 房间码单标记：客户信息只有房间码，方便列表 / 详情区分「还没补微信」的单。
+          roomCodeOnly: (dto as any).roomCodeOnly === true ? true : undefined,
           customerYy: (dto as any).customerYy,
           csWorkWechatId: (dto as any).workWechatId || undefined,
           csWorkWechatName: (dto as any).workWechatName || undefined,

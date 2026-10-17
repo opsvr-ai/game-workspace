@@ -28,6 +28,8 @@ export class CreateOrderDto {
   @IsOptional() @IsString() customerYy?: string;
   @IsOptional() @IsString() customerWechatQr?: string;
   @IsOptional() @IsString() customerRoomCode?: string;
+  /** 房间码单：客户信息只填房间码，客户微信 / 昵称 / 来源等不要求（老板 2026-10-18）。 */
+  @IsOptional() @IsBoolean() roomCodeOnly?: boolean;
 
   // Delta Force sub-fields
   @IsOptional() @IsString() deltaMission?: string;
