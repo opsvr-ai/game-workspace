@@ -52,6 +52,14 @@ export default [
         ecmaFeatures: { jsx: true },
       },
     },
+    // 自定义 hook 也可写在 .ts 里（hooks/useSocket.ts、hooks/useLiveRefresh.ts、utils/draft.ts）。
+    // 以前 react-hooks 插件只挂在 **/*.tsx 上，于是 .ts 里的
+    // `// eslint-disable-next-line react-hooks/exhaustive-deps` 会直接报
+    // 「Definition for rule was not found」—— 一条注释把 lint 干成 error。
+    // 这里只注册插件、不额外开启规则：目的是让 .ts 里已有的
+    // `eslint-disable react-hooks/exhaustive-deps` 注释能被识别（否则报 rule not found），
+    // 同时不改变 .ts 文件原有的规则基线。.tsx 的 react-hooks 规则仍在下一块里开。
+    plugins: { 'react-hooks': reactHooks },
     rules: {
       // 与旧配置保持一致的告警级别。历史积压数量见 docs/REFACTOR-PLAN.md。
       // 空 catch / 空块在本仓库里大量是「故意的忽略」（很多地方原本写着 /* 忽略 */）。
@@ -72,6 +80,9 @@ export default [
       ...reactRecommended.rules,
       ...reactHooksClassicRules,
       'react/react-in-jsx-scope': 'off',
+      // TS 的 props 类型已经是一等公民，再要求 propTypes 属于重复劳动；
+      // 这一条以前只在一个被 lint 忽略的角落里报错（router.tsx），属于规则集与 TS 项目不匹配。
+      'react/prop-types': 'off',
     },
   },
 
