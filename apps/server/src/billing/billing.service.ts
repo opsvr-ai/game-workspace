@@ -262,6 +262,16 @@ export class BillingService {
     };
 
     if (companionId) {
+      // 店长 / 老板指定陪玩看日历：必须校验这个陪玩属于本店（老板 studioId 为空 = 全站）
+      if (studioId) {
+        const target = await this.prisma.companion.findUnique({
+          where: { id: companionId },
+          select: { studioId: true },
+        });
+        if (!target || target.studioId !== studioId) {
+          throw new ForbiddenException('这个陪玩不属于本店');
+        }
+      }
       // 陪玩本人：按天明细
       const txs = await this.prisma.walletTransaction.findMany({
         where: { ...baseWhere, companionId },

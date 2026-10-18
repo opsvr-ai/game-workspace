@@ -24,8 +24,8 @@ export const billingApi = {
     }),
   walletTransactions: (params?: { status?: string }) =>
     http.get('/wallet-transactions', { params }),
-  walletDaily: (month: string) =>
-    http.get('/wallet-daily', { params: { month } }),
+  walletDaily: (month: string, companionId?: string) =>
+    http.get('/wallet-daily', { params: { month, companionId } }),
   reviewWalletTransaction: (id: string, status: string) =>
     http.put(`/wallet-transactions/${id}/review`, { status }),
   runSettlement: (month: string) =>

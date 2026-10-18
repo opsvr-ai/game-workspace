@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Row, Col, Spin, Typography, Table, Input, DatePicker, Tag, Image, List, Space } from 'antd';
+import { Card, Row, Col, Spin, Typography, Table, Input, DatePicker, Tag, Image, List, Space, Calendar, Select } from 'antd';
 import EmptyState from '../../components/EmptyState';
 import { SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
@@ -39,6 +39,10 @@ const CompanionWalletCalendarPage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   // 管理端：每个陪玩的报账微信码（点开就能扫）——老板 2026-09-29
   const [qrMap, setQrMap] = useState<Record<string, any>>({});
+  // 真正按天看的日历：管理端先选一个陪玩，陪玩端默认自己
+  const [calendar, setCalendar] = useState<any>({});
+  const [selectedCompanionId, setSelectedCompanionId] = useState<string | undefined>();
+  const [selectedDay, setSelectedDay] = useState<string>('');
 
   // 陪玩端：自己的钱包 + 报账/支取
   const [wallet, setWallet] = useState<any>({});
@@ -57,6 +61,8 @@ const CompanionWalletCalendarPage: React.FC = () => {
         })
         .catch(() => setQrMap({}));
       setData(res.data || {});
+      const first = res.data?.companions?.[0]?.companionId;
+      if (first) setSelectedCompanionId((prev) => prev || first);
     } catch {
       setData({});
     } finally {
@@ -64,14 +70,29 @@ const CompanionWalletCalendarPage: React.FC = () => {
     }
   };
 
+  const loadCalendar = async (m: Dayjs, companionId?: string) => {
+    if (!companionId) {
+      setCalendar({});
+      return;
+    }
+    try {
+      const { data: res } = await billingApi.walletDaily(m.format('YYYY-MM'), companionId);
+      setCalendar(res.data || {});
+    } catch {
+      setCalendar({});
+    }
+  };
+
   const loadCompanion = async () => {
     try {
-      const [walletRes, reportRes] = await Promise.all([
+      const [walletRes, reportRes, calendarRes] = await Promise.all([
         companionsApi.wallet(),
         expenseReportsApi.list(),
+        billingApi.walletDaily(month.format('YYYY-MM')),
       ]);
       setWallet((walletRes as any)?.data?.data || {});
       setReports((reportRes as any)?.data?.data || []);
+      setCalendar((calendarRes as any)?.data?.data || {});
     } catch {
       /* ignore */
     }
@@ -85,6 +106,20 @@ const CompanionWalletCalendarPage: React.FC = () => {
     }
   }, [isCompanion, month]);
 
+  // 管理端选中某个陪玩 / 切月份 → 拉这个人的按天日历
+  useEffect(() => {
+    if (!isCompanion) {
+      setSelectedDay('');
+      loadCalendar(month, selectedCompanionId);
+    }
+  }, [isCompanion, month, selectedCompanionId]);
+
+  const dailyMap = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const d of calendar.daily || []) map.set(String(d.date), d);
+    return map;
+  }, [calendar]);
+
   const t = data.totals || {};
   const companions: any[] = data.companions || [];
 
@@ -95,6 +130,71 @@ const CompanionWalletCalendarPage: React.FC = () => {
       `${c.name || ''} ${c.username || ''} ${c.realName || ''}`.toLowerCase().includes(kw),
     );
   }, [companions, keyword]);
+
+  const selectedDaily = selectedDay ? dailyMap.get(selectedDay) : null;
+  const calendarNode = (
+    <Card
+      size="small"
+      title={isCompanion ? '我的报账 / 支取日历' : '陪玩报账 / 支取日历'}
+      extra={
+        !isCompanion ? (
+          <Select
+            showSearch
+            optionFilterProp="label"
+            placeholder="选择陪玩看日历"
+            value={selectedCompanionId}
+            onChange={(v) => setSelectedCompanionId(v)}
+            options={companions.map((c: any) => ({
+              value: c.companionId,
+              label: c.realName ? `${c.name}（${c.realName}）` : c.name,
+            }))}
+            style={{ width: 220 }}
+          />
+        ) : undefined
+      }
+      style={{ marginBottom: 16 }}
+    >
+      <Calendar
+        value={month}
+        onSelect={(d) => {
+          if (d.month() !== month.month()) setMonth(d.startOf('month'));
+          setSelectedDay(d.format('YYYY-MM-DD'));
+        }}
+        onPanelChange={(d) => {
+          setMonth(d.startOf('month'));
+          setSelectedDay('');
+        }}
+        cellRender={(current, info) => {
+          if (info.type !== 'date') return info.originNode;
+          const d = dailyMap.get(current.format('YYYY-MM-DD'));
+          if (!d) return info.originNode;
+          return (
+            <div>
+              {info.originNode}
+              <div style={{ fontSize: 10, lineHeight: 1.45, marginTop: 1 }}>
+                {d.income > 0 ? <div style={{ color: SEMANTIC.success }}>+{money(d.income)}</div> : null}
+                {d.withdraw > 0 ? <div style={{ color: SEMANTIC.dangerDeep }}>-{money(d.withdraw)}</div> : null}
+              </div>
+            </div>
+          );
+        }}
+      />
+      {selectedDay ? (
+        <div style={{ padding: '8px 4px 2px', borderTop: '1px solid #EEF2F7', marginTop: 8 }}>
+          <Text strong>{selectedDay}</Text>
+          {selectedDaily ? (
+            <Space size={16} wrap style={{ marginLeft: 12 }}>
+              <Text style={{ color: SEMANTIC.success }}>收入 ¥{money(selectedDaily.income)}（{selectedDaily.incomeCount} 笔）</Text>
+              <Text style={{ color: SEMANTIC.dangerDeep }}>支取 ¥{money(selectedDaily.withdraw)}（{selectedDaily.withdrawCount} 笔）</Text>
+              <Text>净额 ¥{money(selectedDaily.net)}</Text>
+            </Space>
+          ) : (
+            <Text type="secondary" style={{ marginLeft: 12 }}>当天没有已通过的报账 / 支取</Text>
+          )}
+        </div>
+      ) : null}
+    </Card>
+  );
 
   // 陪玩端：每天的报账（上报今日业绩）
   const dailyReports = useMemo(
@@ -134,6 +234,8 @@ const CompanionWalletCalendarPage: React.FC = () => {
     return (
       <div>
         <PageHeader title="💰 我的报账与支取" subtitle="业绩、押金、每天的报账与支取明细" />
+
+        {calendarNode}
 
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={12}>
@@ -211,8 +313,8 @@ const CompanionWalletCalendarPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="陪玩报账与支取统计"
-        subtitle="按陪玩汇总本月收入与支取"
+        title="陪玩报账与支取日历"
+        subtitle="选一个陪玩，按日历看每天收入 / 支取；下方是按陪玩汇总"
         extra={
           <DatePicker
             picker="month"
@@ -239,6 +341,8 @@ const CompanionWalletCalendarPage: React.FC = () => {
         </Col>
       </Row>
 
+      {calendarNode}
+
       <Card size="small">
         <Spin spinning={loading}>
           <Input
@@ -254,6 +358,10 @@ const CompanionWalletCalendarPage: React.FC = () => {
             rowKey="companionId"
             size="small"
             dataSource={filteredCompanions}
+            onRow={(r: any) => ({
+              onClick: () => setSelectedCompanionId(r.companionId),
+              style: { cursor: 'pointer' },
+            })}
             pagination={{ pageSize: 20, hideOnSinglePage: true, showSizeChanger: false }}
             locale={{ emptyText: <EmptyState description="本月暂无已通过业绩" /> }}
             columns={[

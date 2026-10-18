@@ -280,9 +280,13 @@ export class BillingController {
   async getWalletDaily(
     @Req() req: any,
     @Query('month') month: string,
+    @Query('companionId') companionId?: string,
   ): Promise<ApiResponse<unknown>> {
-    const companionId = req.user.role === UserRole.COMPANION ? req.user.companionId : undefined;
-    const data = await this.billingService.getWalletDaily(req.user.studioId, month, companionId);
+    // 陪玩只能看自己；店长 / 老板可以指定一个陪玩，看他的日历（服务层会校验是否本店）
+    const targetCompanionId = req.user.role === UserRole.COMPANION
+      ? req.user.companionId
+      : companionId;
+    const data = await this.billingService.getWalletDaily(req.user.studioId, month, targetCompanionId);
     return { code: 200, message: 'ok', data };
   }
 
