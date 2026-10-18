@@ -187,7 +187,9 @@ export class CompanionsService {
       currentMode: u.companion?.pc?.currentMode ?? null,
       currentOrder: u.companion ? activeOrderByCompanion.get(u.companion.id) ?? null : null,
       isExcellent: u.companion ? excellence.get(u.companion.id)?.isExcellent ?? false : false,
-      tier: u.companion ? excellence.get(u.companion.id)?.tier ?? 'MIDDLE' : 'MIDDLE',
+      // 段位只属于陪玩：店长 / 客服 / 老板没有 companion 记录，不能再默认成「中等马」。
+      // 2026-10-19 老板报「管理账号怎么也是上等马中等马」——以前这里对非陪玩返回 'MIDDLE'。
+      tier: u.companion ? excellence.get(u.companion.id)?.tier ?? 'MIDDLE' : null,
       rankScore: u.companion ? excellence.get(u.companion.id)?.rankScore ?? 0 : 0,
       renewRate: u.companion ? excellence.get(u.companion.id)?.renewRate ?? 0 : 0,
       repurchaseRate: u.companion ? excellence.get(u.companion.id)?.repurchaseRate ?? 0 : 0,

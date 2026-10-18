@@ -700,7 +700,7 @@ const OrderPoolPage: React.FC = () => {
                           段位（50px）+ 状态（36px）+ 按钮（22px）把名字压到只剩 25px，
                           三个字的名字被截成「陈…」。状态挪到第 2 行，名字独占剩余宽度。 */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-                        <TierBadge tier={c.tier} showLabel />
+                        {c.role === 'COMPANION' && c.tier && <TierBadge tier={c.tier} showLabel />}
                         <span
                           title={c.user?.displayName || c.user?.username || c.id}
                           style={{
