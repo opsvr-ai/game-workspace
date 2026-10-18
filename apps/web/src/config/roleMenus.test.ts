@@ -54,7 +54,7 @@ function flatten(items: MenuItemDef[], acc: Flat[] = []): Flat[] {
 const ROLES = [UserRole.OWNER, UserRole.ADMIN, UserRole.CS, UserRole.COMPANION];
 
 describe('左侧导航菜单（roleMenus）', () => {
-  it('四个角色都有菜单，且只有一个「待处理」入口挂在最上面', () => {
+  it('四个角色都有菜单，且「待处理」只在工作台里出现一次', () => {
     for (const role of ROLES) {
       const menus = roleMenus[role];
       expect(menus, `${role} 没有菜单`).toBeTruthy();
@@ -62,7 +62,9 @@ describe('左侧导航菜单（roleMenus）', () => {
     }
     // 老板 2026-10-06：「上班第一件事点开待处理看一下」——三个管理端角色都要有。
     for (const role of [UserRole.OWNER, UserRole.ADMIN, UserRole.CS]) {
-      expect(roleMenus[role][0].key, `${role} 第一个菜单应该是待处理`).toBe('/todos');
+      const leaves = flatten(roleMenus[role]).filter((x) => x.leaf);
+      expect(leaves.filter((x) => x.key === '/todos'), `${role} 缺待处理`).toHaveLength(1);
+      expect(String(roleMenus[role][0].label)).toBe('工作台');
     }
   });
 
@@ -187,27 +189,23 @@ describe('左侧导航菜单（roleMenus）', () => {
     expect(problems).toEqual([]);
   });
 
-  it('「店长管理」只在老板端；店长端只按人分客服 / 陪玩（老板 2026-10-10）', () => {
-    // 老板 2026-10-10：「店长管理只在老板端显示吧？店长显示的只有客服跟陪玩吧？」
+  it('管理端一级导航收敛为 5 组；老板端保留店长列表，店长端没有', () => {
     const topLabels = (role: UserRole) => roleMenus[role].map((m) => String(m.label));
-    expect(topLabels(UserRole.OWNER)).toContain('店长管理');
-    expect(topLabels(UserRole.ADMIN)).not.toContain('店长管理');
-    // 店长端：按人分的两个一级菜单就是客服 / 陪玩
-    expect(topLabels(UserRole.ADMIN)).toContain('客服管理');
-    expect(topLabels(UserRole.ADMIN)).toContain('陪玩管理');
-    // 老板端有 店长列表（店长管理里），店长端没有
+    for (const role of [UserRole.OWNER, UserRole.ADMIN]) {
+      expect(topLabels(role)).toEqual(['工作台', '订单', '客户', '团队与财务', '设置与设备']);
+    }
+    // 老板端有「店长列表」（团队与财务里），店长端没有
     const leavesOf = (role: UserRole) => flatten(roleMenus[role]).filter((x) => x.leaf).map((x) => x.key);
-    expect(leavesOf(UserRole.OWNER)).toContain('/owner/employees?role=ADMIN');
-    expect(leavesOf(UserRole.ADMIN)).not.toContain('/owner/employees?role=ADMIN');
+    expect(leavesOf(UserRole.OWNER)).toContain('/admin/employees?role=ADMIN');
+    expect(leavesOf(UserRole.ADMIN)).not.toContain('/admin/employees?role=ADMIN');
   });
 
-  it('「价格规则」归陪玩管理（老板 2026-10-10）', () => {
-    // 老板 2026-10-10：「价格规则……挪到陪玩管理」
+  it('「价格规则」归团队与财务（老板 2026-10-10 的功能归属不变）', () => {
     for (const role of [UserRole.OWNER, UserRole.ADMIN]) {
-      const companionMenu = roleMenus[role].find((m) => String(m.label) === '陪玩管理');
-      expect(companionMenu, role + ' 没有陪玩管理').toBeTruthy();
-      const keys = flatten(companionMenu!.children ?? []).map((x) => x.key);
-      expect(keys, role + ' 的陪玩管理里没有价格规则').toContain('/admin/finance/price-rules');
+      const businessMenu = roleMenus[role].find((m) => String(m.label) === '团队与财务');
+      expect(businessMenu, role + ' 没有团队与财务').toBeTruthy();
+      const keys = flatten(businessMenu!.children ?? []).map((x) => x.key);
+      expect(keys, role + ' 的团队与财务里没有价格规则').toContain('/admin/finance/price-rules');
     }
   });
 

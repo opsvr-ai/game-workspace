@@ -72,9 +72,9 @@ export function useShellMenu({ user, navigate, directUnread, shareRatios, badges
     const REVIEW_LABELS = ['工作室管理', '实名审核'];
     // 老板 2026-10-10：左侧菜单改成按「人」分（陪玩管理 / 客服管理），原来挂在「员工管理」
     // 上的未读聊天角标跟着挪过去，两个子菜单各挂一份（同一个未读总数）。
-    const CHAT_LABELS = ['陪玩管理', '客服管理', '首页'];
+    const CHAT_LABELS = ['工作台', '陪玩管理', '客服管理', '首页'];
     const CONTACT_LABELS = ['派单工作台'];
-    const PENDING_START_LABELS = ['订单管理'];
+    const PENDING_START_LABELS = ['订单', '订单管理'];
     const OUTCOME_REVIEW_LABELS = ['成交核对'];
     // 工作抽查异常挂在「陪玩列表 / 人员管理」上（以前挂在折叠的「陪玩管理」上，点不动）。
     const REVIEW_WORK_LABELS = ['陪玩列表', '人员管理'];
@@ -110,6 +110,8 @@ export function useShellMenu({ user, navigate, directUnread, shareRatios, badges
       },
       {
         labels: PENDING_START_LABELS, count: psCount, color: SEMANTIC.warning, markSeen: markPendingStartSeen,
+        // 新菜单的「订单」是 5 组里的顶层，第一个子项是派单工作台；待开始角标应落到「我的订单 / 全部订单」。
+        to: () => rolePage(user.role, 'orders') || '/admin/orders',
         onOpen: (key) =>
           rememberCleared(noticePath(key), [`${psCount} 张单已抢到/已确认，还没点「开始首单」`]),
       },

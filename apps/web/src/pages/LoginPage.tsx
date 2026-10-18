@@ -236,20 +236,7 @@ const LoginPage: React.FC = () => {
         }
       }
       message.success(`欢迎回来，${user.username}`);
-      // 陪玩首次登录 → 完善资料
-      if (user.role === 'COMPANION') {
-        try {
-          const { data } = await http.get(`/companions/${user.companionId}`);
-          const companion = data.data;
-          const games = companion?.games;
-          const isEmpty =
-            !games || !Array.isArray(games) || games.length === 0 || (games.length > 0 && typeof games[0] === 'string');
-          if (isEmpty) {
-            navigate('/profile-setup', { replace: true });
-            return;
-          }
-        } catch {}
-      }
+      // 2026-10-18：不再强制跳「完善资料」整页，游戏资料改成个人设置里的一张卡。
       navigate(roleRouteMap[user.role] || '/login', { replace: true });
     } catch (err: any) {
       message.error(err?.response?.data?.message || '登录失败');

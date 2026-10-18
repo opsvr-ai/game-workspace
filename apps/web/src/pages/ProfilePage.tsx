@@ -4,6 +4,7 @@ import { message } from '../utils/feedback';
 import { UserOutlined, LockOutlined, CameraOutlined } from '@ant-design/icons';
 import { authApi } from '../api/client';
 import PasteImageBox from '../components/PasteImageBox';
+import CompanionGameProfileCard from '../components/CompanionGameProfileCard';
 import { compressImage } from '../utils/imageCompress';
 import { BRAND, TEXT } from '../styles/tokens';
 import PageHeader from '../components/PageHeader';
@@ -222,6 +223,9 @@ const ProfilePage: React.FC = () => {
           </Form>
         </Card>
       )}
+
+      {/* 陪玩专属：游戏资料（原 /profile-setup 页并进来，能力不丢） */}
+      <CompanionGameProfileCard />
 
       {/* 版本信息 */}
       <Card size="small" title="版本信息" style={{ marginTop: 12 }}>

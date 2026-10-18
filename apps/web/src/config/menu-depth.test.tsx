@@ -30,7 +30,7 @@ describe('左侧导航渲染（最多两级）', () => {
     });
   }
 
-  it('店长端：一级按「人」分（陪玩 / 客服管理），里面的分组标题不再是折叠项', async () => {
+  it('管理端：左侧 5 组，团队与财务里的分组标题不再是折叠项', async () => {
     const items = roleMenus[UserRole.ADMIN] as any[];
     const { container, getByText } = render(
       <Menu mode="inline" items={items} openKeys={openKeysOf(items)} />,
@@ -39,19 +39,22 @@ describe('左侧导航渲染（最多两级）', () => {
     const titles = Array.from(container.querySelectorAll('.ant-menu-item-group-title')).map(
       (el) => el.textContent || '',
     );
-    expect(titles).toContain('陪玩工资');
-    expect(titles).toContain('客服提成');
+    expect(titles).toContain('团队');
+    expect(titles).toContain('财务');
+    expect(titles).toContain('高级设置');
     expect(container.querySelectorAll('.ant-menu-item-group .ant-menu-submenu').length).toBe(0);
-    getByText('陪玩管理');
-    getByText('客服管理');
+    getByText('工作台');
+    getByText('订单');
+    getByText('客户');
+    getByText('团队与财务');
+    getByText('设置与设备');
     getByText('陪玩列表');
     getByText('客服列表');
-    // 店长端没有「店长管理」（老板 2026-10-10），考勤 / 工资规则跟着客服走
     getByText('考勤管理');
     getByText('工资规则');
   });
 
-  it('分组标题可点：点「陪玩工资」直接进它里面第一个页面（老板 2026-10-10「点不开？」）', async () => {
+  it('分组标题可点：点「团队」直接进第一个页面（老板 2026-10-10「点不开？」）', async () => {
     const jumps: string[] = [];
     const items = makeTitlesClickable(roleMenus[UserRole.ADMIN] as any[], (key) => jumps.push(key));
     const { container, getByText } = render(
@@ -60,24 +63,24 @@ describe('左侧导航渲染（最多两级）', () => {
     await settle();
     // 分组标题本身还是个不折叠的分组（「最多两级」规矩不变），只是文字被包成了可点节点。
     expect(container.querySelectorAll('.ant-menu-item-group-title span').length).toBeGreaterThan(0);
-    fireEvent.click(getByText('陪玩工资'));
-    expect(jumps).toEqual(['/admin/finance/expenses']);
-    // 「客服提成」里第一个页面是「今日看板」。
-    fireEvent.click(getByText('客服提成'));
-    expect(jumps).toEqual(['/admin/finance/expenses', '/admin/finance/commission-today']);
+    fireEvent.click(getByText('团队'));
+    expect(jumps).toEqual(['/admin/companions?role=COMPANION']);
+    // 「财务」里第一个页面是「财务中心」。
+    fireEvent.click(getByText('财务'));
+    expect(jumps).toEqual(['/admin/companions?role=COMPANION', '/admin/profit-calendar']);
   });
 
-  it('一级菜单可点：点「陪玩管理」直接进它里面第一个页面，不用先展开再点二级（老板 2026-10-16）', async () => {
+  it('一级菜单可点：点「团队与财务」直接进它里面第一个页面（老板 2026-10-16）', async () => {
     const jumps: string[] = [];
     const items = makeTitlesClickable(roleMenus[UserRole.ADMIN] as any[], (key) => jumps.push(key));
     const { getByText } = render(<Menu mode="inline" items={items} openKeys={openKeysOf(items)} />);
     await settle();
     // 一级标题的文字被包成可点节点：点一下 = 进它里面第一个页面。
-    expect(getByText('陪玩管理').closest('span')).toBeTruthy();
-    fireEvent.click(getByText('陪玩管理'));
+    expect(getByText('团队与财务').closest('span')).toBeTruthy();
+    fireEvent.click(getByText('团队与财务'));
     expect(jumps).toEqual(['/admin/companions?role=COMPANION']);
     // 点一级不会顺带把「展开 / 收起」也触发（stopPropagation），二级项照旧自己点照旧跳。
-    fireEvent.click(getByText('客服管理'));
-    expect(jumps).toEqual(['/admin/companions?role=COMPANION', '/admin/employees?role=CS']);
+    fireEvent.click(getByText('订单'));
+    expect(jumps).toEqual(['/admin/companions?role=COMPANION', '/admin/dispatch']);
   });
 });

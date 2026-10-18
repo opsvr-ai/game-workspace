@@ -135,6 +135,12 @@
   心跳兜底保留并给 60 秒宽限；陪玩端「娱乐」按钮玩不起会变灰 + 悬停写明原因。
 ## Recent Updates (v3.3.0)
 
+- **导航第一阶段：四个角色各 5 组，旧 `/owner` 地址全部重定向（2026-10-18，网页）。**
+  按老板确认的 B 方案，菜单收敛为 `工作台 / 订单 / 客户 / 团队与财务 / 设置与设备`
+  （陪玩为 `工作台 / 订单 / 客户 / 收入 / 设置`）；「待处理」进工作台，AI / 语音 / 内容查重等进「高级设置」。
+  删除内部 `/ui-kit`、`/profile-setup` 页（游戏资料并进个人设置）；`/owner/orders` 等 9 条旧地址
+  重定向到 `/admin/*`，`?role=` / `?type=` 原样保留。功能不减，下一步做订单/客户/财务页签合并。
+
 - **「登录什么就是什么」已经发到两端外壳（2026-10-17，陪玩端 `1.0.20261025` / 客服端 `1.0.20260941`）：**
   外壳以前把身份写死（陪玩端报陪玩、客服端报客服），客服账号登在陪玩端里台账就认错端、只能靠「换端」补。
   现在两端都按**真实登录账号**上报，只有没人登录时才退回本包的默认身份；客服端外壳顺手补上了
@@ -485,7 +491,7 @@
   而且没一处写明占多高，切页时总是「先一片空、数据回来突然填满」。统一成
   `apps/web/src/components/LoadingState.tsx`（转圈 + 「加载中…」+ 显式占位高度），19 处手写转圈全部换掉。
   并加了守门 `scripts/_check_loading_state.mjs`（`pnpm loading:check`），**页面里裸写 `<Spin />` CI 直接红**
-  （基线见 `docs/LOADING-STATE-BASELINE.json`）；要看的样式摆在内页 `/ui-kit` 的「加载中的样子」。
+  （基线见 `docs/LOADING-STATE-BASELINE.json`）；要看的样式见 `styles/tokens` 与 `LoadingState`。
 - **工程地基：页面路由表自动导出 + CI「路由契约冻结」（2026-10-07，只动工具链，不影响线上）：** 新增
   `scripts/_export_web_routes.mjs`，静态扫 `router.tsx` 导出 `docs/WEB-ROUTES.json`（基线 **86 条**页面路径），
   CI 重新生成一次再比对 —— 谁删了 / 改了页面路径、或把某条路由换了页面，CI 直接红。
@@ -2294,3 +2300,4 @@ Every endpoint returns a standard JSON envelope:
 ---
 
 > v2.1.0 -- Simplified auth, kick companion, Apple-inspired UI, REST heartbeat, 54 unit tests, Recharts, CSV export, batch billing, screenshot upload, dual-platform Go Agent
+

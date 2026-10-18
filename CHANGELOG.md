@@ -233,6 +233,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **导航 / 信息架构第一阶段：四个角色各收敛为 5 组，旧的 /owner 重复地址全部重定向（2026-10-18，网页）。**
+  按老板确认的 B 方案：合并入口、保留能力、旧 URL 重定向，不直接大删业务功能。
+  - **一级导航只留 5 组**：`工作台 / 订单 / 客户 / 团队与财务 / 设置与设备`
+    （陪玩端为 `工作台 / 订单 / 客户 / 收入 / 设置`）；「待处理」收进工作台，AI / 语音 / 内容查重 / 客服设置等
+    收进「设置与设备 → 高级设置」，不再占一级菜单。
+  - **删除内部页**：`/ui-kit`（设计校对页）、`/profile-setup`（独立首次资料页）下线；
+    `/profile-setup` 重定向到 `/profile`，陪玩的「游戏资料」改成个人设置里的一张卡
+    （`CompanionGameProfileCard`），游戏/段位/账号能力不丢。
+  - **老板旧地址统一重定向**：`/owner/orders`、`/owner/order-review`、`/owner/customers`、
+    `/owner/customers/:id`、`/owner/customer-board`、`/owner/employees`、`/owner/work-wechats`、
+    `/owner/review`、`/owner/settings` → 对应 `/admin/*`；查询参数（`?role=` / `?type=`）原样保留。
+  - 菜单数据从 525 行下降到约 300 行；`roleMenus` 现在只有这一份 5 组配置；旧的 `/owner` 重复路由
+    不再各挂一份页面组件。网页 **27 文件 / 164 用例**全绿（含新的菜单 5 组 / 渲染 / 整站启动契约）。
+  - 说明：这是 P1（导航 + 入口 + 旧地址）。订单/客户/财务页签合并（P2）继续做，现有功能全部还能从菜单或旧地址进入。
+
 - **客户端整合：陪玩端 / 客服端两个安装包收敛为一个通用客户端，按登录角色自动切换能力（2026-10-17，陪玩端壳 `1.0.20261026`）。**
   老板：「陪玩端和客服端的客户端安装包整合成一个，根据用户登录的身份，自动切换到对应角色的功能上，而不是用两个包」。
   - **唯一客户端 = `apps/companion-electron`**：内部 productName / 安装目录 / 升级通道 / 看门狗身份保持 `companion`

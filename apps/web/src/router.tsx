@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useLocation, useRouteError, isRouteErrorResponse } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useLocation, useParams, useRouteError, isRouteErrorResponse } from 'react-router-dom';
 import { Suspense, lazy, type ReactNode } from 'react';
 import { Button, Space } from 'antd';
 import LoadingState from './components/LoadingState';
@@ -106,8 +106,6 @@ const ReviewPage = lazy(() => import('./pages/admin/ReviewPage'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
 const StatsPage = lazy(() => import('./pages/StatsPage'));
 const AttendancePage = lazy(() => import('./pages/admin/AttendancePage'));
-const ProfileSetupPage = lazy(() => import('./pages/ProfileSetupPage'));
-const UiKitPage = lazy(() => import('./pages/UiKitPage'));
 const CompanionPage = lazy(() => import('./pages/CompanionPage'));
 const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
@@ -156,6 +154,17 @@ const LegacyClientRedirect: React.FC<{ to: string }> = ({ to }) => {
   return <Navigate to={to + search} replace />;
 };
 
+/** 老板旧地址 /owner/* → 统一管理端 /admin/*；`:id` 之类的参数一起带过去。 */
+const LegacyOwnerRedirect: React.FC<{ to: string }> = ({ to }) => {
+  const { search } = useLocation();
+  const params = useParams();
+  const path = Object.entries(params).reduce(
+    (acc, [key, value]) => (value ? acc.replace(`:${key}`, value) : acc),
+    to,
+  );
+  return <Navigate to={path + search} replace />;
+};
+
 export const router = createBrowserRouter([
   {
     path: '/login',
@@ -170,16 +179,17 @@ export const router = createBrowserRouter([
     element: page(<ChatWindowPage />),
   },
   {
+    // 2026-10-18：内部「首次资料填写」页已下线；老地址保留重定向，不影响书签。
     path: '/profile-setup',
     errorElement: <RouteErrorBoundary />,
-    element: page(<ProfileSetupPage />),
+    element: <Navigate to="/profile" replace />,
   },
 
   {
-    // 内部「设计校对页」：不在菜单里、不需要登录，改界面时前后各截一张图对照用（见 docs/ARCHITECTURE.md 5.1）。
+    // 2026-10-18：内部「设计校对页」已下线；老地址直接回登录页。
     path: '/ui-kit',
     errorElement: <RouteErrorBoundary />,
-    element: page(<UiKitPage />),
+    element: <Navigate to="/login" replace />,
   },
   {
     path: '/companion',
@@ -253,11 +263,11 @@ export const router = createBrowserRouter([
       { path: 'owner/live-board', element: <Navigate to="/admin" replace /> },
       {
         path: 'owner/customers',
-       element: page(<CustomersPage />),
+        element: <LegacyOwnerRedirect to="/admin/customers" />,
       },
       {
         path: 'owner/employees',
-        element: page(<EmployeesPage />),
+        element: <LegacyOwnerRedirect to="/admin/employees" />,
       },
       {
         path: 'owner/studios',
@@ -273,23 +283,23 @@ export const router = createBrowserRouter([
       },
       {
         path: 'owner/review',
-        element: page(<ReviewPage />),
+        element: <LegacyOwnerRedirect to="/admin/review" />,
       },
       {
         path: 'owner/settings',
-        element: page(<SettingsPage />),
+        element: <LegacyOwnerRedirect to="/admin/settings" />,
       },
       {
         path: 'owner/work-wechats',
-        element: page(<WorkWechatPage />),
+        element: <LegacyOwnerRedirect to="/admin/work-wechats" />,
       },
       {
         path: 'owner/orders',
-        element: page(<OrdersPage />),
+        element: <LegacyOwnerRedirect to="/admin/orders" />,
       },
       {
         path: 'owner/order-review',
-        element: page(<OrderReviewPage />),
+        element: <LegacyOwnerRedirect to="/admin/order-review" />,
       },
       {
         // 待处理工作台（老板 2026-10-06）：店长 / 老板 / 客服上班先点这一页，
@@ -330,7 +340,7 @@ export const router = createBrowserRouter([
       // 原来菜单里的 /owner/customer-board、/admin/customer-board 点进去是 404，老板 2026-10-04 发现）
       {
         path: 'owner/customer-board',
-        element: page(<CustomerBoardPage />),
+        element: <LegacyOwnerRedirect to="/admin/customer-board" />,
       },
       {
         path: 'admin/customer-board',
@@ -339,7 +349,7 @@ export const router = createBrowserRouter([
       // 老板看客户看板点「详情」跳的是 /owner/customers/:id，这条原来也漏了
       {
         path: 'owner/customers/:id',
-        element: page(<CustomerDetailPage />),
+        element: <LegacyOwnerRedirect to="/admin/customers/:id" />,
       },
       {
         path: 'admin/customers',
