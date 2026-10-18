@@ -194,6 +194,34 @@ const TrafficAccountPage: React.FC = () => {
     return opts;
   }, [ownerCandidates, editing]);
 
+  // 店长 / 老板进页面就把本店客服名单拉好，表格里可以直接改「归属客服」。
+  useEffect(() => {
+    if (canReassignOwner) loadOwnerCandidates();
+  }, [canReassignOwner, loadOwnerCandidates]);
+
+  const ownerOptionsFor = (r: TrafficAccountItem) => {
+    const opts = ownerCandidates.map((c) => ({ value: c.id, label: c.label, disabled: c.resigned }));
+    if (r.userId && !opts.some((o) => o.value === r.userId)) {
+      opts.unshift({
+        value: r.userId,
+        label: `${r.user?.displayName || r.user?.username || '当前归属'}（当前）`,
+        disabled: false,
+      });
+    }
+    return opts;
+  };
+
+  const reassignOwner = async (r: TrafficAccountItem, userId: string) => {
+    if (!userId || userId === r.userId) return;
+    try {
+      await trafficAccountApi.update(r.id, { userId });
+      message.success('归属客服已调整');
+      fetchItems();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '调整归属失败');
+    }
+  };
+
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
@@ -699,9 +727,9 @@ const TrafficAccountPage: React.FC = () => {
   /** 列设置里新加的自定义列单独成列 */
   const customCols = columns.filter((c) => c.custom && !FIELD_LABELS[c.key]);
   const shownGroups = GROUP_DEFS.filter((g) => visibleInGroup(g.keys).length > 0);
-  // 序号 44 + 归属客服 70 + 操作 184 + 自定义列 + 各分组
+  // 序号 44 + 归属客服 130 + 操作 184 + 自定义列 + 各分组
   const tableWidth =
-    44 + 70 + 184 + customCols.length * 120 + shownGroups.reduce((total, g) => total + g.width, 0);
+    44 + 130 + 184 + customCols.length * 120 + shownGroups.reduce((total, g) => total + g.width, 0);
 
   const tableColumns = [
     {
@@ -741,10 +769,21 @@ const TrafficAccountPage: React.FC = () => {
       render: (_: unknown, r: TrafficAccountItem) => renderField(c, r),
     })),
     {
-      title: '归属客服', key: '__owner', width: 70,
-      render: (_: unknown, r: TrafficAccountItem) => (
-        <span style={{ whiteSpace: 'nowrap' }}>{r.user?.displayName || r.user?.username || '-'}</span>
-      ),
+      title: '归属客服', key: '__owner', width: 130,
+      render: (_: unknown, r: TrafficAccountItem) =>
+        canReassignOwner ? (
+          <Select
+            size="small"
+            showSearch
+            optionFilterProp="label"
+            value={r.userId}
+            options={ownerOptionsFor(r)}
+            onChange={(v) => reassignOwner(r, v)}
+            style={{ width: 120 }}
+          />
+        ) : (
+          <span style={{ whiteSpace: 'nowrap' }}>{r.user?.displayName || r.user?.username || '-'}</span>
+        ),
     },
     {
       // 四个按钮去掉图标、统一字号后一行放得下：带图标要 228px，原来列宽 150 直接把「删除」挤出了可见区。

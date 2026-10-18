@@ -445,6 +445,12 @@ const WorkWechatPage: React.FC = () => {
                     return (
                       <Space size={4}>
                         <Text>{cs?.username || boundNames[r.id]}</Text>
+                        {/* 店长 / 老板可以直接调换给另一个客服，不用先解绑再绑 */}
+                        {!isCs && (
+                          <Button type="link" size="small" onClick={() => setBindingId(r.id)}>
+                            调换
+                          </Button>
+                        )}
                         {/* 客服本人不能解绑（换号要店长同意） */}
                         {!isCs && (
                           <Button type="link" size="small" onClick={() => handleUnbindCs(r.id)}>
