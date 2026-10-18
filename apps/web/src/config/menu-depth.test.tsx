@@ -50,8 +50,8 @@ describe('左侧导航渲染（最多两级）', () => {
     getByText('设置与设备');
     getByText('陪玩列表');
     getByText('客服列表');
-    getByText('考勤管理');
-    getByText('工资规则');
+    getByText('陪玩/客服/店长考勤管理');
+    getByText('店长/客服工资规则');
   });
 
   it('分组标题可点：点「团队」直接进第一个页面（老板 2026-10-10「点不开？」）', async () => {

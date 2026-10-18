@@ -69,7 +69,7 @@ export function useShellMenu({ user, navigate, directUnread, shareRatios, badges
     const psCount = pendingStartBadge;
     const rvCount = reviewBadge;
     const orCount = outcomeReviewBadge;
-    const REVIEW_LABELS = ['工作室管理', '实名审核'];
+    const REVIEW_LABELS = ['工作室管理', '实名审核', '陪玩实名审核'];
     // 老板 2026-10-10：左侧菜单改成按「人」分（陪玩管理 / 客服管理），原来挂在「员工管理」
     // 上的未读聊天角标跟着挪过去，两个子菜单各挂一份（同一个未读总数）。
     const CHAT_LABELS = ['工作台', '陪玩管理', '客服管理', '首页'];
