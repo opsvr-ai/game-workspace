@@ -191,8 +191,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/owner/bridges', label: '工作室桥接' },
         { key: '/owner/authorizations', label: '客户端授权' },
         { key: '/admin/traffic-accounts', label: '工作室账号' },
+        { key: '/content-check', label: 'AI运营辅助' },
         { key: '/admin/client-management', label: '客户端与设备' },
-        { key: '/content-check', label: '内容查重' },
       ],
     },
     {
@@ -268,8 +268,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       children: [
         { key: '/owner/bridges', label: '工作室桥接' },
         { key: '/admin/traffic-accounts', label: '工作室账号' },
+        { key: '/content-check', label: 'AI运营辅助' },
         { key: '/admin/client-management', label: '客户端与设备' },
-        { key: '/content-check', label: '内容查重' },
       ],
     },
     {
@@ -326,7 +326,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
         { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },
         { key: '/cs/traffic-accounts', label: '工作室账号' },
-        { key: '/content-check', label: '内容查重' },
+        { key: '/content-check', label: 'AI运营辅助' },
       ],
     },
     {

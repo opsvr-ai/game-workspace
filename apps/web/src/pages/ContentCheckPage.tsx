@@ -346,8 +346,8 @@ const ContentCheckPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="内容查重 + 违禁词检测"
-        subtitle={`用于小红书、抖音等笔记发布前检查${lexiconVersion ? ` · 词库版本 ${lexiconVersion}` : ''}`}
+        title="AI运营辅助"
+        subtitle={`内容查重、违禁词检测、文案与排版生成${lexiconVersion ? ` · 词库版本 ${lexiconVersion}` : ''}`}
         extra={
           <Button type="primary" icon={<ThunderboltOutlined />} loading={loading} onClick={doCheck}>
             开始检测
