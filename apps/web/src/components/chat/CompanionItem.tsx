@@ -51,6 +51,7 @@ const CompanionItem: React.FC<CompanionItemProps> = ({ companion: c, isSelected,
           <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             {hasUnread && (
               <span
+                className="badge-pop-active"
                 style={{
                   minWidth: 16,
                   height: 16,

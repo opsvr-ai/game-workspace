@@ -7,6 +7,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { chatApi } from '../../api/chat';
 import { playMessageSound } from '../../utils/notificationSound';
 import { showBannerNotification, playNotificationSound } from '../../utils/notify';
+import { isRoomBeingViewed } from '../../utils/chatViewing';
 
 interface ChatContextValue {
   wsConnected: boolean;
@@ -63,8 +64,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data?.roomId && data?.message) {
         const state = useChatStore.getState();
         const isMine = data.message.senderId === state.myUserId;
-        // 最小化 = 人没在看，按「没打开」对待：要响、要计未读、不自动标已读。
-        const isActive = state.activeConversationId === data.roomId && !state.activeConversationMinimized;
+        // 最小化 / 窗口没焦点 / 被别的软件盖住 = 人没在看，按「没打开」对待：
+        // 要响、要计未读、不自动标已读。多个聊天窗口之间用 chatViewing 同步。
+        const isActive =
+          state.activeConversationId === data.roomId
+          && !state.activeConversationMinimized
+          && isRoomBeingViewed(data.roomId);
         if (!isMine && !isActive) playMessageSound();
         if (!isMine && data.message.mentions?.includes(state.myUserId)) {
           // 老板 2026-10-03：@提醒统一走陪玩端那张能点的置顶横幅，点一下直接打开这个会话。

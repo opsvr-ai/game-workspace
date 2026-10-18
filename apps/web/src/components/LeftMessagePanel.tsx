@@ -91,6 +91,7 @@ const Row: React.FC<RowProps> = ({ name, lastMessage, lastMessageAt, unread, ava
         </Text>
         {unread > 0 && (
           <span
+            className="badge-pop-active"
             style={{
               display: 'inline-flex',
               alignItems: 'center',

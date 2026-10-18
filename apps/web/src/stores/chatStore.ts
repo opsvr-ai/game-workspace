@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { chatApi, type ConversationSummary, type ParticipantInfo } from '../api/chat';
 import { cacheMessages, loadCachedMessages, cleanupCache } from '../workers/chat-db';
+import { isRoomBeingViewed, setChatViewRoom } from '../utils/chatViewing';
 
 export interface Message {
   id: string;
@@ -209,8 +210,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       const newMsg = normalizeMessage(msg);
 
-      // 最小化的窗口 = 人没在看，不能算「已读」：新消息要计未读、要响。
-      const isActive = s2.activeConversationId === convId && !s2.activeConversationMinimized;
+      // 最小化的窗口 / 被别的软件盖住 / 没焦点 = 人没在看，不能算「已读」：新消息要计未读、要响。
+      const isActive =
+        s2.activeConversationId === convId
+        && !s2.activeConversationMinimized
+        && isRoomBeingViewed(convId);
       const isMine = msg.senderId === s2.myUserId;
       const shouldIncrementUnread = !isActive && !isMine;
 
@@ -375,6 +379,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
       };
     });
+    setChatViewRoom(convId);
 
     // Load from IndexedDB cache first (instant), then sync from API
     loadCachedMessages(convId)
@@ -406,7 +411,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     get().markRead(convId);
   },
 
-  closeConversation: () =>
+  closeConversation: () => {
     set((s) => {
       if (!s.activeConversationId) return { activeConversationId: null, activeConversationMinimized: false };
       const conv = s.conversations[s.activeConversationId];
@@ -421,7 +426,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
         totalUnread: Math.max(0, s.totalUnread - unread),
       };
-    }),
+    });
+    setChatViewRoom(null);
+  },
 
   setOrderInfo: (convId: string, orderInfo?: string | null) =>
     set((s) => {
@@ -480,7 +487,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setMyUserId: (id: string) => set({ myUserId: id }),
   setSyncing: (v: boolean) => set({ syncing: v }),
-  setActiveConversationMinimized: (v: boolean) => set({ activeConversationMinimized: v }),
+  setActiveConversationMinimized: (v: boolean) => {
+    set({ activeConversationMinimized: v });
+    setChatViewRoom(v ? null : get().activeConversationId);
+  },
   reset: () =>
     set({
       conversations: {},

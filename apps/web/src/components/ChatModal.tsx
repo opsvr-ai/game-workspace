@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { chatApi } from '../api/chat';
 import ChatPanel from './chat/ChatPanel';
 import { BRAND, BG, TEXT, SEMANTIC } from '../styles/tokens';
+import { isRoomBeingViewed } from '../utils/chatViewing';
 
 interface ChatPartner {
   conversationId: string;
@@ -83,15 +84,24 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     return () => { useChatStore.getState().closeConversation(); };
   }, [open, partner?.conversationId]);
 
-  // 窗口展开着 = 人正在看：把当前会话标已读（尤其是从「最小化」还原回来那一下，
-  // 最小化期间攒的新消息要在这里清掉未读）。
+  // 窗口展开着 + 有焦点 = 人正在看：把当前会话标已读（尤其是从「最小化」还原回来、
+  // 或从别的软件切回聊天窗口那一下，要把期间攒的新消息清掉）。
+  // 注意：不能只看 open / minimized —— 窗口被别的软件盖住、没焦点时，新消息要算未读。
   useEffect(() => {
-    if (!open || minimized) return;
-    const id = useChatStore.getState().activeConversationId;
-    if (!id) return;
-    chatApi.markRead(id).catch(() => {});
-    useChatStore.getState().markRead(id);
-  }, [open, minimized]);
+    if (!open || minimized || !activeConversationId) return;
+    const mark = () => {
+      if (!isRoomBeingViewed(activeConversationId)) return;
+      chatApi.markRead(activeConversationId).catch(() => {});
+      useChatStore.getState().markRead(activeConversationId);
+    };
+    mark();
+    window.addEventListener('focus', mark);
+    document.addEventListener('visibilitychange', mark);
+    return () => {
+      window.removeEventListener('focus', mark);
+      document.removeEventListener('visibilitychange', mark);
+    };
+  }, [open, minimized, activeConversationId]);
 
   // 最小化：收起成一个贴在右下角的小条，点一下还原，旁边可直接关闭。
   if (open && partner && minimized) {
