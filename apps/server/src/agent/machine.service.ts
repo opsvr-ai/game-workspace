@@ -463,14 +463,16 @@ export class MachineService {
     items.sort((a, b) => {
       // 真有客户端上报的机器排最前（那些才点得动「一键诊断」），其次是旧版客服端账号行、
       // 最后是手工登记的陪玩电脑。
+      // 同一组内按「使用人 / 主机名 / machineId」固定排序，不再按在线状态和 lastSeen 排 ——
+      // 否则一次心跳超时整行就跳到最下面，看起来就是「一直上来下去」（2026-10-19）。
       const ra = a.source === 'machine' ? 0 : 1;
       const rb = b.source === 'machine' ? 0 : 1;
       if (ra !== rb) return ra - rb;
-      if (a.online !== b.online) return a.online ? -1 : 1;
-      const ta = a.lastSeenAt || '';
-      const tb = b.lastSeenAt || '';
-      if (ta !== tb) return ta < tb ? 1 : -1;
-      return String(a.label).localeCompare(String(b.label));
+      const la = String(a.loginUser || '').localeCompare(String(b.loginUser || ''), 'zh-Hans-CN');
+      if (la !== 0) return la;
+      const ha = String(a.hostname || a.label || '').localeCompare(String(b.hostname || b.label || ''), 'zh-Hans-CN');
+      if (ha !== 0) return ha;
+      return String(a.machineId || '').localeCompare(String(b.machineId || ''));
     });
 
     // 店长只应看到本店电脑；以前这里返回全站台账，而 /companions 只返回本店陪玩，
