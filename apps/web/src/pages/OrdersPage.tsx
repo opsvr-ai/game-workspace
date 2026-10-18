@@ -134,7 +134,7 @@ const OrdersPage: React.FC = () => {
   const [csScope, setCsScope] = useState<'mine' | 'all'>('mine');
   // 陪玩端的三个口径（服务端 scope 参数），老板 2026-10-03：
   //   taken   = 我抢到的（挂在我名下的单，含转出的留痕、待我接手的转让）
-  //   served  = 我服务的（别人抢到、我当搭档一起打的单；这一栏隐藏主陪的客户微信）
+  //   served  = 我是副陪的（别人抢到、我当搭档一起打的单；这一栏隐藏主陪的客户微信）
   //   published = 我发布的（我自己发起的第一单 / 续费 / 复购）
   const [companionScope, setCompanionScope] = useState<'taken' | 'served' | 'published'>('taken');
   // 三栏各自的单数（老板 2026-10-03：「被邀请方打的这个订单找不到」——把数量挂在页签上，
@@ -1220,7 +1220,7 @@ const OrdersPage: React.FC = () => {
               ? companionScope === 'published'
                 ? '我发布的订单'
                 : companionScope === 'served'
-                  ? '我服务的订单'
+                  ? '我是副陪的订单'
                   : '我抢到的订单'
               : '订单管理'
           }
@@ -1307,7 +1307,7 @@ const OrdersPage: React.FC = () => {
               onChange={(v) => setCompanionScope(v as 'taken' | 'served' | 'published')}
               options={[
                 { label: scopeTabLabel('我抢到的', 'taken'), value: 'taken' },
-                { label: scopeTabLabel('我服务的', 'served'), value: 'served' },
+                { label: scopeTabLabel('我是副陪的', 'served'), value: 'served' },
                 { label: scopeTabLabel('我发布的', 'published'), value: 'published' },
               ]}
             />
@@ -1414,7 +1414,7 @@ const OrdersPage: React.FC = () => {
                     : isCompanion && companionScope === 'published'
                       ? '我还没发过订单'
                       : isCompanion && companionScope === 'served'
-                        ? '还没有我当搭档服务的订单'
+                        ? '还没有我当副陪的订单'
                         : '暂无订单',
                 }}
                 // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
