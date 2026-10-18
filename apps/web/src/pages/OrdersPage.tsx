@@ -19,7 +19,7 @@ import {
   Upload,
 } from 'antd';
 import { message } from '../utils/feedback';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, FilterOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
 import { describeTransfer, transferWho } from '../components/OrderTransferNote';
 import http from '../api/client';
@@ -127,6 +127,9 @@ const OrdersPage: React.FC = () => {
   // 维度、选项、判定全在 constants/orderFilters.ts 那一份清单里：**加一个新标签只改那里**，
   // 工具条与筛选自动跟着走，不用再回来加 state / 加 filter。
   const [tagFilters, setTagFilters] = useState<Record<string, string>>({});
+  // 筛选栏默认只留「搜索 / 订单类型 / 更多筛选」，其余标签维度收进折叠面板，
+  // 不然 12 个下拉铺两行，老板原话「一堆筛选有点多余、布局很乱」（2026-10-19）。
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   // 客服端默认只看自己发布/认领的单，需要时可切到全店（服务端 scope 参数）
   const [csScope, setCsScope] = useState<'mine' | 'all'>('mine');
   // 陪玩端的三个口径（服务端 scope 参数），老板 2026-10-03：
@@ -1139,6 +1142,12 @@ const OrdersPage: React.FC = () => {
   // 这一批数据对应的全部筛选维度（客户来源跟着数据走，所以按 orders 重建）。
   const filterDimensions = useMemo(() => buildOrderFilterDimensions(orders), [orders]);
   const activeFilterCount = countActiveOrderFilters(tagFilters);
+  const typeFilterDimension = filterDimensions.find((d) => d.key === 'type');
+  const advancedFilterDimensions = filterDimensions.filter((d) => d.key !== 'type');
+  const advancedTagFilters = { ...tagFilters };
+  delete advancedTagFilters.type;
+  const advancedActiveCount =
+    countActiveOrderFilters(advancedTagFilters) + (companionFilter ? 1 : 0) + (csFilter ? 1 : 0);
   const resetOrderFilters = () => {
     setTagFilters({});
     setStatusFilter('');
@@ -1248,8 +1257,8 @@ const OrdersPage: React.FC = () => {
           }
         />
         <PartnerInviteCards />
-        {/* Filter bar */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        {/* Filter bar：常用条件只留一行，其余收进「更多筛选」 */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <Input.Search
             placeholder={ORDER_SEARCH_PLACEHOLDER}
             allowClear
@@ -1258,50 +1267,28 @@ const OrdersPage: React.FC = () => {
             style={{ width: 300 }}
             size="small"
           />
-          {/* 每一个标签一个下拉，全部由 constants/orderFilters.ts 那一份清单生成 ——
-              老板 2026-10-11：「让系统里的每一个标签都能筛选，一步到位 免得天天让你改」。
-              以后加新标签只改那份清单，这里一个字都不用动。 */}
-          {filterDimensions.map((d) => (
+          {typeFilterDimension && (
             <Select
-              key={d.key}
-              placeholder={d.placeholder}
+              placeholder={typeFilterDimension.placeholder}
               allowClear
-              value={tagFilters[d.key] || undefined}
-              onChange={(v) => setTagFilters((prev) => ({ ...prev, [d.key]: v || '' }))}
-              style={{ width: d.width }}
+              value={tagFilters[typeFilterDimension.key] || undefined}
+              onChange={(v) =>
+                setTagFilters((prev) => ({ ...prev, [typeFilterDimension.key]: v || '' }))
+              }
+              style={{ width: typeFilterDimension.width }}
               size="small"
-              options={d.options}
-            />
-          ))}
-          <Select
-            placeholder="员工筛选"
-            allowClear
-            value={companionFilter || undefined}
-            onChange={(v) => setCompanionFilter(v || '')}
-            style={{ width: 130 }}
-            size="small"
-            showSearch
-            optionFilterProp="children"
-          >
-            {companions.map((c: any) => (
-              <Option key={c.id} value={c.id}>
-                {c.user?.username || c.id.slice(0, 6)}
-              </Option>
-            ))}
-          </Select>
-          {canFilterByCs && (
-            <Select
-              placeholder="派单人筛选"
-              allowClear
-              value={csFilter || undefined}
-              onChange={(v) => setCsFilter(v || '')}
-              style={{ width: 150 }}
-              size="small"
-              showSearch
-              optionFilterProp="label"
-              options={csGroupedOptions}
+              options={typeFilterDimension.options}
             />
           )}
+          <Badge count={advancedActiveCount} size="small">
+            <Button
+              size="small"
+              icon={<FilterOutlined />}
+              onClick={() => setShowAdvancedFilters((v) => !v)}
+            >
+              {showAdvancedFilters ? '收起筛选' : '更多筛选'}
+            </Button>
+          </Badge>
           {isCs && (
             <Segmented
               size="small"
@@ -1336,6 +1323,54 @@ const OrdersPage: React.FC = () => {
             </>
           )}
         </div>
+
+        {showAdvancedFilters && (
+          <Card size="small" style={{ marginBottom: 10 }} bodyStyle={{ padding: 10 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {advancedFilterDimensions.map((d) => (
+                <Select
+                  key={d.key}
+                  placeholder={d.placeholder}
+                  allowClear
+                  value={tagFilters[d.key] || undefined}
+                  onChange={(v) => setTagFilters((prev) => ({ ...prev, [d.key]: v || '' }))}
+                  style={{ width: d.width }}
+                  size="small"
+                  options={d.options}
+                />
+              ))}
+              <Select
+                placeholder="员工筛选"
+                allowClear
+                value={companionFilter || undefined}
+                onChange={(v) => setCompanionFilter(v || '')}
+                style={{ width: 130 }}
+                size="small"
+                showSearch
+                optionFilterProp="children"
+              >
+                {companions.map((c: any) => (
+                  <Option key={c.id} value={c.id}>
+                    {c.user?.username || c.id.slice(0, 6)}
+                  </Option>
+                ))}
+              </Select>
+              {canFilterByCs && (
+                <Select
+                  placeholder="派单人筛选"
+                  allowClear
+                  value={csFilter || undefined}
+                  onChange={(v) => setCsFilter(v || '')}
+                  style={{ width: 150 }}
+                  size="small"
+                  showSearch
+                  optionFilterProp="label"
+                  options={csGroupedOptions}
+                />
+              )}
+            </div>
+          </Card>
+        )}
         {/* 今日单量：一行灰字（原来三个彩色标签块，视觉噪音太大，老板 2026-09-28） */}
         <div style={{ fontSize: 12, color: TEXT.secondary, marginBottom: 8 }}>
           今日抢单{' '}
