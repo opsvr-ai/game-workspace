@@ -41,8 +41,15 @@ export function useShellRealtime({
   const voiceSocketRef = useSocket({
     onOrderNew: (data: any) => {
       if (data?.type !== 'DUAL_INVITE') {
-        // 非搭档邀请的 order:new 通常就是“新订单进池/广播”，
-        // 让已挂载的订单池页面立即刷新，和弹窗保持同步。
+        // 非搭档邀请的 order:new 通常就是“新订单进池/广播”。
+        // 2026-10-18：陪玩端**不要**在这里立刻刷新订单池 —— 新单弹窗要按段位延迟，
+        // 这里先刷会让「订单池先出现、几秒后弹窗」；改成等 order:urgent 到达时一起刷新
+        // （见下面 onOrderUrgent 的 chunlv:order-pool-updated）。管理端 / 客服仍立即刷新。
+        const isPoolBroadcast =
+          (data?.dispatchType === 'POOL' || data?.dispatchType === 'BROADCAST')
+          && data?.status === 'PENDING'
+          && !data?._isAssignment;
+        if (user?.role === 'COMPANION' && isPoolBroadcast) return;
         if (data?.dispatchType === 'POOL' || data?.dispatchType === 'BROADCAST' || data?._notify) {
           window.dispatchEvent(new Event('chunlv:order-pool-updated'));
         }
@@ -330,7 +337,12 @@ export function useShellRealtime({
         action: 'open-orders',
       });
     },
-    onOrderPoolUpdated: () => {
+    onOrderPoolUpdated: (data: any) => {
+      // 同 onOrderNew：陪玩端的新广播单要等弹窗那一下再刷新，避免订单池先出现。
+      const isNewPending =
+        data?.status === 'PENDING'
+        && (data?.dispatchType === 'POOL' || data?.dispatchType === 'BROADCAST');
+      if (user?.role === 'COMPANION' && isNewPending) return;
       window.dispatchEvent(new Event('chunlv:order-pool-updated'));
     },
     // 群聊广播：客服/店长发广播后，陪玩电脑右下角弹 Windows 提醒，5 秒后自动消失
