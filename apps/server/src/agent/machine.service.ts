@@ -17,7 +17,9 @@ import { ONBOARD_REPORT_TOKEN } from './agent-token';
  */
 function isClientSource(source: unknown): boolean {
   const value = String(source ?? '').trim();
-  return !value || value === 'client' || /-client$/.test(value);
+  // 看门狗报的也是这台机器自己（不是运维脚本）：以前这里只认 *-client，watchdog 被当成脚本，
+  // 于是同一台机器会被「归并」到旧台账行，远程管理账号也写到旧行上（张宗军那台 66e/5245 两行）。
+  return !value || value === 'client' || value === 'watchdog' || /-client$/.test(value);
 }
 
 /**
@@ -155,6 +157,12 @@ export class MachineService {
       lastSeenAt: now.toISOString(),
       lastSource: clean(payload?.source, 60) || 'client',
     };
+    // 同一台物理机可能因为客户端/脚本算出的 machineId 不同，在台账里留下两行（张宗军那台：
+    // 当前客户端行 ...66e... 没开通，旧的脚本行 ...5245... 已开通）。客户端/看门狗来报时，
+    // 按 MAC 或「主机名 + 主 IP」把同机另一行的远程账号继承过来，避免永远显示未开通。
+    if (!fromScript && !record.remoteReady) {
+      await this.inheritRemoteInfo(record);
+    }
     if (record.remotePassword && !record.remoteReady) record.remoteReady = true;
     await this.prisma.systemConfig.upsert({
       where: { key: `client.machine.${machineId}` },
@@ -176,6 +184,35 @@ export class MachineService {
     if (!machineId) return null;
     const row = await this.prisma.systemConfig.findUnique({ where: { key: `client.machine.${machineId}` } });
     return (row?.value as any) || null;
+  }
+
+  /** 同机重复台账：按 MAC / 主机名+主 IP 找到已经开通远程管理的另一行，继承账号口令。 */
+  private async inheritRemoteInfo(record: any): Promise<void> {
+    if (!record?.machineId) return;
+    const mac = String(record.mac || '').trim().toLowerCase();
+    const host = String(record.hostname || '').trim().toLowerCase();
+    const ip = String(record.primaryIp || '').trim();
+    if (!mac && !(host && ip)) return;
+    const rows = await this.prisma.systemConfig.findMany({
+      where: { key: { startsWith: 'client.machine.' } },
+    });
+    for (const row of rows) {
+      const other: any = (row.value as any) || {};
+      if (!other.remoteReady || other.machineId === record.machineId) continue;
+      const sameMac = !!mac && String(other.mac || '').trim().toLowerCase() === mac;
+      const sameHostIp =
+        !!host && !!ip &&
+        String(other.hostname || '').trim().toLowerCase() === host &&
+        String(other.primaryIp || '').trim() === ip;
+      if (!sameMac && !sameHostIp) continue;
+      record.remoteReady = true;
+      record.remoteAccount = other.remoteAccount || record.remoteAccount || '';
+      record.remotePassword = other.remotePassword || record.remotePassword || '';
+      this.logger.log(
+        `机器台账重复行继承远程信息: ${record.machineId} ← ${other.machineId}（${sameMac ? 'MAC' : '主机名+IP'}）`,
+      );
+      return;
+    }
   }
 
   /**

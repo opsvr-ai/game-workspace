@@ -101,7 +101,7 @@ describe('MachineService.reportMachine 台账归并', () => {
     expect(upsertArg().where.key).toBe(clientKey);
   });
 
-  it('客户端自己的心跳：永远以自己的 machineId 为准，也不去扫别的行', async () => {
+  it('客户端自己的心跳：以自己 machineId 为准；没有同机已开通行时不乱认领', async () => {
     const res = await service.reportMachine({
       machineId: 'pc-20230107afuw-00ff25fe4260',
       hostname: 'PC-20230107AFUW',
@@ -112,10 +112,40 @@ describe('MachineService.reportMachine 台账归并', () => {
     });
 
     expect(res.machineId).toBe('pc-20230107afuw-00ff25fe4260');
-    expect(mockPrisma.systemConfig.findMany).not.toHaveBeenCalled();
     expect(upsertArg().update.value.appVersion).toBe('1.0.20260936');
-    // 客户端心跳不带 remoteReady，必须保留脚本写进去的「已开通」
+    // 客户端心跳不带 remoteReady，找不到同机已开通行就保持未开通
     expect(upsertArg().update.value.remoteReady).toBe(false);
+  });
+
+  it('同一物理机两行：当前行未开通、旧行已开通 → 继承远程账号（张宗军那台）', async () => {
+    const sibling = {
+      key: 'client.machine.user-20240831vs-5245a501c6c3',
+      value: {
+        machineId: 'user-20240831vs-5245a501c6c3',
+        hostname: 'User-20240831VS',
+        primaryIp: '192.168.0.158',
+        clientType: 'COMPANION',
+        remoteReady: true,
+        remoteAccount: 'chunlvops',
+        remotePassword: 'Chunlv!zhangzj',
+        lastSource: 'enable-remote',
+      },
+    };
+    mockPrisma.systemConfig.findMany.mockResolvedValue([sibling] as any);
+
+    const res = await service.reportMachine({
+      machineId: 'user-20240831vs-66e14471e7a2',
+      hostname: 'User-20240831VS',
+      primaryIp: '192.168.0.158',
+      clientType: 'COMPANION',
+      appVersion: '1.0.20261030',
+      source: 'watchdog',
+    });
+
+    expect(res.machineId).toBe('user-20240831vs-66e14471e7a2');
+    expect(upsertArg().update.value.remoteReady).toBe(true);
+    expect(upsertArg().update.value.remoteAccount).toBe('chunlvops');
+    expect(upsertArg().update.value.remotePassword).toBe('Chunlv!zhangzj');
   });
 
   it('主机名一样但 IP 不一样（局域网里 4 台都叫 User-20240831VS）：不许互相认领', async () => {
