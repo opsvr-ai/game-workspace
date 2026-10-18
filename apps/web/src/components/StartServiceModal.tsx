@@ -119,6 +119,9 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           claimedMode: claimMode,
           claimedPrice: price,
           useDeposit,
+          // 单陪：服务端 addSession 直接写 startedAt，避免「创建了但没开始」的半截会话；
+          // 双陪（指定 / 广播）必须等搭档接受，不能抢跑。
+          autoStart: !dual,
         });
         sessionId = res?.data?.data?.id || res?.data?.id;
       }

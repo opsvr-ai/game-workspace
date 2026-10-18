@@ -573,6 +573,7 @@ export class OrdersController {
       claimedMode: body.claimedMode,
       claimedPrice: body.claimedPrice,
       transferScreenshotUrl: body.transferScreenshotUrl,
+      autoStart: body.autoStart,
     });
     return { code: 200, message: '续费成功', data };
   }

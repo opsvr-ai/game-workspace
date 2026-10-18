@@ -182,6 +182,8 @@ export class OrderSessionService {
       useDeposit?: boolean;
       /** 发起这次加段的陪玩（控制器从登录态取，别信前端 body.companionId） */
       actorCompanionId?: string;
+      /** 单陪开段时服务端直接开始计时；双陪 / 广播找搭档必须等搭档接受，传 false */
+      autoStart?: boolean;
     },
   ) {
     const sessions = await this.prisma.orderSession.findMany({
@@ -191,6 +193,14 @@ export class OrderSessionService {
     });
     const last = sessions[0];
     const seq = (last?.seq || 0) + 1;
+    // 防误点：上一段刚结束不到 30 秒，不允许立刻再开一段。
+    // 徐瑜 1337 就是在一分钟内连点 3 次续单，制造出 11 秒 / 4 秒 / 9 秒三段。
+    if (last?.endedAt && (last as any).status === 'DONE') {
+      const gapMs = Date.now() - new Date(last.endedAt).getTime();
+      if (gapMs >= 0 && gapMs < 30_000) {
+        throw new BadRequestException('上一段刚结束不到 30 秒，请确认后再续单');
+      }
+    }
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     // 老板 2026-10-04：「陪玩去客户 B 的位置点续单」——加一段服务之前先确认**这张单 / 这个客户是你的**。
     // 以前只检查了「要换的主陪属不属于同店」，没检查发起人，拿到别人的订单编号就能直接续单抢客户。
@@ -303,6 +313,27 @@ export class OrderSessionService {
           status: 'AVAILABLE',
         });
       }
+    }
+
+    // 单陪开段直接开始计时，别留「创建了但 startedAt 为空」的半截会话：
+    // 1337 首段就是只创建没开始，3 分钟后被清理，1 小时提醒也永远不会触发。
+    // 双陪 / 换主陪要等搭档接受或对方启动，不能在这里抢跑。
+    const actorMatches = !dto.actorCompanionId || dto.companionId === dto.actorCompanionId;
+    const canAutoStart =
+      dto.autoStart === true &&
+      !session.coCompanionId &&
+      actorMatches &&
+      !!dto.claimedMode &&
+      Number(dto.claimedPrice) > 0 &&
+      Number(dto.duration) > 0;
+    if (canAutoStart) {
+      await this.startSession(session.id, dto.companionId, {
+        claimedMode: dto.claimedMode,
+        claimedPrice: dto.claimedPrice,
+        duration: dto.duration,
+        transferScreenshotUrl: dto.transferScreenshotUrl,
+        useDeposit: dto.useDeposit,
+      });
     }
 
     this.wsGateway.broadcastToStudio(order?.studioId || '', 'order:pool_updated', session);

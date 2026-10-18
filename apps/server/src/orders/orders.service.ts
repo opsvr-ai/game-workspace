@@ -484,6 +484,8 @@ export class OrdersService implements OnModuleInit {
       useDeposit?: boolean;
       /** 发起这次加段的陪玩（控制器从登录态取，别信前端 body.companionId） */
       actorCompanionId?: string;
+      /** 单陪开段时服务端直接开始计时；双陪 / 广播找搭档必须等搭档接受，传 false */
+      autoStart?: boolean;
     },
   ) {
     return this.orderSession.addSession(orderId, dto);
