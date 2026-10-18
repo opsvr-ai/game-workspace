@@ -88,6 +88,8 @@ function setup(opts: {
   // 2026-10-05：不再有「点了开始首单就算成交」的口径 —— 分子一律取自 doneOrders（父单 DONE）。
   /** 「点了续单但那段还没打完」（会话还是 ACTIVE）的段数：key = `${companionId}|${customerId}` → 不算续单 */
   openSegments?: Record<string, number>;
+  /** 2026-10-18：全部段都只服务 1 分钟（刷首单/续单/复购的反例） */
+  shortSession?: boolean;
   bonus?: Record<string, number>;
   thresholdOverride?: { excellent?: number; middle?: number };
 }) {
@@ -107,6 +109,7 @@ function setup(opts: {
         const dayIdx = c.sameDay ? 0 : i;
         const sessions = i === 0 ? totalSessions - (count - 1) : 1;
         windowRows.push({
+          id: `o-${companionId}-${c.cust}-${i}`,
           companionId,
           coCompanionId: c.co && (!c.coFirstOnly || i === 0) ? c.co : null,
           customerId: `${companionId}-${c.cust}`,
@@ -117,10 +120,16 @@ function setup(opts: {
       }
     }
   }
+  // 业绩按人给总数：挂在第一张单上（服务端现在从有效订单的 amount 汇总，不再走 groupBy）。
+  for (const [companionId, amount] of Object.entries(opts.monthlyRevenue ?? {})) {
+    const row = windowRows.find((r) => r.companionId === companionId);
+    if (row) row.amount = amount;
+  }
 
   const prisma = {
     order: {
       groupBy: vi.fn((args: any) => {
+        if (opts.shortSession) return Promise.resolve([]); // 短段没有任何有效业绩
         if (args?._sum?.amount) {
           return Promise.resolve(Object.entries(opts.monthlyRevenue ?? {}).map(([companionId, amount]) => ({ companionId, _sum: { amount } })));
         }
@@ -159,15 +168,24 @@ function setup(opts: {
           windowRows.flatMap((r) => {
             const total = (r as any)._count?.sessions || 0;
             const open = opts.openSegments?.[`${r.companionId}|${r.customerId}`] ?? 0;
-            return Array.from({ length: Math.max(0, total - open) }, () => ({
-              companionId: r.companionId,
-              coCompanionId: r.coCompanionId ?? null,
-              parentOrder: {
+            return Array.from({ length: Math.max(0, total - open) }, (_, idx) => {
+              const start = new Date((r as any).createdAt.getTime() + idx * 3600_000);
+              const end = new Date(start.getTime() + (opts.shortSession ? 60_000 : 3600_000));
+              return {
+                parentOrderId: (r as any).id,
                 companionId: r.companionId,
                 coCompanionId: r.coCompanionId ?? null,
-                customerId: r.customerId,
-              },
-            }));
+                // 单测里的历史段都按“已服务 1 小时”造；shortSession 造 1 分钟的反例。
+                startedAt: start,
+                endedAt: end,
+                totalPausedSec: 0,
+                parentOrder: {
+                  companionId: r.companionId,
+                  coCompanionId: r.coCompanionId ?? null,
+                  customerId: r.customerId,
+                },
+              };
+            });
           }),
         ),
       ),
@@ -635,5 +653,21 @@ describe('只有真有 DONE 单 / DONE 段才计入续单率 / 复购率（老�
     const done = setup({ doneOrders: { c1: [{ cust: 'a', count: 1, sessions: 2 }] } });
     const rDone = (await done.computeForCompanions(['c1'])).get('c1')!;
     expect(rDone.renewRate).toBe(100); // 两段都打完 → 续单 1/1
+  });
+
+  it('点开始后 1 分钟就结束 → 短段不计首单成功率 / 续单率 / 复购率 / 业绩（老板 2026-10-18）', async () => {
+    const svc = setup({
+      doneOrders: { c1: [{ cust: 'a', count: 1, sessions: 2 }] },
+      added: { c1: 1 },
+      monthlyRevenue: { c1: 6000 },
+      shortSession: true,
+    });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.newRate).toBe(0); // 短首单不算成交
+    expect(r.renewRate).toBe(0);
+    expect(r.repurchaseRate).toBe(0);
+    expect(r.revenueYuan).toBe(0);
+    expect(r.orderCount).toBe(0);
+    expect(r.tier).toBe('LOW');
   });
 });

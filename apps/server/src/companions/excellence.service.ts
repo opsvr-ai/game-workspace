@@ -2,6 +2,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeCustomerRates } from '../common/customer-rates';
+import { isValidServiceSession } from '../common/service-duration';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { logger } from '../common/logger';
 
@@ -401,11 +402,14 @@ export class ExcellenceService implements OnModuleInit {
         createdAt: { gte: rateWindowStart },
       },
       select: {
+        id: true,
         companionId: true,
         coCompanionId: true,
         customerId: true,
         type: true,
         createdAt: true,
+        amount: true,
+        coAmount: true,
       },
     });
     // 老板 2026-10-05：「不结束、还没打完你怎么计算？」——除了父单要是 DONE（上面已卡），
@@ -423,23 +427,39 @@ export class ExcellenceService implements OnModuleInit {
         },
       },
       select: {
+        parentOrderId: true,
         companionId: true,
         coCompanionId: true,
+        startedAt: true,
+        endedAt: true,
+        totalPausedSec: true,
         parentOrder: { select: { companionId: true, coCompanionId: true, customerId: true } },
       },
     });
+    // 老板 2026-10-18：「点一下开始首单，立马点结束服务」刷三率/业绩。
+    // 只有**实际服务 ≥ 10 分钟**的段才算进 KPI；短段单子照常结束，但不进首单成功率 /
+    // 续单率 / 复购率 / 最近 30 天业绩，也不参与段位。老数据没有时间戳的按有效处理。
+    const validDoneSessions = windowDoneSessions.filter((seg: any) =>
+      isValidServiceSession({
+        startedAt: seg.startedAt,
+        endedAt: seg.endedAt,
+        totalPausedSec: seg.totalPausedSec,
+      }),
+    );
+    const validOrderIds = new Set(validDoneSessions.map((seg: any) => seg.parentOrderId));
+    const validOrders = windowOrders.filter((o) => validOrderIds.has(o.id));
     // 算法本体在 `common/customer-rates.ts`（**全站唯一一份**）：同一段判定同时喂给
     // 优秀度 / 陪玩 KPI 和每日数据，保证「同一个单里加打一段」这种续单两边都算（老板 2026-10-08）。
     const rates = computeCustomerRates(
       ids,
-      windowOrders.map((o) => ({
+      validOrders.map((o) => ({
         type: o.type,
         customerId: o.customerId,
         companionId: o.companionId,
         coCompanionId: (o as any).coCompanionId,
         createdAt: o.createdAt,
       })),
-      windowDoneSessions.map((seg: any) => ({
+      validDoneSessions.map((seg: any) => ({
         customerId: seg.parentOrder?.customerId ?? null,
         companionId: seg.companionId ?? null,
         coCompanionId: seg.coCompanionId ?? null,
@@ -454,10 +474,13 @@ export class ExcellenceService implements OnModuleInit {
     // 口径（老板 2026-10-07「口径 A：谁的钱算谁的」）：主陪算 amount、搭档算 coAmount，
     // 两条一起进「最近 30 天业绩」。以前只按 companionId 汇总 amount，常当搭档的人这一段被少算，
     // 跟首页「本月业绩」对不上（同一页两个业绩不是一回事）。
+    // 2026-10-18：只汇总 **有效服务段（≥10 分钟）** 的订单，短段不算业绩。
+    const validOrderIdList = [...validOrderIds];
     const [mainRevenue, coRevenue] = await Promise.all([
       this.prisma.order.groupBy({
         by: ['companionId'],
         where: {
+          id: { in: validOrderIdList },
           companionId: { in: ids },
           status: 'DONE',
           type: { in: ['NEW', 'RENEW', 'REPURCHASE'] },
@@ -468,6 +491,7 @@ export class ExcellenceService implements OnModuleInit {
       this.prisma.order.groupBy({
         by: ['coCompanionId'],
         where: {
+          id: { in: validOrderIdList },
           coCompanionId: { in: ids },
           status: 'DONE',
           type: { in: ['NEW', 'RENEW', 'REPURCHASE'] },
@@ -513,10 +537,10 @@ export class ExcellenceService implements OnModuleInit {
       }
       set.add(o.customerId);
     }
-    // 成交首单的客户：这张首单**打完了**才算 —— 上面那份 windowOrders 本来就是「DONE + 窗口内」，
-    // 直接拿来数首单，不再另查一份「开过会话就算」的（那个口径把还在打的单也算成交，已作废）。
+    // 成交首单的客户：这张首单**打完且实际服务 ≥10 分钟**才算 —— 上面那份 validOrders
+    // 是「DONE + 窗口内 + 有有效服务段」，直接拿来数首单。点开始后立刻结束的短单不进分子。
     const firstSuccessCustomers = new Map<string, Set<string>>();
-    for (const o of windowOrders) {
+    for (const o of validOrders) {
       if (!o.companionId || !o.customerId) continue;
       if (o.type !== 'NEW') continue;
       let set = firstSuccessCustomers.get(o.companionId);
