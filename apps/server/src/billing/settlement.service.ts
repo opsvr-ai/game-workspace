@@ -172,6 +172,10 @@ export class SettlementService {
     const scopeWhere: any = singleCompanionId
       ? { OR: [{ companionId: singleCompanionId }, { coCompanionId: singleCompanionId }] }
       : { companionId: companionFilter };
+    // 指定陪玩时**不能再按订单所属工作室过滤**：桥接进来的单，订单 studioId 是发单工作室，
+    // 不是陪玩自己的工作室；按工作室过滤会把他的桥接收入全部漏掉（徐瑜 1337 就是这种单，
+    // 报账系统今日/总业绩一直是 0）。指定陪玩时只按「他主陪 / 他副陪」取数。
+    const studioScope = singleCompanionId ? {} : scopeClause(actorOfStudio(studioId));
     const orderSelect = { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true } as const;
     const sumRev = (rows: any[]): number =>
       singleCompanionId
@@ -180,7 +184,7 @@ export class SettlementService {
 
     // Today's DONE revenue
     const todayRows = await this.prisma.order.findMany({
-      where: { ...scopeClause(actorOfStudio(studioId)), status: 'DONE', ...scopeWhere, createdAt: { gte: todayStart, lt: todayEnd } },
+      where: { ...studioScope, status: 'DONE', ...scopeWhere, createdAt: { gte: todayStart, lt: todayEnd } },
       select: orderSelect,
     });
 
@@ -191,7 +195,7 @@ export class SettlementService {
 
     const monthRows = await this.prisma.order.findMany({
       where: {
-        ...scopeClause(actorOfStudio(studioId)),
+        ...studioScope,
         status: 'DONE',
         ...scopeWhere,
         createdAt: { gte: monthStart, lt: monthEnd },
@@ -202,7 +206,7 @@ export class SettlementService {
 
     // 历史累计（只用于展示）
     const totalRows = await this.prisma.order.findMany({
-      where: { ...scopeClause(actorOfStudio(studioId)), status: 'DONE', ...scopeWhere },
+      where: { ...studioScope, status: 'DONE', ...scopeWhere },
       select: orderSelect,
     });
 
