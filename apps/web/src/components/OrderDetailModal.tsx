@@ -17,6 +17,7 @@ import {
   orderBillingModeText,
   orderCompanionText,
   orderCustomerContact,
+  orderCustomerContactCopyText,
   orderDeltaCountText,
   orderDispatchTypeLabel,
   orderDurationText,
@@ -70,6 +71,8 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
   const cf = order.customFields || {};
   // 联系方式整行取同一个函数，保证跟抢单池那一行、订单管理表显示的是同一段文字
   const contactText = orderCustomerContact(order);
+  // 复制只给值，不带「微信 / YY / KOOK / 房间码」这些中文标签（老板 2026-10-18）
+  const contactCopyText = orderCustomerContactCopyText(order);
   const companionStudio = order.companion?.studio;
   const isBridged = !!companionStudio?.id && !!order.studioId && order.studioId !== companionStudio.id;
 
@@ -152,7 +155,7 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
         )}
         <Descriptions.Item label={ORDER_FIELD_LABELS.customerContact} span={2}>
           {contactText ? (
-            <Text copyable={{ text: contactText }} style={{ color: BRAND.primary }}>
+            <Text copyable={{ text: contactCopyText }} style={{ color: BRAND.primary }}>
               {contactText}
             </Text>
           ) : (

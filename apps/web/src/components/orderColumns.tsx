@@ -335,7 +335,7 @@ export function buildOrderColumns({
             orderCustomerWechat(o),
             cf.customerYy ? 'YY:' + cf.customerYy : '',
             cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : '',
-            cf.customerRoomCode ? '房间' + cf.customerRoomCode : '',
+            cf.customerRoomCode ? `${ORDER_FIELD_LABELS.roomCode}:${cf.customerRoomCode}` : '',
           ].filter(Boolean);
           const qr = cf.customerWechatQr;
           if (!bits.length && !qr) return <Text type="secondary">-</Text>;

@@ -236,6 +236,23 @@ export const orderCustomerContact = (o: any): string => {
     .join(' · ');
 };
 
+/**
+ * 客户联系方式「只复制值」的版本（老板 2026-10-18）：
+ *   页面显示仍带「微信 / YY / KOOK / 房间码」标签，方便看；
+ *   点复制只给发单者录入的值本身，不要把这些中文标签一起带进剪贴板。
+ */
+export const orderCustomerContactCopyText = (o: any): string => {
+  const cf = o?.customFields || {};
+  return [
+    orderCustomerWechat(o),
+    cf.customerYy,
+    cf.customerPlatformAccount,
+    cf.customerRoomCode,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+};
+
 export const orderCompanionText = (o: any): string => {
   const name = o?.companion?.user?.username;
   if (!name) return '';
