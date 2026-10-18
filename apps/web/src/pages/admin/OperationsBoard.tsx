@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS002,TS003
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, Row, Col, Tag, Progress, Table, Empty, Button, Typography, Segmented, Space, Tooltip as AntTooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import {
@@ -36,10 +36,12 @@ const safeGet = async (url: string, params?: any): Promise<any> => {
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  BUSY: { label: '接单中', color: '#1677ff', bg: '#E8F1FF' },
-  ENTERTAINMENT: { label: '娱乐中', color: '#722ed1', bg: '#F4EBFF' },
-  AVAILABLE: { label: '空闲', color: '#52c41a', bg: '#EAF7EA' },
-  RESTING: { label: '休息', color: '#faad14', bg: SEMANTIC.warningSoft },
+  // 跟陪玩首页顶部的状态 Tag 用同一套颜色（老板 2026-10-18）：
+  // 接单中=红、娱乐中=金、空闲=绿、休息=橙、离线=灰。
+  BUSY: { label: '接单中', color: '#F5222D', bg: SEMANTIC.dangerSoft },
+  ENTERTAINMENT: { label: '娱乐中', color: '#FAAD14', bg: SEMANTIC.warningSoft },
+  AVAILABLE: { label: '空闲', color: '#52C41A', bg: SEMANTIC.successSoft },
+  RESTING: { label: '休息', color: '#FA8C16', bg: SEMANTIC.orangeSoft },
   OFFLINE: { label: '离线', color: TEXT.tertiary, bg: BORDER.secondary },
 };
 const ATT_ROLE_LABEL: Record<string, string> = { COMPANION: '陪玩', CS: '客服', ADMIN: '店长' };
@@ -129,6 +131,31 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
 
   const companions = personnel.filter((u: any) => u.role === 'COMPANION' && u.companionId);
   const liveRows: any[] = live?.rows || [];
+  // 双陪的两个人挨着显示，且**主陪在前、副陪在后**（老板 2026-10-18）。
+  // 接口返回的行按状态/名字排，主陪和副陪中间可能夹着别人；这里重排成「主陪 → 副陪」相邻。
+  const liveRowById = new Map(liveRows.map((r: any) => [r.companionId, r]));
+  const displayRows: any[] = [];
+  const placed = new Set<string>();
+  for (const r of liveRows) {
+    if (placed.has(r.companionId)) continue;
+    const s = r.serving;
+    const partner = s?.partnerId ? liveRowById.get(s.partnerId) : null;
+    if (partner) {
+      const main = s.role === 'CO' ? partner : r;
+      const co = s.role === 'CO' ? r : partner;
+      if (!placed.has(main.companionId)) {
+        displayRows.push(main);
+        placed.add(main.companionId);
+      }
+      if (!placed.has(co.companionId)) {
+        displayRows.push(co);
+        placed.add(co.companionId);
+      }
+      continue;
+    }
+    displayRows.push(r);
+    placed.add(r.companionId);
+  }
   const servingCount = liveRows.filter((r) => r.serving).length;
   const counts = cust?.counts || null;
 
@@ -280,10 +307,17 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         title="陪玩状态墙（谁在跟谁打 · 打了多久）"
         style={{ marginBottom: 14 }}
       >
-        {liveRows.length ? (
+        {displayRows.length ? (
           <Row gutter={[10, 10]}>
-            {liveRows.map((r) => {
+            {displayRows.map((r) => {
               const meta = STATUS_META[r.serving ? 'BUSY' : r.online ? r.status : 'OFFLINE'] || STATUS_META.OFFLINE;
+              const s = r.serving;
+              const partner = s?.partnerId ? liveRowById.get(s.partnerId) : null;
+              const mainName = s?.role === 'CO' ? (partner?.name || s?.partnerName || '') : (r.name || '');
+              const coName = s?.role === 'CO' ? (r.name || '') : (partner?.name || s?.partnerName || '');
+              const servingType = s?.partnerName || s?.partnerId
+                ? `双陪 · ${mainName}${coName ? ` + ${coName}` : ''}`
+                : s?.role === 'CO' ? '双陪' : '单陪';
               return (
                 <Col xs={12} sm={8} md={6} lg={4} key={r.companionId}>
                   <div style={{ border: `1px solid ${meta.color}33`, borderLeft: `4px solid ${meta.color}`, background: meta.bg, borderRadius: 10, padding: '8px 10px', height: '100%' }}>
@@ -293,7 +327,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                     </div>
                     {r.serving ? (
                       <div style={{ fontSize: 12, color: '#334155', marginTop: 4, lineHeight: 1.5 }}>
-                        {r.serving.partnerName ? `双陪 · 跟 ${r.serving.partnerName}` : r.serving.role === 'CO' ? '双陪' : '单陪'}<br />
+                        {servingType}<br />
                         {r.serving.gameName || '游戏'} · {hm(r.serving.elapsedSec)}
                       </div>
                     ) : (
