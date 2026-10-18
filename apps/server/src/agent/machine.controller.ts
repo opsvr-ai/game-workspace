@@ -90,8 +90,8 @@ export class MachineController {
   @Get('machines')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
-  async listMachines(): Promise<ApiResponse<unknown>> {
-    return { code: 200, message: 'ok', data: await this.machineService.listMachines() };
+  async listMachines(@Req() req: any): Promise<ApiResponse<unknown>> {
+    return { code: 200, message: 'ok', data: await this.machineService.listMachines(req.user) };
   }
 
   @Post('machines/:machineId/diag')

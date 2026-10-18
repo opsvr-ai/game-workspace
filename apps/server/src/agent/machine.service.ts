@@ -332,7 +332,7 @@ export class MachineService {
    *   ② cs.client.version.* → 客服端还没升级的账号（只能看见版本/在线，暂不可诊断）
    *   ③ ManagedPC 表      → 手工登记的陪玩电脑（可开关机，但不可诊断）
    */
-  async listMachines() {
+  async listMachines(user?: any) {
     const [machineRows, tasks, csRows, csUsers, managedPcs, watchdogCfg] = await Promise.all([
       this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.machine.' } } }),
       this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.task.' } } }),
@@ -473,10 +473,22 @@ export class MachineService {
       return String(a.label).localeCompare(String(b.label));
     });
 
+    // 店长只应看到本店电脑；以前这里返回全站台账，而 /companions 只返回本店陪玩，
+    // 于是别的店的机器全被标成「不是陪玩账号」（2026-10-19 老板截图）。
+    const scopedItems =
+      user?.role === 'ADMIN' && user?.studioId
+        ? items.filter((i) => {
+            if (!i.loginUser) return false;
+            return csUsers.some(
+              (u) => u.studioId === user.studioId && u.username === i.loginUser,
+            );
+          })
+        : items;
+
     // 统计只算「真有客户端在上报的机器」（source === 'machine'）：旧的客服端版本记录、
     // 手工登记的电脑都不是真机器，把它们算进总数会让老板以为「很多人没开远程管理」
     // （2026-10-01 老板原话：「你一眼看到的就是『22 台真机器，21 台已开通』，不会再像『很多人没开』」）。
-    const realMachines = items.filter((i) => i.source === 'machine');
+    const realMachines = scopedItems.filter((i) => i.source === 'machine');
     return {
       diagScriptVersion: CLIENT_DIAG_SCRIPT_VERSION,
       watchdogLatestBuild: (() => {
@@ -487,8 +499,8 @@ export class MachineService {
       total: realMachines.length,
       onlineCount: realMachines.filter((i) => i.online).length,
       remoteReadyCount: realMachines.filter((i) => i.remoteReady).length,
-      clientlessCount: items.length - realMachines.length,
-      items,
+      clientlessCount: scopedItems.length - realMachines.length,
+      items: scopedItems,
     };
   }
 

@@ -54,6 +54,7 @@ interface CompanionLite {
   id: string;
   status: string;
   username: string;
+  displayName?: string;
   currentMode: string;
   isThrottled: boolean;
   lastHeartbeat: string | null;
@@ -237,6 +238,7 @@ const DevicesPanel: React.FC = () => {
           id: c.id,
           status: c.status ?? '',
           username: c.user?.username ?? '',
+          displayName: c.user?.displayName ?? '',
           currentMode: c.pc?.currentMode ?? '',
           isThrottled: !!c.pc?.isThrottled,
           lastHeartbeat: c.pc?.lastHeartbeat ?? null,
@@ -302,7 +304,11 @@ const DevicesPanel: React.FC = () => {
 
   const companionByUsername = useMemo(() => {
     const m = new Map<string, CompanionLite>();
-    companions.forEach((c) => { if (c.username && !m.has(c.username)) m.set(c.username, c); });
+    const key = (v: unknown) => String(v ?? '').trim().toLowerCase();
+    companions.forEach((c) => {
+      if (c.username) m.set(key(c.username), c);
+      if (c.displayName) m.set(key(c.displayName), c);
+    });
     return m;
   }, [companions]);
 
@@ -323,7 +329,7 @@ const DevicesPanel: React.FC = () => {
       items
         .filter((i) => i.source === 'machine')
         .map((i) => {
-          const c = companionByUsername.get(i.loginUser);
+          const c = companionByUsername.get(String(i.loginUser || '').trim().toLowerCase());
           const v = c ? versionById.get(c.id) : undefined;
           const pc = pcByLogin.get(i.loginUser);
           return {
