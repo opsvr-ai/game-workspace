@@ -84,6 +84,8 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const [cust, setCust] = useState<any>(null);
   const [csStats, setCsStats] = useState<any>(null);
   const [rankMode, setRankMode] = useState<'score' | 'revenue' | 'customer'>('score');
+  // 看板区块分类：一屏只放一类，别再把所有表 / 图 / 状态墙堆在一起（老板 2026-10-19「好乱」）
+  const [boardTab, setBoardTab] = useState<'overview' | 'daily' | 'live' | 'attendance' | 'cs'>('overview');
   // 今日考勤：谁迟到、谁早退、谁没打卡（老板 2026-10-04）
   const [attendance, setAttendance] = useState<any>(null);
 
@@ -217,6 +219,24 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         }
       />
 
+      {/* 分类查看（老板 2026-10-19：「好乱，能不能分类」）：一屏只放一类，不再纵向堆七八块 */}
+      <Segmented
+        block
+        size="large"
+        value={boardTab}
+        onChange={(v) => setBoardTab(v as typeof boardTab)}
+        options={[
+          { value: 'overview', label: '经营总览' },
+          { value: 'daily', label: '每日数据' },
+          { value: 'live', label: '陪玩状态' },
+          { value: 'attendance', label: '考勤' },
+          { value: 'cs', label: '客服发单' },
+        ]}
+        style={{ marginBottom: 14 }}
+      />
+
+      {boardTab === 'overview' && (
+        <>
       {/* ── KPI ── */}
       {/* alignItems: "stretch"：几张卡都是 height:100%，而 antd 的 Row 默认不拉伸 ——
           结果带副标题的那张比别的矮一截、一行的下沿参差不齐（看板最扎眼的地方）。
@@ -296,12 +316,18 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           </Card>
         </Col>
       </Row>
+        </>
+      )}
 
       {/* ── 每日数据（老板 2026-10-07）：每天多少单 / 多少续 / 续单率 / 多少复购 / 复购率 / 客户，
           点开某一天看明细。管理端看全店，可筛某个陪玩。 ── */}
-      <DailyKpiPanel showCompanionFilter style={{ marginBottom: 14 }} />
+      {boardTab === 'daily' && (
+        <DailyKpiPanel showCompanionFilter style={{ marginBottom: 14 }} />
+      )}
 
-      {/* ── 陪玩状态墙 ── */}
+      {/* ── 陪玩状态墙 + 排行 / KPI（同一类：看人） ── */}
+      {boardTab === 'live' && (
+        <>
       <Card
         size="small"
         title="陪玩状态墙（谁在跟谁打 · 打了多久）"
@@ -440,9 +466,11 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           </Card>
         </Col>
       </Row>
+        </>
+      )}
 
       {/* ── 今日考勤（迟到 / 早退 / 未打卡） ── */}
-      {attRows.length ? (
+      {boardTab === 'attendance' && attRows.length ? (
         <Card size="small" title="🕘 今日考勤（迟到 / 早退 / 未打卡）" style={{ marginBottom: 14 }}>
           <Space size={18} wrap style={{ marginBottom: 8 }}>
             {Object.entries(attendance?.roles || {}).map(([role, r]: any) => (
@@ -500,7 +528,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       ) : null}
 
       {/* ── 客服今日发单 ── */}
-      {csStats?.csList?.length ? (
+      {boardTab === 'cs' && csStats?.csList?.length ? (
         <Card size="small" title="客服今日发单">
           <Table
             size="small"
