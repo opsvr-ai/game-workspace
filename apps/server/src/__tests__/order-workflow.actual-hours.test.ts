@@ -164,4 +164,31 @@ describe('完成订单时业绩按「实际时长 × 单价」算', () => {
       expect.objectContaining({ where: { id: 'hu' }, data: { monthlyRevenue: { increment: 90 } } }),
     );
   });
+
+  it('实际只服务几十秒 → 不按秒折算，保留原单金额（防止 90 元单变 0.43）', async () => {
+    const { service, prisma } = setup();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'o1', status: 'CONFIRMED', studioId: 's1',
+      companionId: 'tong', coCompanionId: 'hu', customerId: 'c1',
+      amount: 90, coAmount: 45, orderCode: '1337', customFields: {},
+    });
+    prisma.orderSession.findMany.mockResolvedValue([
+      {
+        companionId: 'tong', coCompanionId: 'hu',
+        startedAt: at(20, 0), endedAt: new Date(at(20, 0).getTime() + 30_000), totalPausedSec: 0,
+        amount: 45, coAmount: 45, duration: 1, claimedPrice: 45,
+      },
+    ]);
+
+    await service.complete('o1');
+
+    // 少于 10 分钟：不改订单金额，仍按原单 90 / 45 记业绩
+    expect(prisma.order.update).not.toHaveBeenCalled();
+    expect(prisma.companion.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'tong' }, data: { monthlyRevenue: { increment: 90 } } }),
+    );
+    expect(prisma.companion.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'hu' }, data: { monthlyRevenue: { increment: 45 } } }),
+    );
+  });
 });

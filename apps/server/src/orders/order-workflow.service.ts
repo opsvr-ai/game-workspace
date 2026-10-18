@@ -8,6 +8,7 @@ import { logger } from '../common/logger';
 import { CompanionQuotaService } from './companion-quota.service';
 import { assertCustomerNotTakenByCurrentWechat } from './customer-wechat-rule';
 import { companionOrderRevenue } from '../common/order-revenue';
+import { MIN_VALID_SERVICE_MS } from '../common/service-duration';
 import { PoolScope } from '@chunlv/shared';
 import { visibleToOwnOffline } from '../common/order-outcome';
 import { resolveConfigsRaw } from '../common/studio-config';
@@ -300,8 +301,10 @@ export class OrderWorkflowService {
     let co = 0;
     let primaryMatched = false;
     let coMatched = false;
+    let totalSec = 0;
     for (const s of list) {
       const h = hoursOf(s);
+      totalSec += h * 3600;
       if (h <= 0) continue;
       const planned = Number(s.duration) || 0;
       if (order.companionId && s.companionId === order.companionId) {
@@ -321,6 +324,9 @@ export class OrderWorkflowService {
       }
     }
     if (!primaryMatched && !coMatched) return null;
+    // 实际服务不足 10 分钟（点了开始又立刻结束 / 只有几秒的段）不按秒折算，
+    // 否则一张 90 元的绝密双单会被算成 0.43 / 2.38。保留原单金额，交给人工改价。
+    if (totalSec < MIN_VALID_SERVICE_MS / 1000) return null;
     return { amount: round2(primary), coAmount: coMatched ? round2(co) : null };
   }
 
