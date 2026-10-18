@@ -607,6 +607,7 @@ const DevicesPanel: React.FC = () => {
       width: 190,
       render: (_: unknown, r: DeviceRow) => {
         const wdOld = isWatchdogBehind(r.watchdogBuild, stats.watchdogLatestBuild);
+        const wdLatest = !!r.watchdogBuild && !wdOld;
         return (
           <Space direction='vertical' size={0}>
             <Space size={6} wrap={false}>
@@ -614,11 +615,11 @@ const DevicesPanel: React.FC = () => {
               {r.isLatest === true && <Tag color='green' icon={<CheckCircleOutlined />}>最新</Tag>}
               {r.isLatest === false && <Tag color='orange' icon={<SyncOutlined />}>未更新</Tag>}
             </Space>
-            <Tooltip title='看门狗（SystemHelper）负责自动更新和远程任务；不是最新的会被自动补上'>
-              <Text type={wdOld ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>
-                看门狗 {r.watchdogBuild || '未知'}{wdOld ? ' 待自动更新' : ''}
-              </Text>
-            </Tooltip>
+            <Space size={4} wrap={false}>
+              <Text type={wdOld ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>看门狗</Text>
+              <Text code style={{ fontSize: 12 }}>{r.watchdogBuild || '未知'}</Text>
+              {wdOld ? <Tag color='red'>待自动更新</Tag> : wdLatest ? <Tag color='green'>最新</Tag> : <Tag>未上报</Tag>}
+            </Space>
           </Space>
         );
       },
