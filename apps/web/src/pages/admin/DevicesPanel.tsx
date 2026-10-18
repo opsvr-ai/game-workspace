@@ -610,22 +610,30 @@ const DevicesPanel: React.FC = () => {
     {
       title: '版本',
       key: 'appVersion',
-      width: 190,
+      width: 150,
       render: (_: unknown, r: DeviceRow) => {
         const wdOld = isWatchdogBehind(r.watchdogBuild, stats.watchdogLatestBuild);
+        const clientLatest = r.isLatest === true;
         const wdLatest = !!r.watchdogBuild && !wdOld;
+        const labelStyle = { display: 'inline-block', width: 40 } as const;
         return (
-          <Space direction='vertical' size={0}>
-            <Space size={6} wrap={false}>
-              <Text code>{r.appVersion || '未知'}</Text>
-              {r.isLatest === true && <Tag color='green' icon={<CheckCircleOutlined />}>最新</Tag>}
-              {r.isLatest === false && <Tag color='orange' icon={<SyncOutlined />}>未更新</Tag>}
-            </Space>
-            <Space size={4} wrap={false}>
-              <Text type={wdOld ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>看门狗</Text>
-              <Text code style={{ fontSize: 12 }}>{r.watchdogBuild || '未知'}</Text>
-              {wdOld ? <Tag color='red'>待自动更新</Tag> : wdLatest ? <Tag color='green'>最新</Tag> : <Tag>未上报</Tag>}
-            </Space>
+          <Space direction='vertical' size={2}>
+            <Tooltip title={`客户端版本：${r.appVersion || '未知'}`}>
+              <Space size={6} wrap={false}>
+                <Text type='secondary' style={labelStyle}>客户端</Text>
+                <Tag color={clientLatest ? 'green' : 'orange'} icon={clientLatest ? <CheckCircleOutlined /> : <SyncOutlined />}>
+                  {clientLatest ? '最新' : '非最新'}
+                </Tag>
+              </Space>
+            </Tooltip>
+            <Tooltip title={`看门狗版本：${r.watchdogBuild || '未知'}（云端最新 ${stats.watchdogLatestBuild || '未知'}）`}>
+              <Space size={6} wrap={false}>
+                <Text type='secondary' style={labelStyle}>看门狗</Text>
+                <Tag color={wdLatest ? 'green' : 'orange'} icon={wdLatest ? <CheckCircleOutlined /> : <SyncOutlined />}>
+                  {wdLatest ? '最新' : '非最新'}
+                </Tag>
+              </Space>
+            </Tooltip>
           </Space>
         );
       },
