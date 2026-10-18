@@ -279,9 +279,6 @@ const CompanionPage: React.FC = () => {
 
       {/* ① Status Header — compact inline */}
       <Card size="small" style={{ marginBottom: 12 }}>
-        <a href="/uploads/agent-setup.exe" download style={{ float: 'right', fontSize: 12, color: BRAND.primary }}>
-          ⬇ 下载最新版
-        </a>
         <Row align="middle" gutter={16}>
           <Col flex="auto">
             <Space size="middle">
