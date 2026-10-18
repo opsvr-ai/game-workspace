@@ -193,15 +193,27 @@ export class OrderSessionService {
     });
     const last = sessions[0];
     const seq = (last?.seq || 0) + 1;
-    // 防误点：上一段刚结束不到 30 秒，不允许立刻再开一段。
-    // 徐瑜 1337 就是在一分钟内连点 3 次续单，制造出 11 秒 / 4 秒 / 9 秒三段。
-    if (last?.endedAt && (last as any).status === 'DONE') {
-      const gapMs = Date.now() - new Date(last.endedAt).getTime();
-      if (gapMs >= 0 && gapMs < 30_000) {
-        throw new BadRequestException('上一段刚结束不到 30 秒，请确认后再续单');
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (order) {
+      // 业务状态：首单之后只能在同一个营业日续单一次；续单打完就进入复购，复购可一直重复。
+      // 不再用「30 秒冷却」这种拍脑袋的时间：续单只有一次，靠状态判断，不靠等多久。
+      const priorRenew = await this.prisma.order.count({
+        where: {
+          customerId: order.customerId,
+          id: { not: orderId },
+          type: 'RENEW',
+          status: { not: 'CANCELLED' },
+        },
+      }).catch(() => 0);
+      const renewalUsed =
+        order.type === 'RENEW' ||
+        order.type === 'REPURCHASE' ||
+        priorRenew > 0 ||
+        (order.type === 'NEW' && (last?.seq || 0) >= 2);
+      if (renewalUsed) {
+        throw new BadRequestException('续单只有一次，后续请走「复购」');
       }
     }
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     // 老板 2026-10-04：「陪玩去客户 B 的位置点续单」——加一段服务之前先确认**这张单 / 这个客户是你的**。
     // 以前只检查了「要换的主陪属不属于同店」，没检查发起人，拿到别人的订单编号就能直接续单抢客户。
     const actorId = dto.actorCompanionId;

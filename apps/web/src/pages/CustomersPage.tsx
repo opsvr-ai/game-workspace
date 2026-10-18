@@ -759,12 +759,21 @@ const CustomersPage: React.FC = () => {
           )}
           {(() => {
             const grabbed = record.orders?.find((o: any) => o.status === 'GRABBED');
-            const confirmed = record.orders?.find((o: any) => o.status === 'CONFIRMED');
             const firstDone = hasFirstOrder(record);
             // 只算「真动过」的单：退款 / 取消掉的单不算（那种情况他还是新客，该给「开始首单」）
             const hasAnyOrder = (record.orders ?? []).some((o: any) => o.status !== 'CANCELLED');
             const hasDeposit = Number(record.depositBalance) > 0;
             const balance = Number(record.depositBalance) || 0;
+            // 「有始有终」：续单只有一次，续单打完就进入复购；复购按钮以后一直保留。
+            const allOrders = record.orders ?? [];
+            const hasRenewed =
+              allOrders.some((o: any) => o.type === 'RENEW') ||
+              allOrders.some((o: any) => (o.sessions ?? []).some((s: any) => Number(s.seq) >= 2));
+            const hasRepurchased = allOrders.some((o: any) => o.type === 'REPURCHASE');
+            // 正在计时时只显示「服务中」，不能再点续单 / 复购。
+            const activeSession = allOrders
+              .flatMap((o: any) => o.sessions ?? [])
+              .find((s: any) => s.status === 'ACTIVE' && s.startedAt);
 
             // 陪玩自己录入的客户，开场时新客老客他自己知道，所以三条路一起给他：
             //   真新客 → 点「开始首单」；本来就是老客（还有没打完的存单）→ 直接点「续单 / 复购 / 存单」。
@@ -801,33 +810,9 @@ const CustomersPage: React.FC = () => {
                 </Button>
               );
             }
-            // 老板 2026-10-04：续单只在同一个营业日里给。过了中午 12 点，不再给「续单」，只留「复购」。
-            if (confirmed?.id && canRenewNow(record)) {
-              return (
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={() => {
-                    const lastSession = confirmed.sessions?.[0];
-                    setStartServiceOrder({
-                      id: confirmed.id,
-                      gameName: confirmed.gameName,
-                      mode: 'renew',
-                      depositBalance: balance,
-                      initialValues: {
-                        dual: !!lastSession?.coCompanionId,
-                        coId: lastSession?.coCompanionId,
-                        coPrice: lastSession?.coAmount != null ? Number(lastSession.coAmount) / (lastSession.duration || 1) : null,
-                        claimMode: lastSession?.claimedMode || '机密',
-                        claimPrice: null,
-                        claimDuration: lastSession?.duration || 1,
-                      },
-                    });
-                  }}
-                >
-                  续单
-                </Button>
-              );
+            // 正在计时：不再显示续单 / 复购，避免一边打一边又开一段。
+            if (activeSession) {
+              return <Text type="secondary">服务中</Text>;
             }
             // 从没动过这个客户（没单、没存单）→ 新客老客都给，让他自己挑。
             if (!hasAnyOrder && !hasDeposit && !firstDone) {
@@ -845,19 +830,15 @@ const CustomersPage: React.FC = () => {
                 </>
               );
             }
-            // 同一营业日内接着打 = 续单（老板 2026-10-04 的口径），过了 12 点只剩复购。
-            if (canRenewNow(record)) {
+            // 首单打完、同一营业日内、还没续过：只给一次「续单」。
+            if (canRenewNow(record) && !hasRenewed && !hasRepurchased) {
               return (
-                <>
-                  <Button type="primary" size="small" onClick={() => startFresh('renew')}>
-                    续单
-                  </Button>
-                  <Button size="small" onClick={() => startFresh('repurchase')}>
-                    复购
-                  </Button>
-                </>
+                <Button type="primary" size="small" onClick={() => startFresh('renew')}>
+                  续单
+                </Button>
               );
             }
+            // 续单打完 / 过了营业日 / 已经复购过：以后一直只给「复购」。
             return (
               <Button type="primary" size="small" onClick={() => startFresh('repurchase')}>
                 复购
