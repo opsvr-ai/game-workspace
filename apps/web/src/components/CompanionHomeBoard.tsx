@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React from 'react';
-import { Alert, Card, Row, Col, Progress, Tag, Typography, Space, Empty } from 'antd';
+import { Alert, Button, Card, Row, Col, Progress, Tag, Typography, Space, Empty } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { BRAND, TEXT, SEMANTIC, BORDER } from '../styles/tokens';
 import { tierMeta } from '../constants/tiers';
 import StatCard from './StatCard';
@@ -53,6 +54,7 @@ interface Props {
 }
 
 const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, customers, attendance }) => {
+  const navigate = useNavigate();
   const w = workbench || {};
   // 本月业绩：只算他自己那份 —— 当主陪拿主陪金额、当搭档拿搭档金额，「搭档（别人）那份」永远不进这个数。
   // 服务端 workbench 直接给总额，这里只显示它。
@@ -155,6 +157,10 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
                     今日 {excellence.scoreDelta.delta > 0 ? '+' : ''}{excellence.scoreDelta.delta} 分
                   </Tag>
                 ) : null}
+                {/* 老板 2026-10-18：上传战绩图放到等级评分旁边，别埋在另一个菜单里 */}
+                <Button size="small" type="primary" ghost onClick={() => navigate('/companion/battle-screenshots')}>
+                  📸 上传战绩图
+                </Button>
               </Space>
             </div>
           </Card>
