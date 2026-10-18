@@ -37,6 +37,8 @@ const ProfilePage: React.FC = () => {
 
   const userStr = sessionStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
+  // 客户端管理员密码（托盘退出 / 锁屏解锁）必须由店长 / 老板设置，陪玩自己不能改。
+  const canManageClientPassword = user?.role === 'ADMIN' || user?.role === 'OWNER';
   const avatarUrl = user?.avatar
     ? `/uploads/avatars/${user.avatar}?v=${user.avatar}`
     : null;
@@ -192,31 +194,34 @@ const ProfilePage: React.FC = () => {
         </Form>
       </Card>
 
-      <Card size="small" title="修改客户端管理员密码" style={{ marginTop: 12 }}>
-        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          用于客户端退出登录、锁屏解锁。默认密码 123456。
-        </Text>
-        <Form form={appPwdForm} layout="vertical">
-          <Form.Item name="oldPassword" label="旧管理员密码" rules={[{ required: true, message: '请输入旧密码' }]}>
-            <Input.Password placeholder="输入旧密码" />
-          </Form.Item>
-          <Form.Item name="newPassword" label="新管理员密码" rules={[{ required: true, message: '请输入新密码' }, { min: 4, message: '至少4位' }]}>
-            <Input.Password placeholder="输入新密码（至少4位）" />
-          </Form.Item>
-          <Form.Item name="confirmPassword" label="确认新密码" dependencies={['newPassword']}
-            rules={[{ required: true, message: '请确认新密码' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
-                  return Promise.reject(new Error('两次密码不一致'));
-                },
-              }),
-            ]}>
-            <Input.Password placeholder="再次输入新密码" />
-          </Form.Item>
-          <Button type="primary" loading={appPwdLoading} onClick={handleChangeAppPassword}>修改管理员密码</Button>
-        </Form>
-      </Card>
+      {canManageClientPassword && (
+        <Card size="small" title="修改客户端管理员密码" style={{ marginTop: 12 }}>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+            仅店长 / 老板账号可设置。用于临时退出客户端、锁屏解锁；陪玩账号不能修改。
+            默认密码 123456，请在这台陪玩电脑上用你的店长 / 老板账号登录后改掉。
+          </Text>
+          <Form form={appPwdForm} layout="vertical">
+            <Form.Item name="oldPassword" label="旧管理员密码" rules={[{ required: true, message: '请输入旧密码' }]}>
+              <Input.Password placeholder="输入旧密码" />
+            </Form.Item>
+            <Form.Item name="newPassword" label="新管理员密码" rules={[{ required: true, message: '请输入新密码' }, { min: 4, message: '至少4位' }]}>
+              <Input.Password placeholder="输入新密码（至少4位）" />
+            </Form.Item>
+            <Form.Item name="confirmPassword" label="确认新密码" dependencies={['newPassword']}
+              rules={[{ required: true, message: '请确认新密码' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
+                    return Promise.reject(new Error('两次密码不一致'));
+                  },
+                }),
+              ]}>
+              <Input.Password placeholder="再次输入新密码" />
+            </Form.Item>
+            <Button type="primary" loading={appPwdLoading} onClick={handleChangeAppPassword}>修改管理员密码</Button>
+          </Form>
+        </Card>
+      )}
 
       {/* 版本信息 */}
       <Card size="small" title="版本信息" style={{ marginTop: 12 }}>

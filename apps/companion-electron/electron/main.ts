@@ -1875,6 +1875,11 @@ function setupIPC(): void {
     return { success: true };
   });
   ipcMain.handle('app:set-password', (_e, oldPassword: string, newPassword: string) => {
+    // 客户端管理员密码用于「店长临时退出软件 / 锁屏解锁」，只能由店长 / 老板设置；
+    // 陪玩、客服账号即使从网页调 IPC 也不许改（老板 2026-10-18）。
+    if (currentRole !== 'ADMIN' && currentRole !== 'OWNER') {
+      return { success: false, message: '客户端管理员密码只能由店长 / 老板账号设置' };
+    }
     if (oldPassword !== getAppPassword()) {
       return { success: false, message: '旧密码错误' };
     }
