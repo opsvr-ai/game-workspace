@@ -88,7 +88,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const [bridgeLoading, setBridgeLoading] = useState(false);
   const [rankMode, setRankMode] = useState<'score' | 'revenue' | 'customer'>('score');
   // 看板区块分类：一屏只放一类，别再把所有表 / 图 / 状态墙堆在一起（老板 2026-10-19「好乱」）
-  const [boardTab, setBoardTab] = useState<'overview' | 'daily' | 'live' | 'attendance' | 'cs'>('overview');
+  const [boardTab, setBoardTab] = useState<'live' | 'overview' | 'daily' | 'orders' | 'customers' | 'cs'>('live');
   // 今日考勤：谁迟到、谁早退、谁没打卡（老板 2026-10-04）
   const [attendance, setAttendance] = useState<any>(null);
 
@@ -254,11 +254,12 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         value={boardTab}
         onChange={(v) => setBoardTab(v as typeof boardTab)}
         options={[
+          { value: 'live', label: '陪玩状态' },
           { value: 'overview', label: '经营总览' },
           { value: 'daily', label: '每日数据' },
-          { value: 'live', label: '陪玩状态' },
-          { value: 'attendance', label: '考勤' },
-          { value: 'cs', label: '客服发单' },
+          { value: 'orders', label: '订单管理' },
+          { value: 'customers', label: '客户管理' },
+          { value: 'cs', label: '客服管理' },
         ]}
         style={{ marginBottom: 14 }}
       />
@@ -351,6 +352,51 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           点开某一天看明细。管理端看全店，可筛某个陪玩。 ── */}
       {boardTab === 'daily' && (
         <DailyKpiPanel showCompanionFilter style={{ marginBottom: 14 }} />
+      )}
+
+      {/* ── 订单管理：先看今天的量、本月结构和客服发单汇总 ── */}
+      {boardTab === 'orders' && (
+        <>
+          <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
+            <Col xs={12} md={6}><StatCard label="今日发单" value={dash ? `${dash.today?.publishedCount ?? 0} 单` : '—'} tint="#faad14" /></Col>
+            <Col xs={12} md={6}><StatCard label="今日完成" value={dash ? `${dash.today?.orderCount ?? 0} 单` : '—'} tint="#52c41a" /></Col>
+            <Col xs={12} md={6}><StatCard label="本月业绩" value={overview ? yuan(overview.monthlyRevenue) : '—'} tint={BRAND.primary} /></Col>
+            <Col xs={12} md={6}><StatCard label="今日客服发单" value={csStats?.summary ? `${csStats.summary.totalOrders ?? 0} 单` : '—'} sub={csStats?.summary ? yuan(csStats.summary.totalAmount) : undefined} tint="#722ed1" /></Col>
+          </Row>
+          <Card size="small" title="本月订单结构" style={{ marginBottom: 14 }}>
+            <Row gutter={[8, 8]}>
+              {Object.keys(TYPE_LABELS).map((k) => (
+                <Col xs={12} md={6} key={k}>
+                  <div style={{ background: BG.base, borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 12, color: TEXT.secondary }}>
+                      <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 2, background: TYPE_COLORS[k], marginRight: 6 }} />
+                      {TYPE_LABELS[k]}
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: TYPE_COLORS[k] }}>{yuan(typeBreak[k] || 0)}</div>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+            {csStats?.summary ? (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${BORDER.base}`, fontSize: 12, color: TEXT.heading }}>
+                今日客服发单 <b>{csStats.summary.totalOrders ?? 0}</b> 单 · 合计 <b>{yuan(csStats.summary.totalAmount)}</b>
+                （直派 {csStats.summary.directCount ?? 0} · 抢单 {csStats.summary.claimedCount ?? 0} · 桥接 {csStats.summary.bridgeCount ?? 0}）
+              </div>
+            ) : null}
+          </Card>
+        </>
+      )}
+
+      {/* ── 客户管理：客户消费 Top（含今日在打） ── */}
+      {boardTab === 'customers' && (
+        <Card size="small" title="客户消费 Top（含今日在打）">
+          {custTop.length ? custTop.map((r: any, i: number) => (
+            <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 0', color: TEXT.heading }}>
+              <span>{r.customerCode || r.wechatId || '客户'}{r.live ? <Tag color={BRAND.primary} style={{ marginLeft: 6, fontSize: 10 }}>在打</Tag> : null}</span>
+              <span style={{ fontWeight: 600 }}>{yuan(r.spent)}</span>
+            </div>
+          )) : <Empty description="暂无客户数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+        </Card>
       )}
 
       {/* ── 陪玩状态墙 + 排行 / KPI（同一类：看人） ── */}
@@ -498,7 +544,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       )}
 
       {/* ── 今日考勤（迟到 / 早退 / 未打卡） ── */}
-      {boardTab === 'attendance' && attRows.length ? (
+      {boardTab === 'live' && attRows.length ? (
         <Card size="small" title="🕘 今日考勤（迟到 / 早退 / 未打卡）" style={{ marginBottom: 14 }}>
           <Space size={18} wrap style={{ marginBottom: 8 }}>
             {Object.entries(attendance?.roles || {}).map(([role, r]: any) => (
@@ -557,7 +603,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
 
       {/* ── 客服今日发单 ── */}
       {boardTab === 'cs' && csStats?.csList?.length ? (
-        <Card size="small" title="客服今日发单">
+        <Card size="small" title="客服管理 · 今日发单">
           <Table
             size="small"
             rowKey={(r: any) => r.csUserId}
