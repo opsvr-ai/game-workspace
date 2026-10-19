@@ -290,6 +290,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **陪玩端通知设置只留一个「接单中弹窗」开关（2026-10-19，网页）。**
+  老板：「弹窗按钮不要那么多选项，就设置一个开关——接单中弹窗后面带是/否」。
+  - 设置页和首页 🔔 共用同一个面板，现在只剩：**接单中弹窗 [是/否]**。
+  - 去掉启用通知、娱乐中开关、全屏模式、提示音/音量、各类订单筛选开关。
+  - 空闲 / 挂机（休息）仍然照常弹；这个开关只控制接单中是否弹新单。
+  - 网页 **27 文件 / 157 用例**全绿；网页 v1062 部署。
+
 - **机器管理版本列只显示「最新 / 非最新」，客户端与看门狗对齐（2026-10-19，网页）。**
   老板：「只给我显示『最新』『非最新』，并且对齐」。
   - 不再铺版本号：版本列固定两行「客户端 / 看门狗」，各一个「最新 / 非最新」标签。
@@ -7723,3 +7730,4 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 [Unreleased]: https://github.com/opsvr-ai/game-workspace/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/opsvr-ai/game-workspace/tree/v0.1.0
+

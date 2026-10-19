@@ -16,7 +16,7 @@ const NotifySettingsPage: React.FC = () => (
   <>
     <PageHeader
       title="通知设置"
-      subtitle="新单弹窗在哪些状态下弹给你：空闲 / 挂机（休息）一律弹；接单中 / 娱乐中按这里自己开关"
+      subtitle="接单中是否允许多接新单弹窗；空闲、挂机（休息）仍照常弹"
     />
     <Card size="small">
       <OrderNotifySettingsPanel />
