@@ -9,6 +9,7 @@
  * 只把「AppLayout 里的状态写入」通过参数传进来（user / 邀请与转让读写 / 新单弹窗 / 抽查红点），
  * 事件名、payload 判断、文案、去重时间、请求参数一律保持原样。
  */
+import { useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { UserInfo } from '@chunlv/shared';
 import { notification } from 'antd';
@@ -16,6 +17,7 @@ import { message } from '../utils/feedback';
 import { notifyNotice, recordNotice } from '../utils/notice';
 import { playNotificationSound, showBannerNotification } from '../utils/notify';
 import { rolePage } from '../config/roleMenus';
+import http from '../api/client';
 import { useSocket } from './useSocket';
 
 export interface ShellRealtimeDeps {
@@ -37,6 +39,18 @@ export function useShellRealtime({
   setUrgentOrder,
   setReviewBadge,
 }: ShellRealtimeDeps) {
+  // 陪玩端全局状态心跳：不管他停在首页 / 订单 / 客户页面，每分钟都让服务端补一次
+  // 「当前状态」的计时日志——否则只看首页心跳会漏掉一直在别的页面挂机的陪玩。
+  useEffect(() => {
+    if (user?.role !== 'COMPANION' || !user?.companionId) return;
+    const ping = () => {
+      http.post('/companions/me/status-heartbeat').catch(() => {});
+    };
+    ping();
+    const timer = setInterval(ping, 60_000);
+    return () => clearInterval(timer);
+  }, [user?.role, user?.companionId]);
+
   // WebSocket connection for real-time updates
   const voiceSocketRef = useSocket({
     onOrderNew: (data: any) => {

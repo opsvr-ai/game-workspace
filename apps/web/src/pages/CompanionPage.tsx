@@ -184,20 +184,6 @@ const CompanionPage: React.FC = () => {
     }
   }, [data?.currentStatus]);
 
-  // 状态心跳：服务端按这次上报补/续「当前状态」的计时日志。
-  // 不补的话，客户端只要没点过状态切换，CompanionTimeLog 就没有当前状态记录，
-  // 看板会显示「空闲 0 分钟」——不是统计错，是根本没日志。
-  useEffect(() => {
-    const status = data?.currentStatus;
-    if (!status || status === 'OFFLINE' || status === 'BUSY' || !user?.companionId) return;
-    const ping = () => {
-      http.put('/companions/me/status', { status }).catch(() => {});
-    };
-    ping();
-    const timer = setInterval(ping, 60_000);
-    return () => clearInterval(timer);
-  }, [data?.currentStatus, user?.companionId]);
-
   const handleWithdraw = async () => {
     if (withdrawAmount <= 0) {
       message.warning('请输入有效金额');

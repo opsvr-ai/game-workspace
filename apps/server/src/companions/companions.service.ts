@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeRevenueSplit, effectiveTenureMonths } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
@@ -40,7 +40,7 @@ function seenWithin(seen: string | Date | null | undefined, limit: number, now: 
 }
 
 @Injectable()
-export class CompanionsService {
+export class CompanionsService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private readonly revenueService: CompanionRevenueService,
@@ -50,6 +50,30 @@ export class CompanionsService {
     private readonly bridgeService: BridgeService,
     private readonly studiosService: StudiosService,
   ) {}
+
+  /**
+   * 兜底：服务端每分钟检查一次「在线但当前状态没有计时日志」的陪玩，自动补日志。
+   * 这样即使客户端没来得及更新网页、或者停在别的页面，也不会再出现「空闲 0 分钟」。
+   */
+  onModuleInit() {
+    const timer = setInterval(() => {
+      void this.repairOnlineStatusLogs().catch(() => {});
+    }, 60_000);
+    timer.unref?.();
+  }
+
+  private async repairOnlineStatusLogs() {
+    const online = await this.prisma.companion.findMany({
+      where: {
+        status: { not: 'OFFLINE' },
+        pc: { is: { lastHeartbeat: { gte: new Date(Date.now() - COMPANION_HEARTBEAT_MS) } } },
+      },
+      select: { id: true },
+    });
+    for (const c of online) {
+      await this.heartbeatCurrentStatus(c.id).catch(() => {});
+    }
+  }
 
   /**
    * 人员列表：陪玩 + 客服 + 店长 + 老板，统一返回，附带各自的在线状态。
@@ -692,6 +716,31 @@ export class CompanionsService {
     }
 
     return this.applyStatusChange(id, status, now);
+  }
+
+  /**
+   * 陪玩端状态心跳：只维护「当前状态」的计时日志，不切换状态。
+   * 老客户端只有点状态切换时才写 TimeLog，所以会出现「在线空闲，但空闲 0 分钟」。
+   * 这里每次心跳都检查：没有当前状态的未结束日志就补一条；有但 mode 不对就关旧开新。
+   */
+  async heartbeatCurrentStatus(id: string) {
+    const current = await this.prisma.companion.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    if (!current || current.status === 'OFFLINE') {
+      return { status: current?.status || null, repaired: false };
+    }
+    const now = new Date();
+    const openLog = await this.prisma.companionTimeLog.findFirst({
+      where: { companionId: id, endedAt: null },
+      orderBy: { startedAt: 'desc' },
+    });
+    if (!openLog || openLog.mode !== current.status) {
+      await this.applyStatusChange(id, current.status, now);
+      return { status: current.status, repaired: true };
+    }
+    return { status: current.status, repaired: false };
   }
 
   /**

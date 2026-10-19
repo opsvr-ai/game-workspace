@@ -587,6 +587,19 @@ export class CompanionsController {
 
   // ── Me endpoints (self-service shortcuts, MUST be before :id routes) ──
 
+  /**
+   * 陪玩端每 60 秒发一次：只补「当前状态」的计时日志，不切换状态。
+   * 用于修复老客户端一直空闲、从不写状态日志导致看板「空闲 0 分钟」的问题。
+   */
+  @Post('companions/me/status-heartbeat')
+  @Roles(UserRole.COMPANION)
+  async statusHeartbeat(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const id = req.user.companionId;
+    if (!id) return { code: 400, message: '当前用户不是陪玩', data: null };
+    const data = await this.companionsService.heartbeatCurrentStatus(id);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Put('companions/me/status')
   @Roles(UserRole.COMPANION)
   async updateMyStatus(@Body('status') status: string, @Req() req: any): Promise<ApiResponse<unknown>> {
