@@ -133,11 +133,12 @@ export class WsEmitterService {
    *
    * 老板 2026-10-01 定的口径：
    *  - **空闲 / 挂机（休息）一律弹**，不受开关影响；
-   *  - **娱乐中 / 接单中可以自己关**（娱乐中默认弹 `notifyWhileEntertainment`，
-   *    接单中默认不打扰 `notifyWhileBusy`）。
+   *  - **娱乐中也一律弹**，不受开关影响（2026-10-19 老板：「娱乐中也照弹不误」）；
+   *  - **只有接单中**看 `notifyWhileBusy`（默认不打扰）。
    *
    * 沿革：老板 2026-09-22 定的是「空闲 + 娱乐中一律弹，只有接单中默认不打扰」；
-   * 2026-10-01 又把「挂机（休息）」加进来，并把「娱乐中」也改成可自己关。
+   * 2026-10-01 又把「挂机（休息）」加进来，并曾把娱乐中改成可自己关；
+   * 2026-10-19 通知设置只保留「接单中弹窗」一个开关，娱乐中恢复为无条件弹。
    */
   private urgentRecipientWhere(studioId: string) {
     return {
@@ -148,7 +149,8 @@ export class WsEmitterService {
         { status: 'AVAILABLE' },
         // 挂机 / 休息：老板 2026-10-01「空闲+挂机状态也照样弹」
         { status: 'RESTING' },
-        { status: 'ENTERTAINMENT', notifyWhileEntertainment: true },
+        // 娱乐中：老板 2026-10-19 明确「娱乐中也照弹不误」，不再看 notifyWhileEntertainment
+        { status: 'ENTERTAINMENT' },
         { status: 'BUSY', notifyWhileBusy: true },
       ],
     };

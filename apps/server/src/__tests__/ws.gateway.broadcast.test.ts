@@ -3,8 +3,8 @@ import { WsGateway } from "../ws/ws.gateway";
 
 /**
  * 老板 2026-10-01 口径：**空闲 / 挂机（休息）一律弹**；
- * **娱乐中、接单中可以自己关**（娱乐中默认弹 `notifyWhileEntertainment`，
- * 接单中默认不打扰 `notifyWhileBusy`）。
+ * 2026-10-19 补充：**娱乐中也照弹不误**；
+ * 只有**接单中**看 `notifyWhileBusy`。
  * 这个测试把收件人条件钉死，避免以后又被改回去。
  */
 function setup(matched: Array<{ id: string; status: string; user?: { username: string } }> = []) {
@@ -27,7 +27,7 @@ function setup(matched: Array<{ id: string; status: string; user?: { username: s
 }
 
 describe("WsGateway.broadcastNewOrder 收件人规则", () => {
-  it("查的是「本店 + (空闲 或 挂机 或 娱乐中且本人未关 或 接单中且本人开了开关)」", async () => {
+  it("查的是「本店 + (空闲 或 挂机 或 娱乐中 或 接单中且本人开了开关)」", async () => {
     const { gw, prisma } = setup([]);
     await gw.broadcastNewOrder("studio-1", { orderCode: "X1" });
 
@@ -36,7 +36,7 @@ describe("WsGateway.broadcastNewOrder 收件人规则", () => {
     expect(where.OR).toEqual([
       { status: "AVAILABLE" },
       { status: "RESTING" },
-      { status: "ENTERTAINMENT", notifyWhileEntertainment: true },
+      { status: "ENTERTAINMENT" },
       { status: "BUSY", notifyWhileBusy: true },
     ]);
   });
