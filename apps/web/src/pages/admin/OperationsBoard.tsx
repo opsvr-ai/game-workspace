@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Card, Row, Col, Tag, Progress, Table, Empty, Button, Typography, Segmented, Space, Tooltip as AntTooltip } from 'antd';
+import { Card, Row, Col, Tag, Progress, Table, Empty, Button, Typography, Segmented, Space, Tooltip as AntTooltip, Modal } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
@@ -83,6 +83,9 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const [personnel, setPersonnel] = useState<any[]>([]);
   const [cust, setCust] = useState<any>(null);
   const [csStats, setCsStats] = useState<any>(null);
+  const [bridgeDetail, setBridgeDetail] = useState<any>(null);
+  const [bridgeFlow, setBridgeFlow] = useState<any[]>([]);
+  const [bridgeLoading, setBridgeLoading] = useState(false);
   const [rankMode, setRankMode] = useState<'score' | 'revenue' | 'customer'>('score');
   // 看板区块分类：一屏只放一类，别再把所有表 / 图 / 状态墙堆在一起（老板 2026-10-19「好乱」）
   const [boardTab, setBoardTab] = useState<'overview' | 'daily' | 'live' | 'attendance' | 'cs'>('overview');
@@ -117,6 +120,31 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
     const timer = setInterval(load, 60000);
     return () => clearInterval(timer);
   }, [load]);
+
+  /**
+   * 客服发单里的「桥接」点开：列出这张客服当天所有桥接单、合计金额，
+   * 并带上这些单收款到的客服工作微信的今日收款 / 当前余额。
+   */
+  const openBridgeDetail = async (cs: any) => {
+    const orders = (csStats?.orders || []).filter((o: any) => {
+      if (!o?.companionStudioId || !o?.studioId) return false;
+      const isBridge = o.companionStudioId !== o.studioId && o.companionStudioType !== 'RENTAL';
+      return isBridge && String(o.csUserId || '') === String(cs.csUserId || '');
+    });
+    setBridgeDetail({
+      cs,
+      orders,
+      total: orders.reduce((s: number, o: any) => s + (Number(o.amount) || 0), 0),
+    });
+    setBridgeFlow([]);
+    setBridgeLoading(true);
+    try {
+      const flow = await safeGet('/orders/cs-wechat-flow');
+      setBridgeFlow(Array.isArray(flow) ? flow : []);
+    } finally {
+      setBridgeLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -541,11 +569,84 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
               { title: '金额', dataIndex: 'totalAmount', width: 110, render: (v: number) => yuan(v) },
               { title: '抢单', dataIndex: 'claimedCount', width: 80 },
               { title: '直派', dataIndex: 'directCount', width: 80 },
-              { title: '桥接', dataIndex: 'bridgeCount', width: 80 },
+              {
+                title: '桥接', dataIndex: 'bridgeCount', width: 90,
+                render: (v: number, r: any) => (
+                  <Button type="link" size="small" style={{ padding: 0 }} onClick={() => void openBridgeDetail(r)}>
+                    {v} 单
+                  </Button>
+                ),
+              },
             ]}
           />
         </Card>
       ) : null}
+
+      {bridgeDetail ? (() => {
+        const orderRows: any[] = bridgeDetail.orders || [];
+        const wechatMap = new Map<string, { wechat: string; count: number; amount: number }>();
+        for (const o of orderRows) {
+          const wechat = o.csWorkWechatName || o.customerPaidTo || o.customerPaymentAccountName || '未记录';
+          const cur = wechatMap.get(wechat) || { wechat, count: 0, amount: 0 };
+          cur.count += 1;
+          cur.amount += Number(o.amount) || 0;
+          wechatMap.set(wechat, cur);
+        }
+        const flowMap = new Map(bridgeFlow.map((w: any) => [String(w.wechatId || ''), w]));
+        const wechatRows = [...wechatMap.values()].map((w) => {
+          const flow: any = flowMap.get(w.wechat);
+          return {
+            ...w,
+            today: flow ? Number(flow.inTotal) || 0 : null,
+            balance: flow ? Number(flow.balance) || 0 : null,
+          };
+        });
+        return (
+          <Modal
+            open
+            width={1000}
+            title={`桥接明细 · ${bridgeDetail.cs?.csName || bridgeDetail.cs?.csDisplayName || ''}`}
+            onCancel={() => setBridgeDetail(null)}
+            footer={null}
+          >
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Text strong>
+                桥接 {orderRows.length} 单 · 合计 {yuan(bridgeDetail.total)}
+              </Text>
+              {bridgeLoading ? <Text type="secondary">正在拉客服微信收款数据…</Text> : null}
+              <Table
+                size="small"
+                rowKey="wechat"
+                pagination={false}
+                dataSource={wechatRows}
+                columns={[
+                  { title: '收款微信', dataIndex: 'wechat' },
+                  { title: '桥接单数', dataIndex: 'count', width: 90 },
+                  { title: '桥接金额', dataIndex: 'amount', width: 110, render: (v: number) => yuan(v) },
+                  { title: '该微信今日收款', dataIndex: 'today', width: 130, render: (v: number | null) => (v == null ? '—' : yuan(v)) },
+                  { title: '该微信当前余额', dataIndex: 'balance', width: 130, render: (v: number | null) => (v == null ? '—' : yuan(v)) },
+                ]}
+              />
+              <Table
+                size="small"
+                rowKey="id"
+                pagination={false}
+                dataSource={orderRows}
+                columns={[
+                  { title: '订单号', dataIndex: 'orderCode', width: 80 },
+                  { title: '游戏', dataIndex: 'gameName', width: 120 },
+                  { title: '订单金额', dataIndex: 'amount', width: 100, render: (v: number) => yuan(v) },
+                  { title: '收款微信', width: 150, render: (_: any, o: any) => o.csWorkWechatName || o.customerPaidTo || o.customerPaymentAccountName || '未记录' },
+                  { title: '接单陪玩', dataIndex: 'companionName', width: 100, render: (v: string) => v || '-' },
+                  { title: '陪玩工作室', dataIndex: 'companionStudio', width: 150, render: (v: string) => v || '-' },
+                  { title: '时间', dataIndex: 'createdAt', width: 150, render: (v: string) => (v ? dayjs(v).format('MM-DD HH:mm') : '-') },
+                ]}
+              />
+              {orderRows.length === 0 ? <Empty description="今天这个客服没有桥接单" /> : null}
+            </Space>
+          </Modal>
+        );
+      })() : null}
     </div>
   );
 };

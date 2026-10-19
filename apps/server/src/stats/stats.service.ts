@@ -521,7 +521,9 @@ export class StatsService {
         companionId: o.companionId,
         companionName: (o.companion as any)?.user?.username || null,
         companionStudio: (o.companion as any)?.studio?.name || null,
+        companionStudioId: (o.companion as any)?.studio?.id || null,
         companionStudioType: (o.companion as any)?.studio?.type || null,
+        studioId: o.studioId,
         paymentAccount: o.paymentAccount
           ? `${o.paymentAccount.accountName}(${o.paymentAccount.type === 'WECHAT' ? '微信' : '支付宝'})`
           : null,
