@@ -541,6 +541,7 @@ export class CompanionsService {
       const successCount = successMap.get(c.id) || 0;
       const failCount = failMap.get(c.id) || 0;
       const rated = successCount + failCount;
+      const statusLogMissing = online && activeTotal === 0;
       const failureReasons = [...(failReasonMap.get(c.id)?.entries() || [])]
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
@@ -560,6 +561,7 @@ export class CompanionsService {
         loginAt,
         logoutAt,
         onlineSec,
+        statusLogMissing,
         modeSeconds: {
           BUSY: modes.BUSY || 0,
           ENTERTAINMENT: modes.ENTERTAINMENT || 0,
@@ -648,8 +650,18 @@ export class CompanionsService {
       where: { id },
       select: { status: true },
     });
-    // 已是当前状态：无需重复操作，直接返回，避免重置计时/计费。
+    // 已是当前状态：不用重置计时，但要确保有一条「当前状态」的未结束日志。
+    // 老客户端只在上报状态变化时写日志；如果服务端状态被自动改过、或日志链断了，
+    // 就会出现「在线空闲，但今日空闲 0 分钟」——这里补一条，从这次心跳开始重新计。
     if (current && current.status === status) {
+      const openLog = await this.prisma.companionTimeLog.findFirst({
+        where: { companionId: id, endedAt: null },
+        orderBy: { startedAt: 'desc' },
+      });
+      if (!openLog || openLog.mode !== status) {
+        await this.applyStatusChange(id, status, now);
+        return { id, status: current.status, alreadyInStatus: true, logRepaired: true };
+      }
       return { id, status: current.status, alreadyInStatus: true };
     }
     // 接单状态只能由「开始服务（首单/续单/复购）」自动进入，不能手动点，防止陪玩借“接单”状态玩黑名单游戏。

@@ -449,7 +449,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                       {' · '}
                       {r.logoutAt ? `下班 ${dayjs(r.logoutAt).format('HH:mm')}` : r.online ? '在线中' : '未在线'}
                       {' · '}
-                      在线 {hm(r.onlineSec)}
+                      在线 {r.statusLogMissing ? '—（状态日志未上报）' : hm(r.onlineSec)}
                     </div>
                     <div style={{ display: 'flex', gap: 8, marginTop: 5 }}>
                       {[
@@ -462,11 +462,11 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                         const ratio = r.onlineSec > 0 ? Math.min(100, Math.round((secNum / r.onlineSec) * 100)) : 0;
                         return (
                           <div key={String(label)} style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 10, color: TEXT.secondary, whiteSpace: 'nowrap' }}>{label} {hm(secNum)}</div>
+                            <div style={{ fontSize: 10, color: TEXT.secondary, whiteSpace: 'nowrap' }}>{label} {r.statusLogMissing ? '—' : hm(secNum)}</div>
                             <div style={{ height: 3, background: `${color}22`, borderRadius: 2, marginTop: 2 }}>
                               <div style={{ width: `${ratio}%`, height: 3, background: color as string, borderRadius: 2 }} />
                             </div>
-                            <div style={{ fontSize: 9, color: TEXT.tertiary }}>{ratio}%</div>
+                            <div style={{ fontSize: 9, color: TEXT.tertiary }}>{r.statusLogMissing ? '—' : `${ratio}%`}</div>
                           </div>
                         );
                       })}

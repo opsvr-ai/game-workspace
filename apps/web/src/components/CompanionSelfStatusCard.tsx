@@ -82,7 +82,7 @@ export default function CompanionSelfStatusCard({ excellence }: { excellence?: a
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <Tag color={meta.color} style={{ marginInlineEnd: 0 }}>{meta.label}</Tag>
-            <Text strong>{periodLabel} {hm(onlineSec)}</Text>
+            <Text strong>{periodLabel} {row.statusLogMissing ? '—' : hm(onlineSec)}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
               上班 {row.loginAt ? dayjs(row.loginAt).format('MM-DD HH:mm') : '—'}
               {' · '}
@@ -100,11 +100,11 @@ export default function CompanionSelfStatusCard({ excellence }: { excellence?: a
               const ratio = onlineSec > 0 ? Math.min(100, Math.round((secNum / onlineSec) * 100)) : 0;
               return (
                 <div key={String(label)} style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: TEXT.secondary }}>{label} {hm(secNum)}</div>
+                  <div style={{ fontSize: 11, color: TEXT.secondary }}>{label} {row.statusLogMissing ? '—' : hm(secNum)}</div>
                   <div style={{ height: 4, background: `${color}22`, borderRadius: 2, marginTop: 2 }}>
                     <div style={{ width: `${ratio}%`, height: 4, background: color as string, borderRadius: 2 }} />
                   </div>
-                  <div style={{ fontSize: 10, color: TEXT.tertiary }}>{ratio}%</div>
+                  <div style={{ fontSize: 10, color: TEXT.tertiary }}>{row.statusLogMissing ? '—' : `${ratio}%`}</div>
                 </div>
               );
             })}
