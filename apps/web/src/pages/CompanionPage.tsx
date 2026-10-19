@@ -37,6 +37,7 @@ import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
 import MyWorkWechatCard from '../components/MyWorkWechatCard';
 import CompanionHomeBoard from '../components/CompanionHomeBoard';
+import CompanionSelfStatusCard from '../components/CompanionSelfStatusCard';
 import ExcellenceRuleModal from '../components/ExcellenceRuleModal';
 import { visibleInterval } from '../hooks/usePolling';
 import { BRAND, SEMANTIC, BORDER } from '../styles/tokens';
@@ -395,6 +396,9 @@ const CompanionPage: React.FC = () => {
           </Col>
         </Row>
       </Card>
+
+      {/* 我的今日 / 近 7 天 / 近 30 天表现：跟管理端「陪玩状态」同一套数据 */}
+      <CompanionSelfStatusCard excellence={excellence} />
 
       {/* 📊 我的首页看板：进度条风格，一眼看完自己的业绩 / KPI / 客户（老板 2026-10-04） */}
       <CompanionHomeBoard

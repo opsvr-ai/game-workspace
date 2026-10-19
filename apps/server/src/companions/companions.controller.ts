@@ -96,8 +96,8 @@ export class CompanionsController {
   // 陪玩只看到本店 + 桥接工作室的人，且只有自己那一格显示业绩，别人只给订单信息。
   @Get('companions/live-board')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS, UserRole.COMPANION)
-  async liveBoard(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.liveBoard(req.user);
+  async liveBoard(@Req() req: any, @Query('days') days?: string): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.liveBoard(req.user, Number(days) || 1);
     return { code: 200, message: 'ok', data };
   }
 

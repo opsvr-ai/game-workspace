@@ -90,6 +90,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const [rankMode, setRankMode] = useState<'score' | 'revenue' | 'customer'>('score');
   // 看板区块分类：一屏只放一类，别再把所有表 / 图 / 状态墙堆在一起（老板 2026-10-19「好乱」）
   const [boardTab, setBoardTab] = useState<'live' | 'overview' | 'daily' | 'orders' | 'customers' | 'cs'>('live');
+  const [liveDays, setLiveDays] = useState(1);
   // 今日考勤：谁迟到、谁早退、谁没打卡（老板 2026-10-04）
   const [attendance, setAttendance] = useState<any>(null);
 
@@ -99,7 +100,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       safeGet('/dashboard'),
       safeGet('/dashboard/revenue-overview'),
       safeGet('/dashboard/trend', { days: 14 }),
-      safeGet('/companions/live-board'),
+      safeGet('/companions/live-board', { days: liveDays }),
       safeGet('/personnel'),
       safeGet('/customers/board'),
       safeGet('/stats/daily', { date: today, dateFrom: today, dateTo: today }),
@@ -114,7 +115,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
     setCsStats(s);
     setAttendance(att);
     setLoading(false);
-  }, []);
+  }, [liveDays]);
 
   useEffect(() => {
     load();
@@ -228,6 +229,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const typeBreak = overview?.typeBreakdown || {};
   const TYPE_COLORS: Record<string, string> = { NEW: '#1677ff', RENEW: '#52c41a', REPURCHASE: '#faad14', TIP: '#eb2f96' };
   const TYPE_LABELS: Record<string, string> = { NEW: '首单', RENEW: '续单', REPURCHASE: '复购', TIP: '打赏' };
+  const periodLabel = liveDays === 1 ? '今日' : `近${liveDays}天`;
 
   const attRows: any[] = Object.entries(attendance?.roles || {}).flatMap(([role, r]: any) =>
     // 行上带上这一块的班次时间：「班外打卡」的提示要用（老板 2026-10-07）。
@@ -409,6 +411,18 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       <Card
         size="small"
         title="陪玩状态墙（状态 · 上下班 · 接单/娱乐/空闲/休息占比 · 业绩 · 成单 · KPI）"
+        extra={
+          <Segmented
+            size="small"
+            value={liveDays}
+            onChange={(v) => setLiveDays(Number(v) || 1)}
+            options={[
+              { label: '今天', value: 1 },
+              { label: '近 7 天', value: 7 },
+              { label: '近 30 天', value: 30 },
+            ]}
+          />
+        }
         style={{ marginBottom: 14 }}
       >
         {displayRows.length ? (
@@ -461,7 +475,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                       业绩 {r.earningsHidden ? '—' : yuan(r.todayRevenue)} · 接单 {r.todayOrders || 0}
                       {' · '}<span style={{ color: SEMANTIC.success }}>成功 {r.successCount || 0}</span>
                       {' · '}<span style={{ color: r.failCount ? SEMANTIC.dangerDeep : TEXT.tertiary }}>失败 {r.failCount || 0}</span>
-                      {' · '}今日KPI 成单率 {pct(r.successRate)}
+                      {' · '}{periodLabel}KPI 成单率 {pct(r.successRate)}
                       {r.supplementCount ? <> · <Tag color="orange" style={{ fontSize: 10, marginInlineEnd: 0 }}>补单 {r.supplementCount}</Tag></> : null}
                     </div>
                     {r.serving ? (

@@ -304,7 +304,8 @@ export class CompanionsService {
    *  - 金额保护：桥接工作室的人一律不显示业绩/本单金额（只留订单信息：在打什么、跟谁、多久、单号）；
    *    陪玩端更是只在**自己那一格**显示业绩，同店同事也不给看，免得把别人的收入摊在所有人面前。
    */
-  async liveBoard(user: any) {
+  async liveBoard(user: any, days = 1) {
+    const periodDays = Math.min(30, Math.max(1, Math.floor(Number(days) || 1)));
     const viewerIsCompanion = user.role === 'COMPANION';
     const myCompanionId: string | null = viewerIsCompanion ? (user.companionId || null) : null;
 
@@ -377,7 +378,8 @@ export class CompanionsService {
     // 今日业绩 / 今日单数 / 今日接单时长（老板 2026-10-03：「看板上要能直接看到业绩」）。
     // 业绩口径与结算完全一致：走 companionOrderRevenue（主陪扣掉搭档与分给别人的部分、
     // 搭档拿 coAmount）——不在这里另起一套算法，否则看板跟报账/结算对不上。
-    const { start: dayStart, end: dayEnd } = currentBusinessDayRange();
+    const { start: currentStart, end: dayEnd } = currentBusinessDayRange();
+    const dayStart = new Date(currentStart.getTime() - (periodDays - 1) * 86_400_000);
     const dayNow = new Date();
     // 今天所有单（不只 DONE）：除了业绩，还要算成功 / 不成功 / 补单。
     const todayOrders = await this.prisma.order.findMany({
@@ -608,6 +610,7 @@ export class CompanionsService {
     rows.sort((a, b) => rank(a) - rank(b) || String(a.name).localeCompare(String(b.name), 'zh'));
 
     return {
+      periodDays,
       rows,
       updatedAt: new Date().toISOString(),
       counts: {
