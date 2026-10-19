@@ -84,7 +84,7 @@ export default function CompanionSelfStatusCard({ excellence }: { excellence?: a
             <Tag color={meta.color} style={{ marginInlineEnd: 0 }}>{meta.label}</Tag>
             <Text strong>{periodLabel} {row.statusLogMissing ? '—' : hm(onlineSec)}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              上班 {row.loginAt ? dayjs(row.loginAt).format('MM-DD HH:mm') : '—'}
+              上线 {row.loginAt ? dayjs(row.loginAt).format('MM-DD HH:mm') : '—'}
               {' · '}
               {row.logoutAt ? `下班 ${dayjs(row.logoutAt).format('MM-DD HH:mm')}` : row.online ? '在线中' : '未在线'}
             </Text>
