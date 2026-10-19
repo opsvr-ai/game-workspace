@@ -124,8 +124,7 @@ export default function CompanionSelfStatusCard({ excellence }: { excellence?: a
           ) : null}
           {excellence ? (
             <div style={{ fontSize: 11, color: TEXT.tertiary, marginTop: 4 }}>
-              30天 KPI：综合 {Math.round(Number(excellence.tierScore ?? excellence.rankScore) || 0)} 分
-              {' · '}首单 {pct(excellence.newRate)} · 续单 {pct(excellence.renewRate)} · 复购 {pct(excellence.repurchaseRate)}
+              30天 KPI：首单 {pct(excellence.newRate)} · 续单 {pct(excellence.renewRate)} · 复购 {pct(excellence.repurchaseRate)}
             </div>
           ) : null}
         </div>

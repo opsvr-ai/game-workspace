@@ -490,7 +490,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                     ) : null}
                     {kpi ? (
                       <div style={{ fontSize: 10, color: TEXT.tertiary, marginTop: 3 }}>
-                        30天 KPI：综合 {Math.round(kpi.score)} 分 · 首单 {pct(kpi.newRate)} · 续单 {pct(kpi.renewRate)} · 复购 {pct(kpi.repurchaseRate)}
+                        30天 KPI：首单 {pct(kpi.newRate)} · 续单 {pct(kpi.renewRate)} · 复购 {pct(kpi.repurchaseRate)}
                       </div>
                     ) : null}
                     {r.isBridged ? <div style={{ fontSize: 11, color: TEXT.tertiary, marginTop: 2 }}>桥接 · {r.studioName}</div> : null}
