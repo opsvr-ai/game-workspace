@@ -55,6 +55,15 @@ const ATT_STATUS: Record<string, { label: string; color: string }> = {
   NOT_STARTED: { label: '未到点', color: 'default' },
 };
 const ATT_RANK: Record<string, number> = { LATE_EARLY: 0, LATE: 1, EARLY_LEAVE: 2, ABSENT: 3, PRESENT: 4, NOT_STARTED: 5 };
+const ORDER_STATUS_META: Record<string, { label: string; color: string }> = {
+  PENDING: { label: '待抢', color: 'default' },
+  CLAIMED: { label: '已领取', color: 'blue' },
+  GRABBED: { label: '已抢单', color: 'cyan' },
+  CONFIRMED: { label: '已确认', color: 'processing' },
+  DONE: { label: '已完成', color: 'green' },
+  DEPOSITED: { label: '存单', color: 'gold' },
+  CANCELLED: { label: '已取消', color: 'red' },
+};
 
 /** 一行「名字 + 进度条 + 数值」：老板要的进度条样式，从高到低排。 */
 const RankBar: React.FC<{ name: string; value: number; max: number; text: string; color: string }> = ({ name, value, max, text, color }) => {
@@ -230,6 +239,12 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const TYPE_COLORS: Record<string, string> = { NEW: '#1677ff', RENEW: '#52c41a', REPURCHASE: '#faad14', TIP: '#eb2f96' };
   const TYPE_LABELS: Record<string, string> = { NEW: '首单', RENEW: '续单', REPURCHASE: '复购', TIP: '打赏' };
   const periodLabel = liveDays === 1 ? '今日' : `近${liveDays}天`;
+  const todayOrders: any[] = csStats?.orders || [];
+  const orderStatusCounts: Record<string, number> = {};
+  for (const o of todayOrders) orderStatusCounts[o.status] = (orderStatusCounts[o.status] || 0) + 1;
+  const pendingOrderCount = todayOrders.filter((o) =>
+    ['PENDING', 'CLAIMED', 'GRABBED', 'CONFIRMED', 'DEPOSITED'].includes(o.status),
+  ).length;
 
   const attRows: any[] = Object.entries(attendance?.roles || {}).flatMap(([role, r]: any) =>
     // 行上带上这一块的班次时间：「班外打卡」的提示要用（老板 2026-10-07）。
@@ -390,19 +405,77 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
               </div>
             ) : null}
           </Card>
+          <Card size="small" title="今日订单状态" style={{ marginBottom: 14 }}>
+            <Space wrap size={[8, 8]}>
+              {(Object.keys(ORDER_STATUS_META) as string[]).map((k) => (
+                <Tag key={k} color={ORDER_STATUS_META[k].color}>
+                  {ORDER_STATUS_META[k].label} {orderStatusCounts[k] || 0}
+                </Tag>
+              ))}
+              <Tag color="red">待处理 {pendingOrderCount}</Tag>
+            </Space>
+          </Card>
+          <Card size="small" title="今日订单明细" style={{ marginBottom: 14 }}>
+            <Table
+              size="small"
+              rowKey="id"
+              dataSource={todayOrders}
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              scroll={{ x: 980 }}
+              columns={[
+                { title: '订单号', dataIndex: 'orderCode', width: 80 },
+                { title: '游戏', dataIndex: 'gameName', width: 130 },
+                { title: '类型', dataIndex: 'type', width: 80, render: (v: string) => TYPE_LABELS[v] || v },
+                { title: '金额', dataIndex: 'amount', width: 100, render: (v: number) => yuan(v) },
+                { title: '状态', dataIndex: 'status', width: 90, render: (v: string) => <Tag color={ORDER_STATUS_META[v]?.color}>{ORDER_STATUS_META[v]?.label || v}</Tag> },
+                { title: '客服', dataIndex: 'csName', width: 100, render: (v: string) => v || '—' },
+                { title: '陪玩', dataIndex: 'companionName', width: 100, render: (v: string) => v || '—' },
+                { title: '时间', dataIndex: 'createdAt', width: 140, render: (v: string) => (v ? dayjs(v).format('MM-DD HH:mm') : '—') },
+              ]}
+            />
+          </Card>
         </>
       )}
 
-      {/* ── 客户管理：客户消费 Top（含今日在打） ── */}
+      {/* ── 客户管理：客户数、今日消费、在打、累计消费 + 客户明细 ── */}
       {boardTab === 'customers' && (
-        <Card size="small" title="客户消费 Top（含今日在打）">
-          {custTop.length ? custTop.map((r: any, i: number) => (
-            <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 0', color: TEXT.heading }}>
-              <span>{r.customerCode || r.wechatId || '客户'}{r.live ? <Tag color={BRAND.primary} style={{ marginLeft: 6, fontSize: 10 }}>在打</Tag> : null}</span>
-              <span style={{ fontWeight: 600 }}>{yuan(r.spent)}</span>
-            </div>
-          )) : <Empty description="暂无客户数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
-        </Card>
+        <>
+          <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
+            <Col xs={12} md={5}><StatCard label="客户数" value={counts ? `${counts.customers ?? 0} 个` : '—'} tint="#EB2F96" /></Col>
+            <Col xs={12} md={5}><StatCard label="今日消费" value={counts ? yuan(counts.todaySpentTotal) : '—'} sub={counts ? `在打 ${counts.serving ?? 0} 人` : undefined} tint={BRAND.primary} /></Col>
+            <Col xs={12} md={5}><StatCard label="累计消费" value={counts ? yuan(counts.spentTotal) : '—'} tint="#52c41a" /></Col>
+            <Col xs={12} md={5}><StatCard label="未分配客户" value={counts ? `${counts.unassigned ?? 0} 个` : '—'} tint={Number(counts?.unassigned) > 0 ? '#FA8C16' : TEXT.tertiary} /></Col>
+            <Col xs={12} md={4}><StatCard label="累计游戏时长" value={counts ? `${counts.hoursTotal ?? 0} 小时` : '—'} tint="#722ED1" /></Col>
+          </Row>
+          <Card size="small" title="客户明细（正在打的排前面）">
+            <Table
+              size="small"
+              rowKey="customerId"
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              dataSource={cust?.rows || []}
+              scroll={{ x: 1050 }}
+              columns={[
+                {
+                  title: '客户', dataIndex: 'customerCode', width: 130,
+                  render: (v: string, r: any) => (
+                    <Space size={4}>
+                      <span>{v || r.wechatId || '客户'}</span>
+                      {r.live ? <Tag color={BRAND.primary} style={{ fontSize: 10, marginInlineEnd: 0 }}>在打</Tag> : null}
+                    </Space>
+                  ),
+                },
+                { title: '归属陪玩', dataIndex: 'companionName', width: 110, render: (v: string) => v || '未分配' },
+                { title: '今日消费', dataIndex: 'todaySpent', width: 100, render: (v: number) => yuan(v) },
+                { title: '今日单数', dataIndex: 'todayOrders', width: 90 },
+                { title: '累计消费', dataIndex: 'spent', width: 110, render: (v: number) => yuan(v) },
+                { title: '累计单数', dataIndex: 'orderCount', width: 90 },
+                { title: '累计时长', dataIndex: 'hours', width: 100, render: (v: number) => `${Number(v) || 0} 小时` },
+                { title: '最近消费', dataIndex: 'lastOrderAt', width: 140, render: (v: string) => (v ? dayjs(v).format('MM-DD HH:mm') : '—') },
+                { title: '状态', dataIndex: 'status', width: 90, render: (v: string) => v || '—' },
+              ]}
+            />
+          </Card>
+        </>
       )}
 
       {/* ── 陪玩状态墙 + 排行 / KPI（同一类：看人） ── */}
@@ -658,31 +731,42 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         </Card>
       ) : null}
 
-      {/* ── 客服今日发单 ── */}
+      {/* ── 客服管理：今日发单 + 结构 ── */}
       {boardTab === 'cs' && csStats?.csList?.length ? (
-        <Card size="small" title="客服管理 · 今日发单">
-          <Table
-            size="small"
-            rowKey={(r: any) => r.csUserId}
-            pagination={false}
-            dataSource={csStats.csList}
-            columns={[
-              { title: '客服', dataIndex: 'csDisplayName', render: (v: string, r: any) => v || r.csName },
-              { title: '发单', dataIndex: 'totalOrders', width: 80 },
-              { title: '金额', dataIndex: 'totalAmount', width: 110, render: (v: number) => yuan(v) },
-              { title: '抢单', dataIndex: 'claimedCount', width: 80 },
-              { title: '直派', dataIndex: 'directCount', width: 80 },
-              {
-                title: '桥接', dataIndex: 'bridgeCount', width: 90,
-                render: (v: number, r: any) => (
-                  <Button type="link" size="small" style={{ padding: 0 }} onClick={() => void openBridgeDetail(r)}>
-                    {v} 单
-                  </Button>
-                ),
-              },
-            ]}
-          />
-        </Card>
+        <>
+          <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
+            <Col xs={12} md={6}><StatCard label="上班客服" value={`${csStats.csList.length} 人`} tint="#722ED1" /></Col>
+            <Col xs={12} md={6}><StatCard label="今日发单" value={`${csStats.summary?.totalOrders ?? 0} 单`} tint="#FAAD14" /></Col>
+            <Col xs={12} md={6}><StatCard label="今日发单金额" value={yuan(csStats.summary?.totalAmount)} tint={BRAND.primary} /></Col>
+            <Col xs={12} md={6}><StatCard label="桥接单" value={`${csStats.summary?.bridgeCount ?? 0} 单`} sub={yuan(csStats.summary?.bridgeAmount)} tint="#EB2F96" /></Col>
+          </Row>
+          <Card size="small" title="客服管理 · 今日发单">
+            <Table
+              size="small"
+              rowKey={(r: any) => r.csUserId}
+              pagination={false}
+              dataSource={csStats.csList}
+              scroll={{ x: 760 }}
+              columns={[
+                { title: '客服', dataIndex: 'csDisplayName', render: (v: string, r: any) => v || r.csName },
+                { title: '发单', dataIndex: 'totalOrders', width: 80 },
+                { title: '金额', dataIndex: 'totalAmount', width: 110, render: (v: number) => yuan(v) },
+                { title: '抢单', dataIndex: 'claimedCount', width: 80 },
+                { title: '直派', dataIndex: 'directCount', width: 80 },
+                {
+                  title: '桥接', dataIndex: 'bridgeCount', width: 90,
+                  render: (v: number, r: any) => (
+                    <Button type="link" size="small" style={{ padding: 0 }} onClick={() => void openBridgeDetail(r)}>
+                      {v} 单
+                    </Button>
+                  ),
+                },
+                { title: '桥接金额', dataIndex: 'bridgeAmount', width: 110, render: (v: number) => yuan(v) },
+                { title: '本店/俱乐部', dataIndex: 'clubCount', width: 100, render: (v: number) => `${v || 0} 单` },
+              ]}
+            />
+          </Card>
+        </>
       ) : null}
 
       {bridgeDetail ? (() => {
