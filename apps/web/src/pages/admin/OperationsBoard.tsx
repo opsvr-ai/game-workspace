@@ -516,8 +516,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                       <Tag color={meta.color} style={{ marginInlineEnd: 0, fontSize: 11 }}>{meta.label}</Tag>
                     </div>
                     <div style={{ fontSize: 11, color: TEXT.secondary, marginTop: 4, lineHeight: 1.5 }}>
-                      软件登录 {r.lastLoginAt ? dayjs(r.lastLoginAt).format('MM-DD HH:mm') : '—'}
-                      {' · '}上线 {r.loginAt ? dayjs(r.loginAt).format('HH:mm') : '—'}
+                      上线 {r.loginAt ? dayjs(r.loginAt).format('MM-DD HH:mm') : '—'}
                       {' · '}
                       {r.logoutAt ? `下班 ${dayjs(r.logoutAt).format('HH:mm')}` : r.online ? '在线中' : '未在线'}
                       {' · '}

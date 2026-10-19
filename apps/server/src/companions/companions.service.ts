@@ -563,7 +563,13 @@ export class CompanionsService implements OnModuleInit {
       }
       const partnerId = s ? (s.roleInSession === 'MAIN' ? s.coCompanionId : s.mainCompanionId) : null;
       const att = attendanceByCompanion.get(c.id) || null;
-      const loginAt = att?.loginAt || firstActiveMap.get(c.id) || null;
+      const lastLoginAt = lastLoginMap.get(c.id) ? new Date(lastLoginMap.get(c.id) as string) : null;
+      // 「上线」取今天最早的一个可靠时间点：考勤 / 软件登录 / 第一条状态日志。
+      // 开机自动登录时这三个几乎同一时刻，没必要在看板上拆成两行。
+      const loginCandidates = [att?.loginAt, lastLoginAt, firstActiveMap.get(c.id)]
+        .filter((d): d is Date => !!d && d.getTime() >= dayStart.getTime() && d.getTime() < dayEnd.getTime())
+        .sort((a, b) => a.getTime() - b.getTime());
+      const loginAt = loginCandidates[0] || null;
       const logoutAt = att?.logoutAt || (c.status === 'OFFLINE' ? lastOfflineMap.get(c.id) || null : null);
       const modes = modeSecMap.get(c.id) || {};
       const activeTotal = ['BUSY', 'ENTERTAINMENT', 'AVAILABLE', 'RESTING']
@@ -596,7 +602,6 @@ export class CompanionsService implements OnModuleInit {
         earningsHidden,
         loginAt,
         logoutAt,
-        lastLoginAt: lastLoginMap.get(c.id) || null,
         onlineSec,
         statusLogMissing,
         modeSeconds: {
