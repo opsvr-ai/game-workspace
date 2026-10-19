@@ -87,6 +87,31 @@ function useTableAvailWidth(): [(node: HTMLDivElement | null) => void, number] {
   return [setNode, width];
 }
 
+const ORDERS_CACHE_PREFIX = 'chunlv.orders.cache.';
+const ORDERS_CACHE_ENABLED = import.meta.env.MODE !== 'test';
+
+/** 上一次的订单列表先画出来，再后台刷新 —— 打开软件时不再对着整页骨架等接口。 */
+function readOrdersCache(userId?: string): any[] {
+  if (!ORDERS_CACHE_ENABLED || !userId) return [];
+  try {
+    const raw = localStorage.getItem(ORDERS_CACHE_PREFIX + userId);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.orders) ? parsed.orders : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeOrdersCache(userId: string | undefined, orders: any[]): void {
+  if (!ORDERS_CACHE_ENABLED || !userId || !orders.length) return;
+  try {
+    localStorage.setItem(ORDERS_CACHE_PREFIX + userId, JSON.stringify({ at: Date.now(), orders }));
+  } catch {
+    // 5MB 配额满了 / 隐私模式：不影响正常加载
+  }
+}
+
 const OrdersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isCompanion = user?.role === 'COMPANION';
@@ -423,6 +448,15 @@ const OrdersPage: React.FC = () => {
     return groups;
   }, [orders, canFilterByCs]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    const cached = readOrdersCache(user.id);
+    if (cached.length > 0) {
+      setOrders((prev) => (prev.length > 0 ? prev : cached));
+      setOrdersLoaded(true);
+    }
+  }, [user?.id]);
+
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
@@ -431,7 +465,12 @@ const OrdersPage: React.FC = () => {
       if (isCs) params.scope = csScope;
       if (isCompanion) params.scope = companionScope;
       const { data } = await http.get('/orders', { params });
-      setOrders(data.data?.items ?? data.data ?? []);
+      const list = data.data?.items ?? data.data ?? [];
+      setOrders(list);
+      // 只有默认列表（没有状态筛选、且不是陪玩/客服的其它页签）才缓存；
+      // 否则下次打开会先看到上一次筛选后的子集。
+      const defaultScope = (!isCompanion || companionScope === 'taken') && (!isCs || csScope === 'mine');
+      if (!statusFilter && defaultScope) writeOrdersCache(user?.id, list);
       // 「今日抢单 · 补单 N · 合计」里那个补单数：读管理端补单记录里真实的数字（老板 2026-10-08）
       if (!isCompanion) {
         void ordersApi
@@ -445,7 +484,7 @@ const OrdersPage: React.FC = () => {
       setLoading(false);
       setOrdersLoaded(true);
     }
-  }, [statusFilter, isCs, csScope, isCompanion, companionScope]);
+  }, [statusFilter, isCs, csScope, isCompanion, companionScope, user?.id]);
 
   useEffect(() => {
     fetch();
