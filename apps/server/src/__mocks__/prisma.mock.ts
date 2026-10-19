@@ -76,6 +76,12 @@ export function createMockPrisma() {
       update: vi.fn(),
       updateMany: vi.fn(),
     },
+    companionAttendance: {
+      findMany: vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn(),
+      upsert: vi.fn(),
+      update: vi.fn(),
+    },
     systemConfig: {
       findUnique: vi.fn(),
       // findMany 默认给空数组：真实 Prisma 查到 0 条也返回 []，

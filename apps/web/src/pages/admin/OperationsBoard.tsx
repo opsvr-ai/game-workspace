@@ -214,6 +214,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
     e.spent += Number(r.spent) || 0;
   });
   rateList.forEach((r) => { r.customers = custByCompanion[r.id]?.count ?? 0; });
+  const kpiById = new Map(rateList.map((r) => [r.id, r]));
 
   const topByRevenue = [...rateList].sort((a, b) => b.month - a.month).slice(0, 10);
   const topByScore = [...rateList].sort((a, b) => b.score - a.score).slice(0, 10);
@@ -407,7 +408,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         <>
       <Card
         size="small"
-        title="陪玩状态墙（谁在跟谁打 · 打了多久）"
+        title="陪玩状态墙（状态 · 上下班 · 接单/娱乐/空闲/休息占比 · 业绩 · 成单 · KPI）"
         style={{ marginBottom: 14 }}
       >
         {displayRows.length ? (
@@ -421,24 +422,63 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
               const servingType = s?.partnerName || s?.partnerId
                 ? `双陪 · ${mainName}${coName ? ` + ${coName}` : ''}`
                 : s?.role === 'CO' ? '双陪' : '单陪';
+              const kpi = kpiById.get(r.companionId);
               return (
-                <Col xs={12} sm={8} md={6} lg={4} key={r.companionId}>
+                <Col xs={24} sm={12} md={8} lg={6} key={r.companionId}>
                   <div style={{ border: `1px solid ${meta.color}33`, borderLeft: `4px solid ${meta.color}`, background: meta.bg, borderRadius: 10, padding: '8px 10px', height: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
                       <span style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
                       <Tag color={meta.color} style={{ marginInlineEnd: 0, fontSize: 11 }}>{meta.label}</Tag>
                     </div>
+                    <div style={{ fontSize: 11, color: TEXT.secondary, marginTop: 4, lineHeight: 1.5 }}>
+                      上班 {r.loginAt ? dayjs(r.loginAt).format('HH:mm') : '—'}
+                      {' · '}
+                      {r.logoutAt ? `下班 ${dayjs(r.logoutAt).format('HH:mm')}` : r.online ? '在线中' : '未在线'}
+                      {' · '}
+                      在线 {hm(r.onlineSec)}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 5 }}>
+                      {[
+                        ['接单', r.modeSeconds?.BUSY || 0, '#F5222D'],
+                        ['娱乐', r.modeSeconds?.ENTERTAINMENT || 0, '#FAAD14'],
+                        ['空闲', r.modeSeconds?.AVAILABLE || 0, '#52C41A'],
+                        ['休息', r.modeSeconds?.RESTING || 0, '#FA8C16'],
+                      ].map(([label, sec, color]) => {
+                        const secNum = Number(sec) || 0;
+                        const ratio = r.onlineSec > 0 ? Math.min(100, Math.round((secNum / r.onlineSec) * 100)) : 0;
+                        return (
+                          <div key={String(label)} style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 10, color: TEXT.secondary, whiteSpace: 'nowrap' }}>{label} {hm(secNum)}</div>
+                            <div style={{ height: 3, background: `${color}22`, borderRadius: 2, marginTop: 2 }}>
+                              <div style={{ width: `${ratio}%`, height: 3, background: color as string, borderRadius: 2 }} />
+                            </div>
+                            <div style={{ fontSize: 9, color: TEXT.tertiary }}>{ratio}%</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ fontSize: 11, color: TEXT.secondary, marginTop: 5, lineHeight: 1.5 }}>
+                      业绩 {r.earningsHidden ? '—' : yuan(r.todayRevenue)} · 接单 {r.todayOrders || 0}
+                      {' · '}<span style={{ color: SEMANTIC.success }}>成功 {r.successCount || 0}</span>
+                      {' · '}<span style={{ color: r.failCount ? SEMANTIC.dangerDeep : TEXT.tertiary }}>失败 {r.failCount || 0}</span>
+                      {' · '}今日KPI 成单率 {pct(r.successRate)}
+                      {r.supplementCount ? <> · <Tag color="orange" style={{ fontSize: 10, marginInlineEnd: 0 }}>补单 {r.supplementCount}</Tag></> : null}
+                    </div>
                     {r.serving ? (
-                      <div style={{ fontSize: 12, color: '#334155', marginTop: 4, lineHeight: 1.5 }}>
-                        {servingType}<br />
-                        {r.serving.gameName || '游戏'} · {hm(r.serving.elapsedSec)}
+                      <div style={{ fontSize: 12, color: '#334155', marginTop: 3, lineHeight: 1.5 }}>
+                        {servingType} · {r.serving.gameName || '游戏'} · {hm(r.serving.elapsedSec)}
                       </div>
-                    ) : (
-                      <div style={{ fontSize: 12, color: TEXT.secondary, marginTop: 4, lineHeight: 1.5 }}>
-                        今日 {r.todayOrders || 0} 单 · {r.earningsHidden ? '—' : yuan(r.todayRevenue)}<br />
-                        工时 {r.todayMinutes || 0} 分钟
+                    ) : null}
+                    {r.failureReasons?.length ? (
+                      <div style={{ fontSize: 10, color: SEMANTIC.dangerDeep, marginTop: 3, lineHeight: 1.4 }}>
+                        失败原因：{r.failureReasons.map((x: any) => `${x.reason}×${x.count}`).join('；')}
                       </div>
-                    )}
+                    ) : null}
+                    {kpi ? (
+                      <div style={{ fontSize: 10, color: TEXT.tertiary, marginTop: 3 }}>
+                        30天 KPI：综合 {Math.round(kpi.score)} 分 · 首单 {pct(kpi.newRate)} · 续单 {pct(kpi.renewRate)} · 复购 {pct(kpi.repurchaseRate)}
+                      </div>
+                    ) : null}
                     {r.isBridged ? <div style={{ fontSize: 11, color: TEXT.tertiary, marginTop: 2 }}>桥接 · {r.studioName}</div> : null}
                   </div>
                 </Col>

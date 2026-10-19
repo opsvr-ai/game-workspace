@@ -379,23 +379,59 @@ export class CompanionsService {
     // 搭档拿 coAmount）——不在这里另起一套算法，否则看板跟报账/结算对不上。
     const { start: dayStart, end: dayEnd } = currentBusinessDayRange();
     const dayNow = new Date();
+    // 今天所有单（不只 DONE）：除了业绩，还要算成功 / 不成功 / 补单。
     const todayOrders = await this.prisma.order.findMany({
       where: {
-        status: 'DONE',
         createdAt: { gte: dayStart, lt: dayEnd },
         OR: [{ companionId: { in: ids } }, { coCompanionId: { in: ids } }],
       },
-      select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
+      select: {
+        id: true, companionId: true, coCompanionId: true, status: true,
+        outcome: true, outcomeReason: true, outcomeNote: true, refundReason: true,
+        amount: true, coAmount: true, customFields: true,
+      },
     });
+    const todayOrderIds = todayOrders.map((o) => o.id);
+    const todaySupplements = todayOrderIds.length
+      ? await this.prisma.supplementRequest.findMany({
+          where: { orderId: { in: todayOrderIds } },
+          select: { orderId: true, companionId: true, reason: true, type: true, status: true },
+        })
+      : [];
+    const supplementByOrder = new Map(todaySupplements.map((s) => [s.orderId, s]));
+    const attendance = await this.prisma.companionAttendance.findMany({
+      where: { companionId: { in: ids }, loginAt: { gte: dayStart, lt: dayEnd } },
+      select: { companionId: true, loginAt: true, logoutAt: true, workMinutes: true },
+    });
+    const attendanceByCompanion = new Map(attendance.map((a) => [a.companionId, a]));
+
     const todayRevMap = new Map<string, number>();
     const todayCountMap = new Map<string, number>();
+    const successMap = new Map<string, number>();
+    const failMap = new Map<string, number>();
+    const failReasonMap = new Map<string, Map<string, number>>();
+    const supplementMap = new Map<string, number>();
+    const orderCountMap = new Map<string, number>();
     for (const o of todayOrders) {
       const involved = Array.from(new Set([o.companionId, o.coCompanionId].filter(Boolean) as string[]));
       for (const cid of involved) {
+        orderCountMap.set(cid, (orderCountMap.get(cid) || 0) + 1);
         const rev = companionOrderRevenue(o as any, cid);
-        if (!rev) continue;
-        todayRevMap.set(cid, (todayRevMap.get(cid) || 0) + rev);
-        todayCountMap.set(cid, (todayCountMap.get(cid) || 0) + 1);
+        if (rev) {
+          todayRevMap.set(cid, (todayRevMap.get(cid) || 0) + rev);
+          todayCountMap.set(cid, (todayCountMap.get(cid) || 0) + 1);
+        }
+        const failed = o.outcome === 'FAILED' || (!o.outcome && o.status === 'CANCELLED');
+        const succeeded = o.outcome === 'SUCCESS' || (!o.outcome && o.status === 'DONE');
+        if (succeeded) successMap.set(cid, (successMap.get(cid) || 0) + 1);
+        if (failed) {
+          failMap.set(cid, (failMap.get(cid) || 0) + 1);
+          const reason = (o.outcomeReason || o.outcomeNote || o.refundReason || '未填写原因').trim().slice(0, 120);
+          const m = failReasonMap.get(cid) || new Map<string, number>();
+          m.set(reason, (m.get(reason) || 0) + 1);
+          failReasonMap.set(cid, m);
+        }
+        if (supplementByOrder.has(o.id)) supplementMap.set(cid, (supplementMap.get(cid) || 0) + 1);
       }
     }
     // 今日接单时长：与首页仪表盘同源（CompanionTimeLog mode=BUSY），跨营业日只算落在今天那段。
@@ -403,21 +439,38 @@ export class CompanionsService {
     for (const [boostCid, boost] of manualTodayBoosts(companions, dayNow)) {
       todayRevMap.set(boostCid, (todayRevMap.get(boostCid) || 0) + boost);
     }
-    const busyLogs = await this.prisma.companionTimeLog.findMany({
+    const timeLogs = await this.prisma.companionTimeLog.findMany({
       where: {
         companionId: { in: ids },
-        mode: 'BUSY',
         startedAt: { lt: dayEnd },
         OR: [{ endedAt: null }, { endedAt: { gte: dayStart } }],
       },
-      select: { companionId: true, startedAt: true, endedAt: true },
+      select: { companionId: true, mode: true, startedAt: true, endedAt: true },
     });
+    const modeSecMap = new Map<string, Record<string, number>>();
+    const firstActiveMap = new Map<string, Date>();
+    const lastOfflineMap = new Map<string, Date>();
     const todayWorkSecMap = new Map<string, number>();
-    for (const l of busyLogs) {
+    for (const l of timeLogs) {
       const from = Math.max(l.startedAt.getTime(), dayStart.getTime());
       const to = Math.min((l.endedAt || dayNow).getTime(), dayEnd.getTime());
-      const sec = Math.round((to - from) / 1000);
-      if (sec > 0) todayWorkSecMap.set(l.companionId, (todayWorkSecMap.get(l.companionId) || 0) + sec);
+      const sec = Math.max(0, Math.round((to - from) / 1000));
+      if (!sec && l.mode !== 'OFFLINE') continue;
+      const mode = l.mode || 'BUSY';
+      if (mode !== 'OFFLINE') {
+        const activeFrom = new Date(from);
+        const prev = firstActiveMap.get(l.companionId);
+        if (!prev || activeFrom < prev) firstActiveMap.set(l.companionId, activeFrom);
+      } else {
+        const offlineFrom = new Date(from);
+        const prev = lastOfflineMap.get(l.companionId);
+        if (!prev || offlineFrom > prev) lastOfflineMap.set(l.companionId, offlineFrom);
+      }
+      if (!sec) continue;
+      const modes = modeSecMap.get(l.companionId) || {};
+      modes[mode] = (modes[mode] || 0) + sec;
+      modeSecMap.set(l.companionId, modes);
+      if (mode === 'BUSY') todayWorkSecMap.set(l.companionId, (todayWorkSecMap.get(l.companionId) || 0) + sec);
     }
 
     // 一个人同一时刻只可能有一段会话；同一个会话给主陪和副陪各生成一份视角。
@@ -471,6 +524,25 @@ export class CompanionsService {
         elapsedSec = Math.max(0, elapsedSec);
       }
       const partnerId = s ? (s.roleInSession === 'MAIN' ? s.coCompanionId : s.mainCompanionId) : null;
+      const att = attendanceByCompanion.get(c.id) || null;
+      const loginAt = att?.loginAt || firstActiveMap.get(c.id) || null;
+      const logoutAt = att?.logoutAt || (c.status === 'OFFLINE' ? lastOfflineMap.get(c.id) || null : null);
+      const modes = modeSecMap.get(c.id) || {};
+      const activeTotal = ['BUSY', 'ENTERTAINMENT', 'AVAILABLE', 'RESTING']
+        .reduce((sum, mode) => sum + (modes[mode] || 0), 0);
+      // 以「今天各状态日志相加」作为在线时长：既排除 OFFLINE 空档，也能让四个占比加起来是 100%。
+      // 没有状态日志时才退回考勤的上下班区间。
+      const attendanceSec = att?.loginAt
+        ? Math.max(0, Math.round((((att.logoutAt || dayNow).getTime()) - att.loginAt.getTime()) / 1000))
+        : 0;
+      const onlineSec = activeTotal > 0 ? activeTotal : attendanceSec;
+      const successCount = successMap.get(c.id) || 0;
+      const failCount = failMap.get(c.id) || 0;
+      const rated = successCount + failCount;
+      const failureReasons = [...(failReasonMap.get(c.id)?.entries() || [])]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([reason, count]) => ({ reason, count }));
       return {
         companionId: c.id,
         name: c.user?.displayName || c.user?.username || '',
@@ -483,9 +555,24 @@ export class CompanionsService {
         // 桥接工作室的人：只标注在不在忙、在打什么，不给业绩。
         isBridged: !isOwnStudio,
         earningsHidden,
+        loginAt,
+        logoutAt,
+        onlineSec,
+        modeSeconds: {
+          BUSY: modes.BUSY || 0,
+          ENTERTAINMENT: modes.ENTERTAINMENT || 0,
+          AVAILABLE: modes.AVAILABLE || 0,
+          RESTING: modes.RESTING || 0,
+        },
         todayRevenue: earningsHidden ? null : roundToJiao(todayRevMap.get(c.id) || 0),
-        todayOrders: todayCountMap.get(c.id) || 0,
+        todayOrders: orderCountMap.get(c.id) || 0,
+        doneOrders: todayCountMap.get(c.id) || 0,
         todayMinutes: Math.round((todayWorkSecMap.get(c.id) || 0) / 60),
+        successCount,
+        failCount,
+        successRate: rated ? Math.round((successCount / rated) * 100) : 0,
+        failureReasons,
+        supplementCount: supplementMap.get(c.id) || 0,
         serving: s
           ? {
               sessionId: s.sessionId,
