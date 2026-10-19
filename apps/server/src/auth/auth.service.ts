@@ -117,6 +117,9 @@ export class AuthService {
       pendingReviewCount,
     };
 
+    // 记录软件登录时间：只记最近一次登录，用于看板区分「开机 / 登录软件 / 上线」。
+    await this.recordCompanionLogin(user);
+
     return {
       accessToken,
       refreshToken,
@@ -370,6 +373,33 @@ export class AuthService {
     );
 
     return { secondToken };
+  }
+
+  /**
+   * 陪玩端登录成功时记录「最近一次软件登录时间」。
+   *
+   * 以前 `CompanionTimeLog` 只能算出第一次状态上报（上线），无法区分电脑开机和软件登录。
+   * 这里写到 SystemConfig（不需要改表结构），key = companion.lastLogin.<companionId>。
+   * 只保留最近一次，不写登录历史；看板读取后显示「软件登录 HH:mm」。
+   */
+  private async recordCompanionLogin(user: any): Promise<void> {
+    const companionId = user?.companion?.id;
+    if (!companionId || user.role !== UserRole.COMPANION) return;
+    const key = `companion.lastLogin.${companionId}`;
+    const value = {
+      at: new Date().toISOString(),
+      userId: user.id,
+      username: user.username,
+    };
+    try {
+      await this.prisma.systemConfig.upsert({
+        where: { key },
+        create: { key, value },
+        update: { value },
+      });
+    } catch {
+      // 登录成功不受登录时间记录影响
+    }
   }
 }
 

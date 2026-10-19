@@ -368,6 +368,18 @@ export class CompanionsService implements OnModuleInit {
     const ids = companions.map((c) => c.id);
     if (ids.length === 0) return { rows: [], updatedAt: new Date().toISOString() };
 
+    // 软件登录时间（AuthService 登录成功时写入 SystemConfig；没有登录过的显示 —）。
+    const lastLoginRows = await this.prisma.systemConfig.findMany({
+      where: { key: { in: ids.map((id) => `companion.lastLogin.${id}`) } },
+      select: { key: true, value: true },
+    });
+    const lastLoginMap = new Map<string, string>();
+    for (const row of lastLoginRows) {
+      const cid = String(row.key).replace('companion.lastLogin.', '');
+      const at = (row.value as any)?.at;
+      if (at) lastLoginMap.set(cid, String(at));
+    }
+
     const sessions = await this.prisma.orderSession.findMany({
       where: {
         status: 'ACTIVE',
@@ -584,6 +596,7 @@ export class CompanionsService implements OnModuleInit {
         earningsHidden,
         loginAt,
         logoutAt,
+        lastLoginAt: lastLoginMap.get(c.id) || null,
         onlineSec,
         statusLogMissing,
         modeSeconds: {
