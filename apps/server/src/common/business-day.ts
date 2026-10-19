@@ -42,6 +42,23 @@ export function businessDayRange(day: string): { start: Date; end: Date } {
   return { start, end };
 }
 
+/**
+ * 北京时间营业日范围：服务器在 UTC 时不能直接用 businessDayRange（会差 8 小时），
+ * 统计 / 看板这类要和国内浏览器对齐的地方一律用这个。
+ */
+export function businessDayRangeCn(day: string): { start: Date; end: Date } {
+  const [year, mon, d] = day.split('-').map(Number);
+  const start = new Date(Date.UTC(year, mon - 1, d, BUSINESS_DAY_BOUNDARY_HOUR - 8, 0, 0, 0));
+  const end = new Date(start.getTime() + 86_400_000);
+  return { start, end };
+}
+
+/** 当前营业日范围（北京时间版）。 */
+export function currentBusinessDayRangeCn(now: Date = new Date()): { start: Date; end: Date } {
+  const start = currentBusinessDayStartCn(now);
+  return { start, end: new Date(start.getTime() + 86_400_000) };
+}
+
 /** 当前营业日范围：当日 12:00（含）至次日 12:00（不含） */
 export function currentBusinessDayRange(now: Date = new Date()): { start: Date; end: Date } {
   const day = businessDayOf(now);

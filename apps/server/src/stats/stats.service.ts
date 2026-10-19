@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { isRenewalSegment } from '../common/price-rules';
 import { ratePercent } from '../common/customer-rates';
-import { currentBusinessDayRange, businessDayRange, businessDayKey } from '../common/business-day';
+import { currentBusinessDayRangeCn, businessDayRange, businessDayRangeCn, businessDayKey } from '../common/business-day';
 import { actorOfStudio, actorOfUser, scopeWhere, visibleStudioIds } from '../common/scope';
 
 export interface DailyStatsItem {
@@ -280,14 +280,14 @@ export class StatsService {
     let endOfDay: Date;
 
     if (filters.dateFrom && filters.dateTo) {
-      startOfDay = businessDayRange(filters.dateFrom).start;
-      endOfDay = businessDayRange(filters.dateTo).end;
+      startOfDay = businessDayRangeCn(filters.dateFrom).start;
+      endOfDay = businessDayRangeCn(filters.dateTo).end;
     } else if (filters.date) {
-      const range = businessDayRange(filters.date);
+      const range = businessDayRangeCn(filters.date);
       startOfDay = range.start;
       endOfDay = range.end;
     } else {
-      const range = currentBusinessDayRange();
+      const range = currentBusinessDayRangeCn();
       startOfDay = range.start;
       endOfDay = range.end;
     }

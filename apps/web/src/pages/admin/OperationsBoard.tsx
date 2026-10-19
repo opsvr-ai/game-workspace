@@ -14,6 +14,7 @@ import StatCard from '../../components/StatCard';
 import { tierMeta } from '../../constants/tiers';
 import DailyKpiPanel from '../../components/DailyKpiPanel';
 import UnifiedDashboard from './UnifiedDashboard';
+import { businessDayKeyOf } from '../../utils/businessDay';
 
 const { Text } = Typography;
 
@@ -104,7 +105,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const [attendance, setAttendance] = useState<any>(null);
 
   const load = useCallback(async () => {
-    const today = dayjs().format('YYYY-MM-DD');
+    const today = businessDayKeyOf();
     const [d, o, t, l, p, c, s, att] = await Promise.all([
       safeGet('/dashboard'),
       safeGet('/dashboard/revenue-overview'),
