@@ -225,7 +225,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'admin-home', icon: IconDashboard, label: '工作台',
       children: [
         { key: '/admin', label: '本店运营看板' },
-        { key: '/admin/revenue', label: '本店营收' },
         { key: '/todos', label: '待处理' },
       ],
     },

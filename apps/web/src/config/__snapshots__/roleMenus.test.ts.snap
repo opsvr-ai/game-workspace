@@ -5,7 +5,6 @@ exports[`左侧导航菜单（roleMenus） > 整棵菜单树快照（重构 AppL
   "ADMIN": [
     "▸ admin-home | 工作台",
     "· /admin | 本店运营看板",
-    "· /admin/revenue | 本店营收",
     "· /todos | 待处理",
     "▸ admin-orders | 订单管理",
     "· /admin/dispatch | 派单工作台",

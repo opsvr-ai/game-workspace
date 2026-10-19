@@ -34,7 +34,7 @@ const CsvExport: React.FC<{ dailyRevenue: any[] }> = ({ dailyRevenue }) => {
   return <Button icon={IconDownload} onClick={exportCsv} size="small">导出CSV</Button>;
 };
 
-const RevenueDashboard: React.FC = () => {
+const RevenueDashboard: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [data, setData] = useState<any>(null);
   const [dailyRevenue, setDailyRevenue] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,14 +108,16 @@ const RevenueDashboard: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="营收报表"
-        subtitle="昨日 / 全月业绩、在线陪玩、订单结构与陪玩收入排行"
-        extra={<Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>刷新</Button>}
-      />
+      {!embedded && (
+        <PageHeader
+          title="营收报表"
+          subtitle="昨日 / 全月业绩、在线陪玩、订单结构与陪玩收入排行"
+          extra={<Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>刷新</Button>}
+        />
+      )}
       {error && <ErrorBanner message={error} onRetry={fetchData} />}
       {/* 到点该跟进的客户（客服在跟进台账里记的下次跟进时间）：没有就什么都不显示 */}
-      <DueFollowUpBanner />
+      {!embedded && <DueFollowUpBanner />}
 
       {/* KPI Cards */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
@@ -282,8 +284,8 @@ const KpiCard: React.FC<{ label: string; value: React.ReactNode; tint: string }>
 
 const yuan = (v: unknown) => `¥${Number(v || 0).toFixed(1)}`;
 
-const UnifiedDashboard: React.FC = () => {
-  return <RevenueDashboard />;
+const UnifiedDashboard: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
+  return <RevenueDashboard embedded={embedded} />;
 };
 
 export default UnifiedDashboard;

@@ -13,6 +13,7 @@ import PageHeader from '../../components/PageHeader';
 import StatCard from '../../components/StatCard';
 import { tierMeta } from '../../constants/tiers';
 import DailyKpiPanel from '../../components/DailyKpiPanel';
+import UnifiedDashboard from './UnifiedDashboard';
 
 const { Text } = Typography;
 
@@ -345,6 +346,8 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           </Card>
         </Col>
       </Row>
+      {/* 本店营收已并入经营总览（老板 2026-10-19）：不再单开侧栏「本店营收」页 */}
+      {!compact && <div style={{ marginTop: 14 }}><UnifiedDashboard embedded /></div>}
         </>
       )}
 
