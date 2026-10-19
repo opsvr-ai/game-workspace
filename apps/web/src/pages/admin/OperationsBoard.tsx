@@ -252,9 +252,6 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   );
   attRows.sort((a, b) => (ATT_RANK[a.status] ?? 9) - (ATT_RANK[b.status] ?? 9) || String(a.name).localeCompare(String(b.name)));
 
-  const custTop = [...(cust?.rows || [])]
-    .sort((a: any, b: any) => (Number(b.spent) || 0) - (Number(a.spent) || 0))
-    .slice(0, 8);
 
   return (
     <div>
@@ -659,14 +656,6 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
             {worstByNew.length ? worstByNew.map((r) => (
               <RankBar key={r.id} name={r.name} value={r.newRate} max={100} text={`${pct(r.newRate)} · ${r.orders}单`} color={r.newRate < 50 ? SEMANTIC.dangerDeep : '#faad14'} />
             )) : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
-          </Card>
-          <Card size="small" title="客户消费 Top（含今日在打）">
-            {custTop.length ? custTop.map((r: any, i: number) => (
-              <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', color: TEXT.heading }}>
-                <span>{r.customerCode || r.wechatId || '客户'}{r.live ? <Tag color={BRAND.primary} style={{ marginLeft: 6, fontSize: 10 }}>在打</Tag> : null}</span>
-                <span style={{ fontWeight: 600 }}>{yuan(r.spent)}</span>
-              </div>
-            )) : <Empty description="暂无客户数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
           </Card>
         </Col>
       </Row>
