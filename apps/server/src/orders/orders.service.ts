@@ -93,8 +93,15 @@ export class OrdersService implements OnModuleInit {
     return this.orderQuery.dispatchSummary(user);
   }
 
-  async findAll(user: any, status?: string, scope?: string, page?: number, pageSize?: number): Promise<any> {
-    return this.orderQuery.findAll(user, status, scope, page, pageSize);
+  async findAll(
+    user: any,
+    status?: string,
+    scope?: string,
+    page?: number,
+    pageSize?: number,
+    filters?: any,
+  ): Promise<any> {
+    return this.orderQuery.findAll(user, status, scope, page, pageSize, filters);
   }
 
   async grab(orderId: string, companionId: string) {

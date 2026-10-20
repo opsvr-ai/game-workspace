@@ -174,6 +174,7 @@ const OrdersPage: React.FC = () => {
   });
   // 客户 / 游戏 / 派单人… 一个框全搜（原来只搜游戏名，2026-09-27 从派单记录并过来）
   const [orderSearch, setOrderSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [companionFilter, setCompanionFilter] = useState<string>('');
   // 来源账号旁边标「已弃用」：和订单池的行共用同一份缓存（老板 2026-09-27 派单记录并过来）
   const [inactiveAccounts, setInactiveAccounts] = useState<Set<string>>(new Set());
@@ -460,42 +461,41 @@ const OrdersPage: React.FC = () => {
     }
   }, [user?.id]);
 
-  const clientFiltersActive = useMemo(
-    () =>
-      Boolean(
-        orderSearch ||
-          dateFilter ||
-          companionFilter ||
-          csFilter ||
-          Object.values(tagFilters).some(Boolean),
-      ),
-    [orderSearch, dateFilter, companionFilter, csFilter, tagFilters],
-  );
-
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {};
+      const params: any = {
+        page: orderPage,
+        pageSize: 50,
+      };
       if (statusFilter) params.status = statusFilter;
       if (isCs) params.scope = csScope;
       if (isCompanion) params.scope = companionScope;
-      // 默认只拉当前页；只有用到搜索 / 高级筛选时才拉全量（这些筛选目前还在前端做）。
-      // 老板 2026-10-21：「只渲染当前页面，其他页面别一次加载」。
-      if (!clientFiltersActive) {
-        params.page = orderPage;
-        params.pageSize = 50;
+      // 搜索 / 全部筛选都走服务端，每次只回当前页
+      if (debouncedSearch) params.q = debouncedSearch;
+      for (const [key, value] of Object.entries(tagFilters)) {
+        if (value) params[key] = value;
       }
+      if (dateFilter) params.date = dateFilter.format('YYYY-MM-DD');
+      if (companionFilter) params.companionId = companionFilter;
+      if (csFilter) params.csUserId = csFilter;
+
       const { data } = await http.get('/orders', { params });
       const payload = data.data;
       const list = Array.isArray(payload) ? payload : payload?.items ?? [];
       setOrders(list);
-      if (!clientFiltersActive) {
-        setOrderTotal(Number(payload?.total ?? list.length));
-      }
+      setOrderTotal(Number(payload?.total ?? list.length));
       // 只有默认列表（没有状态筛选、且不是陪玩/客服的其它页签）才缓存；
       // 否则下次打开会先看到上一次筛选后的子集。
       const defaultScope = (!isCompanion || companionScope === 'taken') && (!isCs || csScope === 'mine');
-      if (!statusFilter && !clientFiltersActive && defaultScope) writeOrdersCache(user?.id, list);
+      const hasFilter =
+        !!statusFilter ||
+        !!debouncedSearch ||
+        !!dateFilter ||
+        !!companionFilter ||
+        !!csFilter ||
+        Object.values(tagFilters).some(Boolean);
+      if (!hasFilter && defaultScope) writeOrdersCache(user?.id, list);
       // 「今日抢单 · 补单 N · 合计」里那个补单数：读管理端补单记录里真实的数字（老板 2026-10-08）
       if (!isCompanion) {
         void ordersApi
@@ -516,9 +516,19 @@ const OrdersPage: React.FC = () => {
     isCompanion,
     companionScope,
     user?.id,
-    clientFiltersActive,
     orderPage,
+    debouncedSearch,
+    tagFilters,
+    dateFilter,
+    companionFilter,
+    csFilter,
   ]);
+
+  // 输入停 300ms 再打接口，避免每敲一个字都查一次数据库。
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(orderSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [orderSearch]);
 
   useEffect(() => {
     fetch();
@@ -527,7 +537,7 @@ const OrdersPage: React.FC = () => {
   // 换筛选条件 / 换页签时回到第 1 页，避免停在一个已经不存在的高页码上。
   useEffect(() => {
     setOrderPage(1);
-  }, [statusFilter, csScope, companionScope, clientFiltersActive]);
+  }, [statusFilter, csScope, companionScope, debouncedSearch, tagFilters, dateFilter, companionFilter, csFilter]);
 
   // 别处提交了补单申请（陪玩点「添加失败」）或批了补单，服务端推 socket、AppLayout 转成这个自定义事件：
   // 立刻重拉一遍 —— 「补单」那颗按钮上的红点（待补单）和「已补」状态不能等到下次手动刷新才变
@@ -1480,23 +1490,14 @@ const OrdersPage: React.FC = () => {
                 columns={columns as any}
                 dataSource={sorted}
                 size="small"
-                pagination={
-                  clientFiltersActive
-                    ? {
-                        pageSize: 50,
-                        showSizeChanger: true,
-                        pageSizeOptions: ['20', '50', '100', '200'],
-                        showTotal: (total) => `共 ${total} 单`,
-                      }
-                    : {
-                        current: orderPage,
-                        total: orderTotal,
-                        pageSize: 50,
-                        showSizeChanger: false,
-                        showTotal: (total) => `共 ${total} 单`,
-                        onChange: (p) => setOrderPage(p),
-                      }
-                }
+                pagination={{
+                  current: orderPage,
+                  total: orderTotal,
+                  pageSize: 50,
+                  showSizeChanger: false,
+                  showTotal: (total) => `共 ${total} 单`,
+                  onChange: (p) => setOrderPage(p),
+                }}
                 style={TABLE_STYLE}
                 scroll={{
                   // 管理端用算出来的 scroll.x：窗口窄时是 1216px（横向滚动照旧），

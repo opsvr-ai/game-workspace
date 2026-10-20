@@ -380,10 +380,141 @@ export class OrderQueryService {
    * 派单工作台只用它数两个数字，2026-10-17 起改走 `dispatchSummary`，不再拉整份列表；
    * 订单管理页确实要看全部，暂时仍走这里。
    */
-  async findAll(user: any, status?: string, scope?: string, page?: number, pageSize?: number): Promise<any> {
+  /**
+   * 订单管理的服务端筛选：把前端那十几个筛选条件翻成 Prisma where。
+   * 目的：搜索 / 筛选也只查当前页，不再把 3MB 全量拉到浏览器。
+   */
+  private async buildOrderFilterWhere(filters: any): Promise<any | null> {
+    const f = filters || {};
+    const and: any[] = [];
+    if (f.type) and.push({ type: f.type });
+    if (f.dispatchType) and.push({ dispatchType: f.dispatchType });
+    if (f.serviceType) and.push({ serviceType: f.serviceType });
+    if (f.contactStatus) {
+      and.push(f.contactStatus === 'NONE' ? { contactStatus: null } : { contactStatus: f.contactStatus });
+    }
+    if (f.outcome) {
+      and.push(f.outcome === 'NONE' ? { outcome: null } : { outcome: f.outcome });
+    }
+    if (f.deltaMission) {
+      and.push({ customFields: { path: ['deltaMission'], equals: f.deltaMission } });
+    }
+    if (f.deltaCount === '双') {
+      and.push({ customFields: { path: ['deltaCount'], equals: '双' } });
+    } else if (f.deltaCount === '单') {
+      and.push({ NOT: { customFields: { path: ['deltaCount'], equals: '双' } } });
+    }
+    if (f.urgency === 'later') {
+      and.push({ customFields: { path: ['urgency'], equals: 'later' } });
+    } else if (f.urgency === 'now') {
+      and.push({ NOT: { customFields: { path: ['urgency'], equals: 'later' } } });
+    }
+    if (f.customerSource) {
+      and.push({ customFields: { path: ['customerSource'], equals: f.customerSource } });
+    }
+    if (f.transfer === 'YES') and.push({ transfers: { some: {} } });
+    if (f.transfer === 'NO') and.push({ transfers: { none: {} } });
+    if (f.stuck === 'YES') {
+      and.push({
+        status: 'PENDING',
+        companionId: null,
+        contactStatus: null,
+        customFields: { path: ['poolExpired'], equals: true },
+        NOT: { customFields: { path: ['directAdd'], equals: true } },
+      });
+    } else if (f.stuck === 'NO') {
+      and.push({
+        NOT: {
+          status: 'PENDING',
+          companionId: null,
+          contactStatus: null,
+          customFields: { path: ['poolExpired'], equals: true },
+          NOT: { customFields: { path: ['directAdd'], equals: true } },
+        },
+      });
+    }
+    if (f.companionId) {
+      and.push({ OR: [{ companionId: f.companionId }, { coCompanionId: f.companionId }] });
+    }
+    if (f.csUserId) and.push({ csUserId: f.csUserId });
+    if (f.supplement) {
+      const reqs = await this.prisma.supplementRequest.findMany({
+        where: f.supplement === 'ANY' ? {} : { status: f.supplement },
+        select: { orderId: true },
+      });
+      and.push({ id: { in: reqs.map((r) => r.orderId) } });
+    }
+    if (f.date) {
+      const start = new Date(`${f.date}T00:00:00+08:00`);
+      if (!Number.isNaN(start.getTime())) {
+        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+        and.push({
+          OR: [
+            { grabbedAt: { gte: start, lt: end } },
+            { AND: [{ grabbedAt: null }, { createdAt: { gte: start, lt: end } }] },
+          ],
+        });
+      }
+    }
+    const q = String(f.q || '').trim();
+    if (q) {
+      const customSearchFields = [
+        'customerWechat',
+        'customerNickname',
+        'customerAccountId',
+        'customerSource',
+        'customerSourceAccount',
+        'customerRoomCode',
+        'customerYy',
+        'customerPlatformAccount',
+        'deltaNote',
+        'csContactFailReason',
+      ];
+      and.push({
+        OR: [
+          { orderCode: { contains: q, mode: 'insensitive' } },
+          { gameName: { contains: q, mode: 'insensitive' } },
+          { notes: { contains: q, mode: 'insensitive' } },
+          { refundReason: { contains: q, mode: 'insensitive' } },
+          { outcomeReason: { contains: q, mode: 'insensitive' } },
+          {
+            customer: {
+              is: {
+                OR: [
+                  { wechatId: { contains: q, mode: 'insensitive' } },
+                  { customerCode: { contains: q, mode: 'insensitive' } },
+                  { platform: { contains: q, mode: 'insensitive' } },
+                  { platformAccount: { contains: q, mode: 'insensitive' } },
+                ],
+              },
+            },
+          },
+          ...customSearchFields.map((field) => ({
+            customFields: { path: [field], string_contains: q },
+          })),
+        ],
+      });
+    }
+    if (!and.length) return null;
+    return and.length === 1 ? and[0] : { AND: and };
+  }
+
+  async findAll(
+    user: any,
+    status?: string,
+    scope?: string,
+    page?: number,
+    pageSize?: number,
+    filters?: any,
+  ): Promise<any> {
     const visibility = await this.buildOrderVisibilityWhere(user, { status, scope });
     if (!visibility) return [];
-    const { where, pendingIncoming } = visibility;
+    const { where: baseWhere, pendingIncoming } = visibility;
+    const where: any = baseWhere;
+    const filterWhere = await this.buildOrderFilterWhere(filters);
+    if (filterWhere) {
+      where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), filterWhere];
+    }
     const pageNum = page ? Math.max(1, Math.floor(Number(page))) : 0;
     const size = Math.min(200, Math.max(1, Math.floor(Number(pageSize) || 50)));
     const paginated = pageNum > 0;
