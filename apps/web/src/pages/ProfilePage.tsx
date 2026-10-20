@@ -5,6 +5,7 @@ import { UserOutlined, LockOutlined, CameraOutlined } from '@ant-design/icons';
 import { authApi } from '../api/client';
 import PasteImageBox from '../components/PasteImageBox';
 import CompanionGameProfileCard from '../components/CompanionGameProfileCard';
+import OrderNotifySettingsPanel from '../components/OrderNotifySettingsPanel';
 import { compressImage } from '../utils/imageCompress';
 import { BRAND, TEXT } from '../styles/tokens';
 import PageHeader from '../components/PageHeader';
@@ -236,6 +237,16 @@ const ProfilePage: React.FC = () => {
 
       {/* 陪玩专属：游戏资料（原 /profile-setup 页并进来，能力不丢） */}
       <CompanionGameProfileCard />
+
+      {/* 陪玩专属：接单中弹窗开关（老板 2026-10-21：放到个人设置里，接单模式可以自己关） */}
+      {user?.role === 'COMPANION' && (
+        <Card size="small" title="订单弹窗" style={{ marginTop: 12 }}>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 10 }}>
+            空闲 / 休息 / 娱乐中一律弹窗，不能关闭；只有「接单中」可以在这里关掉。
+          </Text>
+          <OrderNotifySettingsPanel />
+        </Card>
+      )}
 
       {/* 版本信息 */}
       <Card size="small" title="版本信息" style={{ marginTop: 12 }}>

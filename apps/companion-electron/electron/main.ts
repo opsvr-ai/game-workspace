@@ -1270,7 +1270,8 @@ function estimatePopupHeight(payload: {
   if (payload?.body) h += 2 + Math.min(2, lines(String(payload.body), 28)) * 18;
   if (payload?.note) h += 4 + Math.min(2, lines(String(payload.note), 28)) * 20;
   if (payload?.hint) h += 3 + Math.min(2, lines(String(payload.hint), 35)) * 15;
-  return Math.max(80, Math.min(220, h));
+  // 老板 2026-10-21：「弹窗再稍微高一点点，有的人眼瞎看不到」——统一多给 14px，上限也放宽。
+  return Math.max(96, Math.min(240, h + 14));
 }
 
 type BannerPayload = {
