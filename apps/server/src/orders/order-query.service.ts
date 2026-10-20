@@ -380,13 +380,19 @@ export class OrderQueryService {
    * 派单工作台只用它数两个数字，2026-10-17 起改走 `dispatchSummary`，不再拉整份列表；
    * 订单管理页确实要看全部，暂时仍走这里。
    */
-  async findAll(user: any, status?: string, scope?: string) {
+  async findAll(user: any, status?: string, scope?: string, page?: number, pageSize?: number): Promise<any> {
     const visibility = await this.buildOrderVisibilityWhere(user, { status, scope });
     if (!visibility) return [];
     const { where, pendingIncoming } = visibility;
-    const orders = await this.prisma.order.findMany({
-      where,
-      include: {
+    const pageNum = page ? Math.max(1, Math.floor(Number(page))) : 0;
+    const size = Math.min(200, Math.max(1, Math.floor(Number(pageSize) || 50)));
+    const paginated = pageNum > 0;
+    const [total, orders] = await Promise.all([
+      paginated ? this.prisma.order.count({ where }) : Promise.resolve(0),
+      this.prisma.order.findMany({
+        where,
+        ...(paginated ? { skip: (pageNum - 1) * size, take: size } : {}),
+        include: {
         customer: true,
         csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
         claimedCsUser: { select: { id: true, username: true, avatar: true, displayName: true } },
@@ -424,7 +430,8 @@ export class OrderQueryService {
         },
       },
       orderBy: { createdAt: 'desc' },
-    });
+    }),
+    ]);
     // 逐行挂上「别人要转给我、等我点接手」的申请（老板 2026-10-03），并丢掉已经不成立的：
     // 单已经不在对方名下、状态不再是已抢单/已确认、申请已过期 —— 这些一律不下发，
     // 免得陪玩在列表里看到一个点了会报错的「接手」。
@@ -533,14 +540,18 @@ export class OrderQueryService {
         user,
       );
     });
-    if (user.role === 'COMPANION' && scope === 'served') {
-      // 「我服务的单」里主陪不是我的，一律按副陪视角遮客户微信：这一栏是我跟着别人打的单，
-      // 客户资源是主陪的（老板 2026-10-03：「这个订单可以隐藏掉客户的微信信息，保护王昊的权益」）。
-      return rows.map((o: any) =>
-        o.companionId === user.companionId ? o : maskPartnerContactView(o),
-      );
+    const finalRows =
+      user.role === 'COMPANION' && scope === 'served'
+        ? // 「我服务的单」里主陪不是我的，一律按副陪视角遮客户微信：这一栏是我跟着别人打的单，
+          // 客户资源是主陪的（老板 2026-10-03：「这个订单可以隐藏掉客户的微信信息，保护王昊的权益」）。
+          rows.map((o: any) =>
+            o.companionId === user.companionId ? o : maskPartnerContactView(o),
+          )
+        : rows;
+    if (paginated) {
+      return { items: finalRows, total, page: pageNum, pageSize: size };
     }
-    return rows;
+    return finalRows;
   }
 
   /** 陪玩待开始的订单：已抢单/已确认，但还没有真正开始计时的会话。 */

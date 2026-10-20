@@ -220,8 +220,16 @@ export class OrdersController {
     @Req() req: any,
     @Query('status') status?: string,
     @Query('scope') scope?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.findAll(req.user, status, scope);
+    const data = await this.ordersService.findAll(
+      req.user,
+      status,
+      scope,
+      page ? Number(page) : undefined,
+      pageSize ? Number(pageSize) : undefined,
+    );
     return { code: 200, message: 'ok', data };
   }
 
