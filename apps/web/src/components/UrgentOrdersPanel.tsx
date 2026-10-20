@@ -73,8 +73,8 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
     });
     message.success(
       alreadyCultivated
-        ? '已回到「管理端直添客户流转明细」（保持已添加）'
-        : '已标记添加，稍后在「管理端直添客户流转明细」确认成功/失败',
+        ? '已回到「私域客户」（保持已添加）'
+        : '已标记添加，稍后在「私域客户」确认成功/失败',
     );
     setContactOrder(null);
     load();
@@ -209,7 +209,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
               </Select>
             </div>
             <div style={{ color: '#888', fontSize: 12 }}>
-              确认后即标记「已添加」；添加成功或失败，请在「管理端直添客户流转明细」里选择，无需上传截图。
+              确认后即标记「已添加」；添加成功或失败，请在「私域客户」里选择，无需上传截图。
             </div>
           </div>
         )}

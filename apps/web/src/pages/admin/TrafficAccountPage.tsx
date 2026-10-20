@@ -769,7 +769,7 @@ const TrafficAccountPage: React.FC = () => {
       render: (_: unknown, r: TrafficAccountItem) => renderField(c, r),
     })),
     {
-      title: '归属客服', key: '__owner', width: 130,
+      title: '归属客服', key: '__owner', width: 110,
       render: (_: unknown, r: TrafficAccountItem) =>
         canReassignOwner ? (
           <Select
@@ -779,7 +779,8 @@ const TrafficAccountPage: React.FC = () => {
             value={r.userId}
             options={ownerOptionsFor(r)}
             onChange={(v) => reassignOwner(r, v)}
-            style={{ width: 120 }}
+            popupMatchSelectWidth={false}
+            style={{ width: 96, fontSize: 12 }}
           />
         ) : (
           <span style={{ whiteSpace: 'nowrap' }}>{r.user?.displayName || r.user?.username || '-'}</span>

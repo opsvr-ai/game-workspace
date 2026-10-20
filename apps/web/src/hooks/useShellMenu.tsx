@@ -105,7 +105,7 @@ export function useShellMenu({ user, navigate, directUnread, shareRatios, badges
       { labels: CHAT_LABELS, count: directUnread, color: SEMANTIC.danger },
       {
         labels: CONTACT_LABELS, count: cCount, color: SEMANTIC.warning, markSeen: markContactSeen,
-        // 「客服跟进台账」已并进「管理端直添客户流转明细」（老板 2026-09-30）
+        // 「客服跟进台账」已并进「私域客户」（老板 2026-09-30）
         to: (key) => key + '?tab=converted',
       },
       {
