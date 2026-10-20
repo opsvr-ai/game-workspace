@@ -78,6 +78,29 @@ function refreshShellUi(): void {
 }
 
 /**
+ * 把主窗口从托盘 / 最小化 / 任务栏后面拉回前台。
+ * 桌面图标第二次启动、点托盘、点横幅都走这里：
+ * 只 show() 不 restore() 的话，窗口最小化时 show 不会还原（老板 2026-10-21：
+ * 孙可双击桌面图标没界面，点托盘才出来）。
+ */
+function showMainWindow(): boolean {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return false;
+  try {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+    // Windows 前台锁定：只 focus 有时还会被游戏/资源管理器压在后面。
+    // 用 alwaysOnTop 闪一下强制激活，再恢复普通层级（和聊天窗口同一套做法）。
+    win.setAlwaysOnTop(true);
+    win.setAlwaysOnTop(false);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 把「当前角色」应用到整个外壳：持久化、窗口标题、托盘提示/菜单、陪玩专属能力。
  *
  * 统一客户端的角色切换**全部**走这一个入口：网页 auth:setRole、退出登录（→ UNKNOWN）、
@@ -2347,8 +2370,7 @@ app.whenReady().then(() => {
     role: currentRole,
     studioName: currentStudioName,
     onShow: () => {
-      mainWindow?.show();
-      mainWindow?.focus();
+      showMainWindow();
     },
     onQuit: async () => {
       // 退出密码只有陪玩要（管理员密码）；客服/店长/老板直接退出。
@@ -2376,16 +2398,22 @@ app.whenReady().then(() => {
     loadLoginPage('tray');
   });
 
-  // Auto-relaunch when any child process (renderer/GPU) is killed
+  // 渲染进程/GPU 崩溃恢复（老板 2026-10-21：孙可「动不动自己退出」）：
+  // 以前只要子进程崩一次就 app.relaunch()+exit，用户看到的就是软件突然退出/闪一下。
+  // 渲染进程崩了先在原窗口 reload；GPU/Utility 等子进程交给 Chromium 自己拉起，不再退出整个客户端。
   mainWindow.webContents.on('render-process-gone', (_e, details) => {
-    logger.warn('Renderer process gone, relaunching', { reason: details.reason });
-    app.relaunch();
-    app.exit(0);
+    if (isQuitting) return;
+    logger.warn('Renderer process gone, reload window', { reason: details.reason });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.reload();
+    } else {
+      app.relaunch();
+      app.exit(0);
+    }
   });
   app.on('child-process-gone', (_e, details) => {
-    logger.warn('Child process gone, relaunching', { type: details.type, reason: details.reason });
-    app.relaunch();
-    app.exit(0);
+    if (isQuitting) return;
+    logger.warn('Child process gone', { type: details.type, reason: details.reason });
   });
 
   onWsEvent('pc:command', (data: any) => {
@@ -2546,7 +2574,10 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    mainWindow?.show();
-    mainWindow?.focus();
+    // 双击桌面图标 / 任务栏图标都会走到这里：还原最小化、从托盘拉出来、顶到前台。
+    if (!showMainWindow()) {
+      // 首次启动还没建好窗口时，等窗口就绪再拉一次，避免第二次点击白点。
+      setTimeout(showMainWindow, 1200);
+    }
   });
 }

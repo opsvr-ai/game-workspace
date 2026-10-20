@@ -306,6 +306,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     派单工作台本来就有角色判断，保持不动。
   - 服务端 typecheck / 测试、网页 27 文件 / 164 用例全绿；网页 v1047 部署。
 
+### Fixed
+
+- **客户端双击桌面图标不还原窗口 / 子进程崩溃导致软件自己退出（2026-10-21，陪玩端外壳）。**
+  老板：孙可「软件动不动就自己退出，双击桌面图标不显示界面，还必须再点一次右下角托盘才出来」。
+  - **桌面图标根因**：第二次启动只走 `second-instance` 的 `show()+focus()`；窗口最小化时 `show()` 不会还原，
+    所以看起来像没反应。现在统一 `showMainWindow()`：先 `restore()`、再 `show()`、`focus()`，
+    并用 alwaysOnTop 闪一下顶到前台；托盘点击 / 桌面图标共用这一套。
+  - **自己退出根因**：`render-process-gone` / `child-process-gone` 原来一律 `app.relaunch()+app.exit(0)`，
+    渲染或 GPU 子进程崩一次就整个客户端退出重启。现在渲染进程崩了先原窗口 reload；
+    GPU/Utility 子进程交给 Chromium 自愈，不再退出客户端。
+  - 陪玩端外壳 typecheck / 5 文件 74 用例通过；**客户端更新需老板确认后才发版**。
+
 ### Changed
 
 - **「直接添加客户」改名「添加到工作微信」，「私域客户」改名「工作微信客户」（2026-10-21，网页）。**
