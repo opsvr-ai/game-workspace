@@ -316,7 +316,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   - **自己退出根因**：`render-process-gone` / `child-process-gone` 原来一律 `app.relaunch()+app.exit(0)`，
     渲染或 GPU 子进程崩一次就整个客户端退出重启。现在渲染进程崩了先原窗口 reload；
     GPU/Utility 子进程交给 Chromium 自愈，不再退出客户端。
-  - 陪玩端外壳 typecheck / 5 文件 74 用例通过；**客户端更新需老板确认后才发版**。
+  - 陪玩端外壳 typecheck / 5 文件 74 用例通过；老板确认后已发 **1.0.20261031** 自动更新包。
 
 ### Changed
 
