@@ -16,7 +16,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   - 发布/编辑订单的客户联系方式一行变成：微信 / YY号 / KOOK号 / 房间码 / 游戏ID（每格 20%）。
   - 落库到 `customFields.customerGameId`；订单详情 / 订单管理 / 工作微信客户 / 抢单成功浮窗的客户联系方式会一起显示。
   - 订单搜索也能搜到游戏ID。
-  - 服务端 94 文件 / 920 用例全绿；网页 typecheck / build 通过；服务端 + 网页 **v1094** 已部署。
+  - 服务端 94 文件 / 920 用例全绿；网页 typecheck / build 通过；服务端 + 网页 **v1095** 已部署。
 
 - **工作微信客户支持「标记已接走」，关联实际陪玩 / 订单号（2026-10-21，网页 + 服务端）。**
   老板：1455 先添加到工作微信，后来同一客户又发了 1459 被张宗军接走，1455 一直待追踪，需要后台直接改。
@@ -7911,5 +7911,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 [Unreleased]: https://github.com/opsvr-ai/game-workspace/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/opsvr-ai/game-workspace/tree/v0.1.0
+
 
 

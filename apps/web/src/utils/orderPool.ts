@@ -62,6 +62,7 @@ export function buildOrderSearchText(order: any): string {
     cf.customerSource, // 来源平台（小红书 / 抖音 / 快手…）
     cf.customerSourceAccount, // 来源账号（发笔记的那个号）
     cf.customerRoomCode,
+    cf.customerGameId,
     cf.customerYy,
     cf.customerPlatformAccount,
     cf.deltaNote,
