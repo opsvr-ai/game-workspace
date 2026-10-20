@@ -5,7 +5,7 @@ import { visibleInterval } from '../hooks/usePolling';
 
 /**
  * 店长 / 老板在后台设置的公告栏。
- * 每个页面一份内容（slot 区分），红字 + 📢 从左往右滚动；没内容时整条不占位。
+ * 每个页面一份内容（slot 区分），红字 + 📢 从右往左滚动；没内容时整条不占位。
  * 每 60 秒重新拉一次，后台改完不用刷新页面。
  */
 interface Props {
@@ -52,16 +52,18 @@ const AnnouncementBar: React.FC<Props> = ({ slot }) => {
     >
       <style>{`
         @keyframes chunlv-announcement-lr {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(100%); }
+          from { transform: translateX(100%); }
+          to { transform: translateX(-100%); }
         }
       `}</style>
       <div
         style={{
           display: 'inline-block',
+          minWidth: '100%',
           color: '#E60000',
           fontSize: 13,
           fontWeight: 600,
+          willChange: 'transform',
           animation: 'chunlv-announcement-lr 22s linear infinite',
         }}
       >
