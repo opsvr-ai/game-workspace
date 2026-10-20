@@ -299,7 +299,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         onClose();
       }}
       confirmLoading={loading}
-      okText={editingOrder ? '保存修改' : customerPreFill ? '开始服务' : directAddMode ? '加入工作微信客户' : '发布'}
+      okText={editingOrder ? '保存修改' : customerPreFill ? '开始服务' : directAddMode ? '添加到工作微信' : '发布'}
       cancelText="取消"
       destroyOnClose
       width={520}
