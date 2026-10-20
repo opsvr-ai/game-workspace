@@ -1442,7 +1442,15 @@ const OrdersPage: React.FC = () => {
                 columns={columns as any}
                 dataSource={sorted}
                 size="small"
-                pagination={false}
+                pagination={{
+                  // 老板 2026-10-21：「点开卡几秒、输入也卡」——
+                  // 以前一次渲染全部订单（几百上千行），表格把主线程占满。
+                  // 只渲染当前页，翻页/搜索仍然覆盖完整 sorted 数据。
+                  pageSize: 50,
+                  showSizeChanger: true,
+                  pageSizeOptions: ['20', '50', '100', '200'],
+                  showTotal: (total) => `共 ${total} 单`,
+                }}
                 style={TABLE_STYLE}
                 scroll={{
                   // 管理端用算出来的 scroll.x：窗口窄时是 1216px（横向滚动照旧），

@@ -58,6 +58,9 @@ export interface OrderTableProps {
   actionsWidth?: number;
   /** 整行样式（「到点该跟进」的行底色标红，见派单管理的流转明细） */
   rowStyle?: (o: any) => React.CSSProperties | undefined;
+  /** 是否分页渲染（默认开：几百行一次性渲染会把输入框卡住） */
+  paginate?: boolean;
+  pageSize?: number;
 }
 
 const OrderTable: React.FC<OrderTableProps> = ({
@@ -71,6 +74,8 @@ const OrderTable: React.FC<OrderTableProps> = ({
   extraColumns,
   actionsWidth,
   rowStyle,
+  paginate = true,
+  pageSize = 50,
 }) => {
   const user = useAuthStore((s) => s.user);
   const isCompanion = user?.role === 'COMPANION';
@@ -134,7 +139,16 @@ const OrderTable: React.FC<OrderTableProps> = ({
       dataSource={orders}
       size="small"
       loading={loading}
-      pagination={false}
+      pagination={
+        paginate
+          ? {
+              pageSize,
+              showSizeChanger: true,
+              pageSizeOptions: ['20', '50', '100', '200'],
+              showTotal: (total) => `共 ${total} 单`,
+            }
+          : false
+      }
       style={TABLE_STYLE}
       scroll={{ x: scrollX }}
       locale={{ emptyText }}
