@@ -1479,7 +1479,13 @@ function deferBannerWhileFullscreen(payload: BannerPayload, exe: string): void {
  *   该弹   → 跟以前完全一样，直接画。auto 档在「看起来不会被顶出去」时还会顺手复查一次
  *            （见 watchFullscreenKick）：这台机器真被顶出去了就记下来，以后自动压住。
  */
-function showBroadcastPopup(payload: BannerPayload): void {
+function showBroadcastPopup(payload: BannerPayload, opts?: { force?: boolean }): void {
+  // 老板 2026-10-21：空闲 / 休息 / 娱乐中必须弹，不许被「全屏压住」吞掉；
+  // 接单中仍按原策略（避免把人从正在打的单里拽出来）。
+  if (opts?.force) {
+    showBannerNow(payload);
+    return;
+  }
   const mode = bannerFullscreenMode();
   if (mode === 'show') {
     // 明确选了「照弹」：连探都不用探，行为跟老版本一模一样。
@@ -2525,6 +2531,9 @@ app.whenReady().then(() => {
         hint: data?._direct
           ? '点这里 → 去抢单池看这单（已指定给你）'
           : '点这里 → 去抢单池看这单（再点一下「抢单」）',
+      }, {
+        // 空闲 / 休息 / 娱乐中强制弹，连「全屏压住」也不许吞；接单中仍按全屏策略。
+        force: String(store.get('lastStatus') || '') !== 'BUSY',
       });
     } catch (err: any) {
       logger.warn('Urgent order popup failed', { error: err?.message || err });
