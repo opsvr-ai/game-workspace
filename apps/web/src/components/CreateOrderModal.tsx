@@ -182,6 +182,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
       customerYy: cf.customerYy,
       customerPlatformAccount: cf.customerPlatformAccount,
       customerRoomCode: cf.customerRoomCode,
+      customerGameId: cf.customerGameId,
       customerWechatQr: cf.customerWechatQr || '',
       billingMode: cf.billingMode || 'hour',
       duration: editingOrder.duration,
@@ -261,6 +262,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         payload.customerWechat = '';
         payload.customerYy = '';
         payload.customerPlatformAccount = '';
+        payload.customerGameId = '';
         payload.customerWechatQr = undefined;
       }
       if (editingOrder?.status === 'DONE') {
@@ -507,6 +509,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                     customerWechat: '',
                     customerYy: '',
                     customerPlatformAccount: '',
+                    customerGameId: '',
                     customerWechatQr: '',
                   });
                   setCustomerWechatQr('');
@@ -604,16 +607,19 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             <Form.Item label="客户联系方式">
               <Input.Group compact>
                 <Form.Item name="customerWechat" noStyle>
-                  <Input style={{ width: '25%' }} placeholder="微信" />
+                  <Input style={{ width: '20%' }} placeholder="微信" />
                 </Form.Item>
                 <Form.Item name="customerYy" noStyle>
-                  <Input style={{ width: '25%' }} placeholder="YY号" />
+                  <Input style={{ width: '20%' }} placeholder="YY号" />
                 </Form.Item>
                 <Form.Item name="customerPlatformAccount" noStyle>
-                  <Input style={{ width: '25%' }} placeholder="KOOK号" />
+                  <Input style={{ width: '20%' }} placeholder="KOOK号" />
                 </Form.Item>
                 <Form.Item name="customerRoomCode" noStyle>
-                  <Input style={{ width: '25%' }} placeholder="房间码" />
+                  <Input style={{ width: '20%' }} placeholder="房间码" />
+                </Form.Item>
+                <Form.Item name="customerGameId" noStyle>
+                  <Input style={{ width: '20%' }} placeholder="游戏ID" />
                 </Form.Item>
               </Input.Group>
             </Form.Item>

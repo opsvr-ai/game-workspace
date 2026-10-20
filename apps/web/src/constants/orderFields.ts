@@ -69,6 +69,7 @@ export const ORDER_FIELD_LABELS = {
   yy: 'YY',
   kook: 'KOOK',
   roomCode: '房间码',
+  gameId: '游戏ID',
   // 抢单池那一行特有的两个倒计时（别的页面没有，但名字也收在这里）
   waited: '已等待',
   disappearIn: '距离消失',
@@ -115,6 +116,7 @@ export const COMPANION_POOL_HIDDEN_FIELDS: ReadonlySet<string> = new Set([
   'yy',
   'kook',
   'roomCode',
+  'gameId',
   'customerWechatQr',
 ]);
 
@@ -222,7 +224,7 @@ export const orderAmountText = (o: any): string => `\u00A5${Number(o?.amount || 
 export const orderCustomerWechat = (o: any): string =>
   o?.customFields?.customerWechat || o?.customer?.wechatId || '';
 
-/** 客户联系方式：微信号 + YY + KOOK + 房间码（就是发布订单表单「客户联系方式」那一行的四个框）。 */
+/** 客户联系方式：微信号 + YY + KOOK + 房间码 + 游戏ID（就是发布订单表单「客户联系方式」那一行）。 */
 export const orderCustomerContact = (o: any): string => {
   const cf = o?.customFields || {};
   const wechat = orderCustomerWechat(o);
@@ -231,6 +233,7 @@ export const orderCustomerContact = (o: any): string => {
     cf.customerYy ? `${ORDER_FIELD_LABELS.yy}:${cf.customerYy}` : '',
     cf.customerPlatformAccount ? `${ORDER_FIELD_LABELS.kook}:${cf.customerPlatformAccount}` : '',
     cf.customerRoomCode ? `${ORDER_FIELD_LABELS.roomCode}:${cf.customerRoomCode}` : '',
+    cf.customerGameId ? `${ORDER_FIELD_LABELS.gameId}:${cf.customerGameId}` : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -248,6 +251,7 @@ export const orderCustomerContactCopyText = (o: any): string => {
     cf.customerYy,
     cf.customerPlatformAccount,
     cf.customerRoomCode,
+    cf.customerGameId,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -296,6 +300,7 @@ export const ORDER_FIELD_TEXT: Record<string, (o: any) => string | null> = {
   yy: (o) => o?.customFields?.customerYy || null,
   kook: (o) => o?.customFields?.customerPlatformAccount || null,
   roomCode: (o) => o?.customFields?.customerRoomCode || null,
+  gameId: (o) => o?.customFields?.customerGameId || null,
   orderNote: (o) => o?.customFields?.deltaNote || o?.notes || null,
   companion: (o) => orderCompanionText(o) || null,
   createdAt: (o) => orderCreatedByText(o),

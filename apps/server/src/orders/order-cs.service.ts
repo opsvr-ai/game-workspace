@@ -259,6 +259,7 @@ export class OrderCsService {
       'customerWechat',
       'customerWechatQr',
       'customerRoomCode',
+      'customerGameId',
       'customerYy',
       'roomCodeOnly',
       'deltaMission',

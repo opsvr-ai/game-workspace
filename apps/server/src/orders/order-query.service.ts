@@ -465,6 +465,7 @@ export class OrderQueryService {
         'customerSource',
         'customerSourceAccount',
         'customerRoomCode',
+        'customerGameId',
         'customerYy',
         'customerPlatformAccount',
         'deltaNote',
