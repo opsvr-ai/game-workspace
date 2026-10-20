@@ -43,6 +43,7 @@ import {
   countActiveOrderFilters,
 } from '../constants/orderFilters';
 import PageHeader from '../components/PageHeader';
+import AnnouncementBar from '../components/AnnouncementBar';
 import SupplementReviewButton from '../components/SupplementReviewButton';
 import TableSkeleton from '../components/TableSkeleton';
 import { PartnerInviteCards } from '../components/PartnerInviteCards';
@@ -1295,6 +1296,7 @@ const OrdersPage: React.FC = () => {
             </div>
           }
         />
+        <AnnouncementBar />
         <PartnerInviteCards />
         {/* Filter bar：常用条件只留一行，其余收进「更多筛选」 */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>

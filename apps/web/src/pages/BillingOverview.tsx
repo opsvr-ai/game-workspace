@@ -42,6 +42,7 @@ import { companionsApi } from '../api/companions';
 import MyPayoutQrCard from '../components/MyPayoutQrCard';
 import { useAuthStore } from '../stores/authStore';
 import PageHeader from '../components/PageHeader';
+import AnnouncementBar from '../components/AnnouncementBar';
 import CardSkeleton from '../components/CardSkeleton';
 import TransactionReviewSection from '../components/TransactionReviewSection';
 import { serviceTypeConfig } from '../constants/orders';
@@ -459,6 +460,8 @@ const BillingOverview: React.FC = () => {
           </Space>
         </Col>
       </Row>
+
+      <AnnouncementBar />
 
       {/* 我的报账微信码（陪玩自己传一次，财务报账 / 发工资时点开扫一扫）——老板 2026-09-29 */}
       {isCompanion && <MyPayoutQrCard />}

@@ -44,6 +44,58 @@ export class SettingsController {
     @Inject(forwardRef(() => WsGateway)) private readonly wsGateway: WsGateway,
   ) {}
 
+  /**
+   * 公告栏：店长 / 老板在后台设置，陪玩端 + 管理端顶部滚动显示。
+   * 有工作室的写本店 StudioConfig；没有工作室的老板落全局 SystemConfig。
+   */
+  @Get('announcement')
+  @UseGuards(AuthGuard('jwt'))
+  async getAnnouncement(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const studioId = (req?.user?.studioId as string) || null;
+    if (studioId) {
+      const row = await this.prisma.studioConfig.findUnique({
+        where: { studioId_key: { studioId, key: 'announcement.text' } },
+        select: { value: true, updatedAt: true },
+      });
+      return {
+        code: 200,
+        message: 'ok',
+        data: { text: typeof row?.value === 'string' ? row.value : '', updatedAt: row?.updatedAt || null },
+      };
+    }
+    const row = await this.prisma.systemConfig.findUnique({ where: { key: 'announcement.text' } });
+    return {
+      code: 200,
+      message: 'ok',
+      data: { text: typeof row?.value === 'string' ? row.value : '', updatedAt: null },
+    };
+  }
+
+  @Put('announcement')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async updateAnnouncement(
+    @Body() body: { text?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const text = String(body?.text ?? '').trim().slice(0, 500);
+    const studioId = (req?.user?.studioId as string) || null;
+    if (studioId) {
+      await this.prisma.studioConfig.upsert({
+        where: { studioId_key: { studioId, key: 'announcement.text' } },
+        create: { studioId, key: 'announcement.text', value: text },
+        update: { value: text },
+      });
+    } else {
+      await this.prisma.systemConfig.upsert({
+        where: { key: 'announcement.text' },
+        create: { key: 'announcement.text', value: text },
+        update: { value: text },
+      });
+    }
+    return { code: 200, message: '公告已保存', data: { text } };
+  }
+
   @Get('settings')
   async getSettings(): Promise<ApiResponse<unknown>> {
     return this.getConfig('games,ranks');

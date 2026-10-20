@@ -35,6 +35,7 @@ import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
+import AnnouncementBar from '../components/AnnouncementBar';
 import MyWorkWechatCard from '../components/MyWorkWechatCard';
 import CompanionHomeBoard from '../components/CompanionHomeBoard';
 import CompanionSelfStatusCard from '../components/CompanionSelfStatusCard';
@@ -277,6 +278,7 @@ const CompanionPage: React.FC = () => {
   return (
     <div>
       <PageHeader title="我的首页" subtitle="今天的状态、待跟进客户和收入都在这一页" />
+      <AnnouncementBar />
 
       {/* ① Status Header — compact inline */}
       <Card size="small" style={{ marginBottom: 12 }}>

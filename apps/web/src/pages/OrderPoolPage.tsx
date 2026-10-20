@@ -13,6 +13,7 @@ import { useOrderStore } from '../stores/orderStore';
 import { useChatStore } from '../stores/chatStore';
 import CreateOrderModal from '../components/CreateOrderModal';
 import PageHeader from '../components/PageHeader';
+import AnnouncementBar from '../components/AnnouncementBar';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import CardSkeleton from '../components/CardSkeleton';
@@ -786,6 +787,8 @@ const OrderPoolPage: React.FC = () => {
           </Space>
         }
       />
+
+      <AnnouncementBar />
 
       <Row
         gutter={12}

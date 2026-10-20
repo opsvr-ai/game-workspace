@@ -50,6 +50,7 @@ import CustomerTrackingCenter from '../components/CustomerTrackingCenter';
 import CompanionTrackingPanel from '../components/CompanionTrackingPanel';
 import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
+import AnnouncementBar from '../components/AnnouncementBar';
 import {
   ACTIONS_COLUMN,
   ACTIONS_COLUMN_COMPANION,
@@ -1097,6 +1098,7 @@ const CustomersPage: React.FC = () => {
             </Space>
           }
         />
+        <AnnouncementBar />
         <Tabs
           defaultActiveKey="list"
           items={[

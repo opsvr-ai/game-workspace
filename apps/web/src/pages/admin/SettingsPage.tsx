@@ -17,6 +17,7 @@ import ExcellenceSettings from '../settings/ExcellenceSettings';
 import AiSettings from '../settings/AiSettings';
 import NoteBenchmarkSettings from '../settings/NoteBenchmarkSettings';
 import StudioConfigScopeBar from '../../components/settings/StudioConfigScopeBar';
+import AnnouncementSettingsCard from '../../components/AnnouncementSettingsCard';
 import { useAuthStore } from '../../stores/authStore';
 import { useSearchParams } from 'react-router-dom';
 import { TEXT, SEMANTIC, BRAND } from '../../styles/tokens';
@@ -216,6 +217,7 @@ const SettingsPage: React.FC = () => {
         subtitle={`修改后即时生效 · 共 ${availableCount} 项，左边选分类，或者直接搜`}
       />
       <StudioConfigScopeBar />
+      <AnnouncementSettingsCard />
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         <div
