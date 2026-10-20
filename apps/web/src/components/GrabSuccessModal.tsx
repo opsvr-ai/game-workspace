@@ -45,7 +45,10 @@ const GrabSuccessModal: React.FC<Props> = ({ order, onClose }) => (
             )}
             {g.customFields?.customerRoomCode && (
               <div>
-                🏠 房间码：<Typography.Text copyable>{g.customFields.customerRoomCode}</Typography.Text>
+                🏠 房间码：
+                <Typography.Text copyable={{ text: String(g.customFields.customerRoomCode) }}>
+                  {g.customFields.customerRoomCode}
+                </Typography.Text>
               </div>
             )}
             {g.customFields?.customerPlatformAccount && (

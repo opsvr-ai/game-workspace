@@ -175,7 +175,10 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
               )}
               {urgentGrabbed.customFields?.customerRoomCode && (
                 <div>
-                  🏠 房间码：<Text copyable>{urgentGrabbed.customFields.customerRoomCode}</Text>
+                  🏠 房间码：
+                  <Text copyable={{ text: String(urgentGrabbed.customFields.customerRoomCode) }}>
+                    {urgentGrabbed.customFields.customerRoomCode}
+                  </Text>
                 </div>
               )}
               {urgentGrabbed.customFields?.deltaNote && (
