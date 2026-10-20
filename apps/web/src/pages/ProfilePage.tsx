@@ -8,6 +8,7 @@ import CompanionGameProfileCard from '../components/CompanionGameProfileCard';
 import { compressImage } from '../utils/imageCompress';
 import { BRAND, TEXT } from '../styles/tokens';
 import PageHeader from '../components/PageHeader';
+import { useAuthStore } from '../stores/authStore';
 
 const { Text } = Typography;
 
@@ -36,8 +37,17 @@ const ProfilePage: React.FC = () => {
     }
   }, []);
 
-  const userStr = sessionStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
+  // 头像 / 昵称 / 角色以登录态为准；以前只读 sessionStorage.user，
+  // 登录后没写这个键就会显示「未知用户」，店长也看不到「修改客户端管理员密码」。
+  const storeUser = useAuthStore((s) => s.user);
+  let sessionUser: any = null;
+  try {
+    const userStr = sessionStorage.getItem('user');
+    sessionUser = userStr ? JSON.parse(userStr) : null;
+  } catch {
+    sessionUser = null;
+  }
+  const user = storeUser || sessionUser;
   // 客户端管理员密码（托盘退出 / 锁屏解锁）必须由店长 / 老板设置，陪玩自己不能改。
   const canManageClientPassword = user?.role === 'ADMIN' || user?.role === 'OWNER';
   const avatarUrl = user?.avatar

@@ -318,6 +318,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     GPU/Utility 子进程交给 Chromium 自愈，不再退出客户端。
   - 陪玩端外壳 typecheck / 5 文件 74 用例通过；老板确认后已发 **1.0.20261031** 自动更新包。
 
+- **个人设置显示「未知用户」、店长看不到「修改客户端管理员密码」（2026-10-21，网页）。**
+  店长截图：右上角是 hanlei1 / 店长，个人设置却显示「未知用户 @·」，下面只有「修改密码」和「版本信息」。
+  - **根因**：页面只读 `sessionStorage.user`；登录态在 zustand 里，sessionStorage 没这个键时 user 为 null，
+    角色判断失败，管理员密码卡片被整块隐藏。
+  - **修法**：优先读 `useAuthStore` 的登录用户，sessionStorage 只做兜底；店长 / 老板重新进入个人设置就能看到
+    「修改客户端管理员密码」。
+  - 网页 typecheck / build 通过；已部署 **v1088**。
+
 ### Changed
 
 - **「直接添加客户」改名「添加到工作微信」，「私域客户」改名「工作微信客户」（2026-10-21，网页）。**
