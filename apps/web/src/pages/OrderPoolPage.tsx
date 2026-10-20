@@ -788,7 +788,7 @@ const OrderPoolPage: React.FC = () => {
         }
       />
 
-      <AnnouncementBar />
+      <AnnouncementBar slot="order-pool" />
 
       <Row
         gutter={12}

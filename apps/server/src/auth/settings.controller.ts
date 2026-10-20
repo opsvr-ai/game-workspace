@@ -36,6 +36,17 @@ import {
   saveConfigsByRole,
 } from '../common/studio-config';
 
+/** 公告栏按页面单独设置；key 与前端页面一一对应。 */
+const ANNOUNCEMENT_SLOTS = [
+  'companion-home',
+  'order-pool',
+  'orders',
+  'customers',
+  'billing',
+] as const;
+const ANNOUNCEMENT_LEGACY_KEY = 'announcement.text';
+const announcementKeyOf = (slot: string) => `announcement.${slot}.text`;
+
 @Controller()
 export class SettingsController {
   constructor(
@@ -45,55 +56,85 @@ export class SettingsController {
   ) {}
 
   /**
-   * 公告栏：店长 / 老板在后台设置，陪玩端 + 管理端顶部滚动显示。
-   * 有工作室的写本店 StudioConfig；没有工作室的老板落全局 SystemConfig。
+   * 公告栏：每个页面单独一份内容。
+   * GET 不带 slot → 返回五个页面的全部内容（后台设置用）；
+   * GET 带 slot → 返回该页面当前要滚动的文字（页面顶栏用）。
    */
   @Get('announcement')
   @UseGuards(AuthGuard('jwt'))
-  async getAnnouncement(@Req() req: any): Promise<ApiResponse<unknown>> {
+  async getAnnouncement(
+    @Req() req: any,
+    @Query('slot') slot?: string,
+  ): Promise<ApiResponse<unknown>> {
+    if (slot && !(ANNOUNCEMENT_SLOTS as readonly string[]).includes(slot)) {
+      throw new BadRequestException('公告位置不正确');
+    }
     const studioId = (req?.user?.studioId as string) || null;
+    const keys = [
+      ...ANNOUNCEMENT_SLOTS.map(announcementKeyOf),
+      ANNOUNCEMENT_LEGACY_KEY,
+    ];
+    const map = new Map<string, string>();
     if (studioId) {
-      const row = await this.prisma.studioConfig.findUnique({
-        where: { studioId_key: { studioId, key: 'announcement.text' } },
-        select: { value: true, updatedAt: true },
+      const rows = await this.prisma.studioConfig.findMany({
+        where: { studioId, key: { in: keys } },
+        select: { key: true, value: true },
       });
+      for (const row of rows) {
+        if (typeof row.value === 'string') map.set(row.key, row.value);
+      }
+    } else {
+      const rows = await this.prisma.systemConfig.findMany({
+        where: { key: { in: keys } },
+      });
+      for (const row of rows) {
+        if (typeof row.value === 'string') map.set(row.key, row.value);
+      }
+    }
+    // 兼容上一版只有一条公告的老数据：新版页面没单独设置时先沿用老公告。
+    const legacy = map.get(ANNOUNCEMENT_LEGACY_KEY) || '';
+    if (slot) {
       return {
         code: 200,
         message: 'ok',
-        data: { text: typeof row?.value === 'string' ? row.value : '', updatedAt: row?.updatedAt || null },
+        data: { slot, text: map.get(announcementKeyOf(slot)) || legacy },
       };
     }
-    const row = await this.prisma.systemConfig.findUnique({ where: { key: 'announcement.text' } });
-    return {
-      code: 200,
-      message: 'ok',
-      data: { text: typeof row?.value === 'string' ? row.value : '', updatedAt: null },
-    };
+    const items: Record<string, string> = {};
+    for (const s of ANNOUNCEMENT_SLOTS) {
+      items[s] = map.get(announcementKeyOf(s)) || legacy;
+    }
+    return { code: 200, message: 'ok', data: { items } };
   }
 
   @Put('announcement')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async updateAnnouncement(
-    @Body() body: { text?: string },
+    @Body() body: { slot?: string; text?: string },
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
+    const slot = String(body?.slot || '').trim();
+    if (!(ANNOUNCEMENT_SLOTS as readonly string[]).includes(slot)) {
+      throw new BadRequestException('公告位置不正确');
+    }
     const text = String(body?.text ?? '').trim().slice(0, 500);
+    const key = announcementKeyOf(slot);
     const studioId = (req?.user?.studioId as string) || null;
     if (studioId) {
       await this.prisma.studioConfig.upsert({
-        where: { studioId_key: { studioId, key: 'announcement.text' } },
-        create: { studioId, key: 'announcement.text', value: text },
+        where: { studioId_key: { studioId, key } },
+        create: { studioId, key, value: text },
         update: { value: text },
       });
     } else {
       await this.prisma.systemConfig.upsert({
-        where: { key: 'announcement.text' },
-        create: { key: 'announcement.text', value: text },
+        where: { key },
+        create: { key, value: text },
         update: { value: text },
       });
     }
-    return { code: 200, message: '公告已保存', data: { text } };
+    return { code: 200, message: '公告已保存', data: { slot, text } };
   }
 
   @Get('settings')

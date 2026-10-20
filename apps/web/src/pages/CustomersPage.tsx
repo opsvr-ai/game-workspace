@@ -1098,7 +1098,7 @@ const CustomersPage: React.FC = () => {
             </Space>
           }
         />
-        <AnnouncementBar />
+        <AnnouncementBar slot="customers" />
         <Tabs
           defaultActiveKey="list"
           items={[

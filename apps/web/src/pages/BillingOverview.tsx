@@ -461,7 +461,7 @@ const BillingOverview: React.FC = () => {
         </Col>
       </Row>
 
-      <AnnouncementBar />
+      <AnnouncementBar slot="billing" />
 
       {/* 我的报账微信码（陪玩自己传一次，财务报账 / 发工资时点开扫一扫）——老板 2026-09-29 */}
       {isCompanion && <MyPayoutQrCard />}

@@ -1296,7 +1296,7 @@ const OrdersPage: React.FC = () => {
             </div>
           }
         />
-        <AnnouncementBar />
+        <AnnouncementBar slot="orders" />
         <PartnerInviteCards />
         {/* Filter bar：常用条件只留一行，其余收进「更多筛选」 */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>

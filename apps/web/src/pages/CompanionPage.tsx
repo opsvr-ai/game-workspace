@@ -278,7 +278,7 @@ const CompanionPage: React.FC = () => {
   return (
     <div>
       <PageHeader title="我的首页" subtitle="今天的状态、待跟进客户和收入都在这一页" />
-      <AnnouncementBar />
+      <AnnouncementBar slot="companion-home" />
 
       {/* ① Status Header — compact inline */}
       <Card size="small" style={{ marginBottom: 12 }}>
