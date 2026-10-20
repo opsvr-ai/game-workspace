@@ -60,7 +60,7 @@ export const dispatchTypeOptions = dispatchTypeOrder.map((value) => ({
 
 /**
  * 「添加情况」（`Order.contactStatus`）的唯一一份叫法 —— 订单管理那个筛选下拉用它，
- * 客服「私域客户」那一列（`CsConvertedPanel.stageOf`）也是这五个词。
+ * 客服「工作微信客户」那一列（`CsConvertedPanel.stageOf`）也是这五个词。
  *
  * 老板 2026-10-11：「这些添加失败的…能筛出来么」—— 以前这套词只长在表格那一格里，
  * 筛选栏里没有对应的口子，只能一页页翻。五个值都在（老数据可能是空的 = 还没记）。

@@ -193,7 +193,7 @@ const CustomersPage: React.FC = () => {
     setChatPartner(null);
   }, [chatPartner]);
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
-  // 客服养客：客户还没决定打的，先在客户管理这一页直接登记（和派单工作台的「直接添加客户」同一个弹窗）
+  // 客服养客：客户还没决定打的，先在客户管理这一页直接登记（和派单工作台的「添加到工作微信」同一个弹窗）
   const [directAddOpen, setDirectAddOpen] = useState(false);
 
   const openChat = (record: Customer) => {
@@ -1081,11 +1081,11 @@ const CustomersPage: React.FC = () => {
                 刷新
               </Button>
               {/* 老板 2026-09-29：养客入口在客户管理也要点得到 —— 客户现在不打、先把微信加上的走这里，
-                  登记进「私域客户」，客服持续跟，谈好了从那一页直接派单。 */}
+                  登记进「工作微信客户」，客服持续跟，谈好了从那一页直接派单。 */}
               {canManage && (
-                <Tooltip title="客户还没决定打、先加上微信的走这里：只进私域客户，不打扰陪玩">
+                <Tooltip title="客户还没决定打、先加上微信的走这里：只进工作微信客户，不打扰陪玩">
                   <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setDirectAddOpen(true)}>
-                    直接添加客户
+                    添加到工作微信
                   </Button>
                 </Tooltip>
               )}

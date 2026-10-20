@@ -798,7 +798,7 @@ const CompanionPage: React.FC = () => {
       {/* TASK-06: Boot Guide Modal */}
       <Modal title="📋 开工提醒" open={bootGuideVisible} onCancel={() => setBootGuideVisible(false)} footer={null}>
         <div style={{ lineHeight: 2.2 }}>
-          <p>请优先联系你的私域客户，提高成单率！</p>
+          <p>请优先联系你的工作微信客户，提高成单率！</p>
           <div style={{ background: '#f6ffed', borderRadius: 8, padding: 12, marginTop: 8 }}>
             <p>
               💡 <Text strong>建议流程：</Text>

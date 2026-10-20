@@ -272,7 +272,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         message.success('订单信息已更新');
       } else {
         await ordersApi.create(payload);
-        message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入「私域客户」' : '订单已发布');
+        message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入「工作微信客户」' : '订单已发布');
       }
       skipDraftSaveRef.current = true;
       clearDraft(draftKey);
@@ -288,7 +288,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
 
   return (
     <Modal
-      title={editingOrder ? '修改订单信息' : directAddMode ? '直接添加客户' : '创建订单'}
+      title={editingOrder ? '修改订单信息' : directAddMode ? '添加到工作微信' : '创建订单'}
       open={open}
       onOk={handleOk}
       onCancel={() => {
@@ -299,7 +299,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         onClose();
       }}
       confirmLoading={loading}
-      okText={editingOrder ? '保存修改' : customerPreFill ? '开始服务' : directAddMode ? '加入私域客户' : '发布'}
+      okText={editingOrder ? '保存修改' : customerPreFill ? '开始服务' : directAddMode ? '加入工作微信客户' : '发布'}
       cancelText="取消"
       destroyOnClose
       width={520}

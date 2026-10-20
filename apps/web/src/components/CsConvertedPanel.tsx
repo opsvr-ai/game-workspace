@@ -31,9 +31,9 @@ interface Props {
 }
 
 /**
- * 私域客户 —— 客服加过工作微信的客户，只有这一份台账。
+ * 工作微信客户 —— 客服加过工作微信的客户，只有这一份台账。
  *
- * 老板 2026-09-30：「把客服跟进台账删除，把他的功能合并到私域客户」。
+ * 老板 2026-09-30：「把客服跟进台账删除，把他的功能合并到工作微信客户」。
  * 以前是两页：单独的「客服跟进台账」（还没派出去的客户）和这一页（已经派出去被陪玩接的）。
  * 同一批客户在两个页面上各显示一遍、列法还不一样，客服自己得拼着看 —— 老板的原话是
  * 「显示的不一样 显得乱七八糟的」。现在合成一页，两种情况在**同一张表**里上下排开：
@@ -624,7 +624,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       >
         <div>
           <div style={{ fontWeight: 600 }}>
-            私域客户
+            工作微信客户
             {dueRows.length > 0 && (
               <span style={{ color: SEMANTIC.dangerMid, marginLeft: 8 }}>
                 有 {dueRows.length} 位客户到点该跟进了（已红字排在最上面）
@@ -729,7 +729,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         renderActions={renderActions}
         // 到点该跟进的那一行整行淡红底（老板 2026-09-29：「红字置顶」）
         rowStyle={(r: any) => (dueFollowUpAtOf(r, now) !== null ? { background: SEMANTIC.dangerSoft } : undefined)}
-        emptyText={items.length === 0 ? '还没有私域客户：派单工作台点「直接添加客户」开始登记。' : `没有匹配「${search}」的客户。`}
+        emptyText={items.length === 0 ? '还没有工作微信客户：派单工作台点「添加到工作微信」开始登记。' : `没有匹配「${search}」的客户。`}
         noteColumn={{
           title: '收款情况',
           width: LEDGER_FIELD_WIDTH.receipt,

@@ -119,7 +119,7 @@ const CustomerDetailPage: React.FC = () => {
   // Follow-up form
   const [followUpContent, setFollowUpContent] = useState('');
   const [followUpNextAction, setFollowUpNextAction] = useState('');
-  // 下次跟进时间（老板 2026-09-29）：和「私域客户」里的「记跟进」写的是同一个字段
+  // 下次跟进时间（老板 2026-09-29）：和「工作微信客户」里的「记跟进」写的是同一个字段
   const [followUpNextAt, setFollowUpNextAt] = useState<any>(null);
   const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
 
@@ -851,7 +851,7 @@ const CustomerDetailPage: React.FC = () => {
                 format="M月D日 HH:mm"
                 value={followUpNextAt}
                 onChange={(v) => setFollowUpNextAt(v)}
-                placeholder="可选：到点了在「私域客户」里提醒客服"
+                placeholder="可选：到点了在「工作微信客户」里提醒客服"
                 style={{ width: '100%' }}
               />
             </Form.Item>
