@@ -452,6 +452,50 @@ export class OrderCsService {
     });
   }
 
+  /**
+   * 工作微信客户里的「添加成功」单，实际已经被某个陪玩接走。
+   * 只在这条客户台账上留痕：已接走 · 陪玩 · 实际订单号；
+   * 不把 companionId 写到这张单上，避免同一单被算两次业绩。
+   */
+  async markCultivatedTaken(
+    orderId: string,
+    user: { id: string; role: string },
+    body: { companionId?: string; actualOrderCode?: string },
+  ) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (user.role === 'CS' && order.csUserId !== user.id) {
+      throw new ForbiddenException('只能处理自己发布的订单');
+    }
+    const cf = (order.customFields as any) || {};
+    if (!cf.directAdd && !cf.csCultivated) {
+      throw new BadRequestException('这张单不是工作微信客户登记单');
+    }
+    let companionName = '';
+    if (body.companionId) {
+      const companion = await this.prisma.companion.findUnique({
+        where: { id: body.companionId },
+        select: { user: { select: { username: true, displayName: true } } },
+      });
+      if (!companion) throw new NotFoundException('陪玩不存在');
+      companionName = companion.user?.displayName || companion.user?.username || '';
+    }
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        contactStatus: 'dispatched',
+        customFields: {
+          ...cf,
+          csTakenByCompanionId: body.companionId || '',
+          csTakenByCompanionName: companionName,
+          csTakenOrderCode: String(body.actualOrderCode || '').trim(),
+          csTakenAt: new Date().toISOString(),
+        },
+      },
+    });
+    return updated;
+  }
+
   async claim(
     orderId: string,
     csUserId: string,

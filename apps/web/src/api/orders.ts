@@ -12,6 +12,8 @@ export const ordersApi = {
   ) => http.put(`/orders/${id}/cs-contact`, { status, evidenceUrl, ...extra }),
   redispatch: (id: string, poolScope?: string) => http.post(`/orders/${id}/redispatch`, { poolScope }),
   markPoolHandled: (id: string) => http.post(`/orders/${id}/pool-handled`),
+  markCultivatedTaken: (id: string, data: { companionId?: string; actualOrderCode?: string }) =>
+    http.post(`/orders/${id}/cultivated-taken`, data),
   csFollowup: () => http.get('/orders/cs-followup'),
   csConverted: () => http.get('/orders/cs-converted'),
   escalatedPool: (params?: { month?: string; csUserId?: string }) =>

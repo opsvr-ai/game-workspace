@@ -66,6 +66,10 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const [outAmount, setOutAmount] = useState<number>(0);
   const [outTargetId, setOutTargetId] = useState<string | undefined>();
   const [flowSaving, setFlowSaving] = useState(false);
+  const [takenTarget, setTakenTarget] = useState<any>(null);
+  const [takenCompanionId, setTakenCompanionId] = useState<string | undefined>();
+  const [takenOrderCode, setTakenOrderCode] = useState('');
+  const [takenSaving, setTakenSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -161,6 +165,14 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
    * 现在统一显示成「添加成功」，界面上不再出现「客户已同意」这个说法。
    */
   const stageOf = (r: any): { text: string; color: string } => {
+    const takenName = r.customFields?.csTakenByCompanionName;
+    if (takenName) {
+      const code = r.customFields?.csTakenOrderCode;
+      return {
+        text: `已接走 · ${takenName}${code ? ` · ${code}` : ''}`,
+        color: BRAND.primary,
+      };
+    }
     switch (r.contactStatus) {
       case 'dispatched':
         return { text: '已派单', color: BRAND.primary };
@@ -289,6 +301,30 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       load();
     } catch (e: any) {
       message.error(extractErrorMessage(e, '操作失败'));
+    }
+  };
+
+  const openTaken = (r: any) => {
+    setTakenTarget(r);
+    setTakenCompanionId(undefined);
+    setTakenOrderCode('');
+  };
+
+  const submitTaken = async () => {
+    if (!takenTarget) return;
+    setTakenSaving(true);
+    try {
+      await ordersApi.markCultivatedTaken(takenTarget.id, {
+        companionId: takenCompanionId,
+        actualOrderCode: takenOrderCode.trim(),
+      });
+      message.success('已标记被接走');
+      setTakenTarget(null);
+      load();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '操作失败'));
+    } finally {
+      setTakenSaving(false);
     }
   };
 
@@ -481,6 +517,13 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         buttons.push(
           <Button key="failed" size="small" danger onClick={() => openFail(r, true)}>
             添加失败
+          </Button>,
+        );
+      }
+      if (r.customFields?.directAdd && !r.customFields?.csTakenByCompanionName) {
+        buttons.push(
+          <Button key="taken" size="small" onClick={() => openTaken(r)}>
+            标记已接走
           </Button>,
         );
       }
@@ -757,6 +800,42 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         onClose={() => setFollowTarget(null)}
         onSaved={load}
       />
+
+      <Modal
+        title="标记已接走"
+        open={!!takenTarget}
+        onOk={submitTaken}
+        onCancel={() => setTakenTarget(null)}
+        confirmLoading={takenSaving}
+        okText="确认接走"
+        cancelText="取消"
+        width={460}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+          <Text type="secondary">
+            只改这条工作微信客户记录，不会新增订单、不会重复算业绩。
+          </Text>
+          <Select
+            showSearch
+            allowClear
+            optionFilterProp="label"
+            placeholder="实际接单陪玩（例如 张宗军）"
+            value={takenCompanionId}
+            onChange={setTakenCompanionId}
+            options={people
+              .filter((p: any) => p.role === 'COMPANION')
+              .map((p: any) => ({
+                value: p.companionId || p.id,
+                label: p.displayName || p.username || p.id,
+              }))}
+          />
+          <Input
+            placeholder="实际订单号（可选，例如 1459）"
+            value={takenOrderCode}
+            onChange={(e) => setTakenOrderCode(e.target.value)}
+          />
+        </div>
+      </Modal>
 
       <Modal
         title="记业绩"

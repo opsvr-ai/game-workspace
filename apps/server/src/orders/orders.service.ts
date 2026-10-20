@@ -314,6 +314,14 @@ export class OrdersService implements OnModuleInit {
     return this.orderCs.markPoolHandled(orderId, user);
   }
 
+  async markCultivatedTaken(
+    orderId: string,
+    user: { id: string; role: string },
+    body: { companionId?: string; actualOrderCode?: string },
+  ) {
+    return this.orderCs.markCultivatedTaken(orderId, user, body);
+  }
+
   async listCsFollowup(studioId: string, user?: { id: string; role: string }) {
     return this.csFinance!.listCsFollowup(studioId, user);
   }

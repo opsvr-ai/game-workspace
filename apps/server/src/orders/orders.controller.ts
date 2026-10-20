@@ -101,6 +101,21 @@ export class OrdersController {
     return { code: 200, message: '已标记处理完成', data };
   }
 
+  /**
+   * 工作微信客户里的「添加成功」单，实际已经被某个陪玩接走（可能后来另发了一张正式单）。
+   * 不新增订单、不重复算业绩，只把这一行标成「已接走 · 张宗军 · 1459」。
+   */
+  @Post('orders/:id/cultivated-taken')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async markCultivatedTaken(
+    @Param('id') id: string,
+    @Body() body: { companionId?: string; actualOrderCode?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.markCultivatedTaken(id, req.user, body || {});
+    return { code: 200, message: '已标记被接走', data };
+  }
+
   @Get('orders/cs-followup')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async csFollowup(@Req() req: any): Promise<ApiResponse<unknown>> {
