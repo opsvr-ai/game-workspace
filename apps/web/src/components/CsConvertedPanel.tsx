@@ -70,6 +70,9 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const [takenCompanionId, setTakenCompanionId] = useState<string | undefined>();
   const [takenOrderCode, setTakenOrderCode] = useState('');
   const [takenSaving, setTakenSaving] = useState(false);
+  const [editTarget, setEditTarget] = useState<any>(null);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [editSaving, setEditSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -328,7 +331,36 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
     }
   };
 
-  // ── 收款情况（老板 2026-09-28：一张单原来要在下面叠 5 行小字，现在压成一行，长了鼠标悬停看全）──
+  const openEdit = (r: any) => {
+    const cf = r.customFields || {};
+    setEditValues({
+      customerWechat: String(cf.customerWechat || r.customer?.wechatId || ''),
+      customerNickname: String(cf.customerNickname || ''),
+      customerAccountId: String(cf.customerAccountId || ''),
+      customerSource: String(cf.customerSource || ''),
+      customerSourceAccount: String(cf.customerSourceAccount || ''),
+      customerYy: String(cf.customerYy || ''),
+      customerPlatformAccount: String(cf.customerPlatformAccount || ''),
+      customerRoomCode: String(cf.customerRoomCode || ''),
+      customerGameId: String(cf.customerGameId || ''),
+    });
+    setEditTarget(r);
+  };
+
+  const submitEdit = async () => {
+    if (!editTarget) return;
+    setEditSaving(true);
+    try {
+      await ordersApi.updateOrder(editTarget.id, editValues);
+      message.success('客户资料已更新');
+      setEditTarget(null);
+      load();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '保存失败'));
+    } finally {
+      setEditSaving(false);
+    }
+  };
   // 一行里先说**钱**（转入 / 转出 / 收款去向），再说单子去向和人；这一格窄，
   // 后面几项看不全就省略号 + 鼠标悬停（这一列的 title 拼的是同一串，一个字都不丢）。
   const paidToLabelOf = (r: any) => {
@@ -558,6 +590,11 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       );
     }
     buttons.push(
+      <Button key="edit" size="small" onClick={() => openEdit(r)}>
+        编辑资料
+      </Button>,
+    );
+    buttons.push(
       <Button key="follow" size="small" onClick={() => setFollowTarget(r)}>
         记跟进
       </Button>,
@@ -583,7 +620,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         />,
       );
     }
-    return <Space size={4}>{buttons}</Space>;
+    return <Space size={4} wrap>{buttons}</Space>;
   };
 
   /** 这一页特有的四列：客服工作微信 / 添加情况 / 最后跟进 / 下次跟进（原跟进台账那几列） */
@@ -835,6 +872,43 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
             onChange={(e) => setTakenOrderCode(e.target.value)}
           />
         </div>
+      </Modal>
+
+      <Modal
+        title="编辑客户资料"
+        open={!!editTarget}
+        onOk={submitEdit}
+        onCancel={() => setEditTarget(null)}
+        confirmLoading={editSaving}
+        okText="保存"
+        cancelText="取消"
+        width={620}
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+          {[
+            ['customerWechat', '客户微信'],
+            ['customerNickname', '客户昵称'],
+            ['customerAccountId', '客户账号ID'],
+            ['customerSource', '来源平台'],
+            ['customerSourceAccount', '来源账号'],
+            ['customerYy', 'YY号'],
+            ['customerPlatformAccount', 'KOOK号'],
+            ['customerRoomCode', '房间码'],
+            ['customerGameId', '游戏ID'],
+          ].map(([key, label]) => (
+            <div key={key}>
+              <div style={{ fontSize: 12, color: TEXT.secondary, marginBottom: 4 }}>{label}</div>
+              <Input
+                value={editValues[key] || ''}
+                placeholder={label}
+                onChange={(e) => setEditValues((prev) => ({ ...prev, [key]: e.target.value }))}
+              />
+            </div>
+          ))}
+        </div>
+        <Text type="secondary" style={{ display: 'block', marginTop: 10, fontSize: 12 }}>
+          保存会同步更新这张订单的客户资料和客户微信，不会新增订单。
+        </Text>
       </Modal>
 
       <Modal
