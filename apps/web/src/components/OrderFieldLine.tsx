@@ -1,11 +1,9 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
-import { Typography } from 'antd';
 import { DATA_SUB_FONT_SIZE } from '../constants/datasetColumns';
 import type { OrderFieldEntry } from '../constants/orderFields';
 import { BRAND, TEXT } from '../styles/tokens';
-
-const { Text } = Typography;
+import CopyTextButton from './CopyTextButton';
 
 /** 可复制的那种值（抢单成功浮窗里的客户联系方式）用品牌紫，跟订单详情弹窗一致 */
 const COPYABLE_COLOR = BRAND.primary;
@@ -57,9 +55,10 @@ const OrderFieldLine: React.FC<OrderFieldLineProps> = ({ items, wrap, style }) =
         >
           <span style={LABEL_STYLE}>{item.label}</span>
           {item.copyable ? (
-            <Text copyable={{ text: item.text }} style={{ color: COPYABLE_COLOR }}>
-              {item.text}
-            </Text>
+            <>
+              <span style={{ color: COPYABLE_COLOR }}>{item.text}</span>
+              <CopyTextButton text={item.text} />
+            </>
           ) : (
             item.text
           )}

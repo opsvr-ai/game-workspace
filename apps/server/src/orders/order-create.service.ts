@@ -178,7 +178,9 @@ export class OrderCreateService {
           customerPlatformAccount: (dto as any).customerPlatformAccount,
           customerWechat: dto.customerWechat,
           customerWechatQr: (dto as any).customerWechatQr || undefined,
-          customerRoomCode: dto.customerRoomCode,
+          customerRoomCode: String(dto.customerRoomCode || '')
+            .replace(/^\s*房间码\s*[:：]?\s*/i, '')
+            .trim() || undefined,
           customerGameId: (dto as any).customerGameId,
           // 房间码单标记：客户信息只有房间码，方便列表 / 详情区分「还没补微信」的单。
           roomCodeOnly: (dto as any).roomCodeOnly === true ? true : undefined,

@@ -224,6 +224,12 @@ export const orderAmountText = (o: any): string => `\u00A5${Number(o?.amount || 
 export const orderCustomerWechat = (o: any): string =>
   o?.customFields?.customerWechat || o?.customer?.wechatId || '';
 
+/** 清掉历史上贴进房间码里的「房间码 / 房间码：」前缀，只留真正的码。 */
+export const cleanRoomCode = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/^\s*房间码\s*[:：]?\s*/i, '')
+    .trim();
+
 /** 客户联系方式：微信号 + YY + KOOK + 房间码 + 游戏ID（就是发布订单表单「客户联系方式」那一行）。 */
 export const orderCustomerContact = (o: any): string => {
   const cf = o?.customFields || {};
@@ -232,7 +238,7 @@ export const orderCustomerContact = (o: any): string => {
     wechat ? `${ORDER_FIELD_LABELS.wechatId}:${wechat}` : '',
     cf.customerYy ? `${ORDER_FIELD_LABELS.yy}:${cf.customerYy}` : '',
     cf.customerPlatformAccount ? `${ORDER_FIELD_LABELS.kook}:${cf.customerPlatformAccount}` : '',
-    cf.customerRoomCode ? `${ORDER_FIELD_LABELS.roomCode}:${cf.customerRoomCode}` : '',
+    cf.customerRoomCode ? `${ORDER_FIELD_LABELS.roomCode}:${cleanRoomCode(cf.customerRoomCode)}` : '',
     cf.customerGameId ? `${ORDER_FIELD_LABELS.gameId}:${cf.customerGameId}` : '',
   ]
     .filter(Boolean)
@@ -250,7 +256,7 @@ export const orderCustomerContactCopyText = (o: any): string => {
     orderCustomerWechat(o),
     cf.customerYy,
     cf.customerPlatformAccount,
-    cf.customerRoomCode,
+    cleanRoomCode(cf.customerRoomCode),
     cf.customerGameId,
   ]
     .filter(Boolean)
@@ -299,7 +305,7 @@ export const ORDER_FIELD_TEXT: Record<string, (o: any) => string | null> = {
   wechatId: (o) => orderCustomerWechat(o) || null,
   yy: (o) => o?.customFields?.customerYy || null,
   kook: (o) => o?.customFields?.customerPlatformAccount || null,
-  roomCode: (o) => o?.customFields?.customerRoomCode || null,
+  roomCode: (o) => cleanRoomCode(o?.customFields?.customerRoomCode) || null,
   gameId: (o) => o?.customFields?.customerGameId || null,
   orderNote: (o) => o?.customFields?.deltaNote || o?.notes || null,
   companion: (o) => orderCompanionText(o) || null,

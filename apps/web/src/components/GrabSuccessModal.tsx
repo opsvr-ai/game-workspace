@@ -3,6 +3,8 @@ import React from 'react';
 import { Modal, Tag, Typography } from 'antd';
 import { BRAND, SEMANTIC } from '../styles/tokens';
 import { orderTypeConfig } from '../constants/orders';
+import { cleanRoomCode } from '../constants/orderFields';
+import CopyTextButton from './CopyTextButton';
 
 interface Props {
   /** 抢到的单（null = 不显示）；来自 orderStore.grabbedOrder */
@@ -46,9 +48,8 @@ const GrabSuccessModal: React.FC<Props> = ({ order, onClose }) => (
             {g.customFields?.customerRoomCode && (
               <div>
                 🏠 房间码：
-                <Typography.Text copyable={{ text: String(g.customFields.customerRoomCode) }}>
-                  {g.customFields.customerRoomCode}
-                </Typography.Text>
+                <span>{cleanRoomCode(g.customFields.customerRoomCode)}</span>
+                <CopyTextButton text={cleanRoomCode(g.customFields.customerRoomCode)} />
               </div>
             )}
             {g.customFields?.customerPlatformAccount && (

@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Typography} from 'antd';
 import { message } from '../utils/feedback';
 import { configApi } from '../api/config';
-import { ORDER_FIELD_LABELS, orderDeltaCountText, orderTypeLabel } from '../constants/orderFields';
+import { ORDER_FIELD_LABELS, cleanRoomCode, orderDeltaCountText, orderTypeLabel } from '../constants/orderFields';
+import CopyTextButton from './CopyTextButton';
 
 import { BG } from '../styles/tokens';
 const { Text, Title } = Typography;
@@ -176,9 +177,8 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
               {urgentGrabbed.customFields?.customerRoomCode && (
                 <div>
                   🏠 房间码：
-                  <Text copyable={{ text: String(urgentGrabbed.customFields.customerRoomCode) }}>
-                    {urgentGrabbed.customFields.customerRoomCode}
-                  </Text>
+                  <span>{cleanRoomCode(urgentGrabbed.customFields.customerRoomCode)}</span>
+                  <CopyTextButton text={cleanRoomCode(urgentGrabbed.customFields.customerRoomCode)} />
                 </div>
               )}
               {urgentGrabbed.customFields?.deltaNote && (

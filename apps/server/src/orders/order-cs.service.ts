@@ -276,7 +276,12 @@ export class OrderCsService {
     for (const key of customFieldKeys) {
       if (!has(key)) continue;
       const value = dto[key];
-      cfPatch[key] = key === 'customerWechatQr' && !value ? undefined : value;
+      cfPatch[key] =
+        key === 'customerRoomCode'
+          ? String(value ?? '').replace(/^\s*房间码\s*[:：]?\s*/i, '').trim()
+          : key === 'customerWechatQr' && !value
+            ? undefined
+            : value;
     }
 
     const currentCf = (order.customFields as any) || {};
