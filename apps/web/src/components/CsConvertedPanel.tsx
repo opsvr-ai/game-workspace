@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Input, Space, Modal, InputNumber, Select, Typography, Popconfirm, Upload } from 'antd';
+import { Button, Card, Input, Space, Modal, InputNumber, Select, Typography, Popconfirm, Upload, Popover } from 'antd';
 import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 import http from '../api/client';
@@ -620,7 +620,18 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         />,
       );
     }
-    return <Space size={4} wrap>{buttons}</Space>;
+    // 老板 2026-10-22：按钮不要挤在表格最右边还要横向滑过去 ——
+    // 一行只留一个「操作」，所有按钮放进弹层，表格宽度再也不会被操作列撑爆。
+    return (
+      <Popover
+        trigger="click"
+        placement="bottomRight"
+        destroyTooltipOnHide
+        content={<Space direction="vertical" size={4} style={{ minWidth: 110 }}>{buttons}</Space>}
+      >
+        <Button size="small">操作 ▾</Button>
+      </Popover>
+    );
   };
 
   /** 这一页特有的四列：客服工作微信 / 添加情况 / 最后跟进 / 下次跟进（原跟进台账那几列） */
@@ -805,7 +816,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         hideStudio
         loading={loading}
         extraColumns={extraColumns}
-        actionsWidth={FIELD_WIDTH.orderActions}
+        actionsWidth={118}
         renderActions={renderActions}
         // 到点该跟进的那一行整行淡红底（老板 2026-09-29：「红字置顶」）
         rowStyle={(r: any) => (dueFollowUpAtOf(r, now) !== null ? { background: SEMANTIC.dangerSoft } : undefined)}
