@@ -258,6 +258,11 @@ export const authApi = {
   me() {
     return http.get<ApiResponse<UserInfo>>('/auth/me');
   },
+  impersonate(userId: string) {
+    return http.post<ApiResponse<{ accessToken: string; user: UserInfo; expiresInSec: number }>>(
+      `/auth/impersonate/${userId}`,
+    );
+  },
   verifySecond(password: string) {
     return http.post<ApiResponse<{ secondToken: string }>>(
       '/auth/verify-2nd',

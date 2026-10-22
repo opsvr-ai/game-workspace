@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -125,6 +125,54 @@ export class AuthService {
       refreshToken,
       user: userInfo,
     };
+  }
+
+  /**
+   * 老板端「代登录」：不修改任何人的密码，直接签发一张 10 分钟的目标账号令牌。
+   * 只允许 OWNER；写审计记录；不返回 refreshToken，过期自动失效。
+   */
+  async impersonate(targetUserId: string, actor: { id: string; username: string; role: string }) {
+    if (actor.role !== UserRole.OWNER) throw new ForbiddenException('只有老板可以代登录');
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { companion: { select: { id: true, isResigned: true } } },
+    });
+    if (!target) throw new NotFoundException('用户不存在');
+    if (target.role === UserRole.OWNER) throw new ForbiddenException('不能代登录老板账号');
+    if (isResignedUser(target)) throw new ForbiddenException('该账号已离职，不能代登录');
+
+    const payload: JwtPayload = {
+      sub: target.id,
+      username: target.username,
+      role: target.role as UserRole,
+      studioId: target.studioId,
+      companionId: target.companion?.id,
+      isAuthorized: target.isAuthorized,
+      sv: target.sessionVersion,
+      imp: { by: actor.id, name: actor.username, at: Date.now() },
+    };
+    const accessToken = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET,
+      expiresIn: '10m',
+    });
+    const user = await this.getMe(target.id);
+    const auditKey = `audit.impersonate.${Date.now()}.${Math.random().toString(36).slice(2, 10)}`;
+    await this.prisma.systemConfig
+      .create({
+        data: {
+          key: auditKey,
+          value: {
+            at: new Date().toISOString(),
+            actorId: actor.id,
+            actorName: actor.username,
+            targetId: target.id,
+            targetName: target.username,
+            targetRole: target.role,
+          },
+        },
+      })
+      .catch(() => {});
+    return { accessToken, user, expiresInSec: 600 };
   }
 
   async refresh(token: string): Promise<{ accessToken: string; refreshToken: string }> {
@@ -412,6 +460,8 @@ export interface JwtPayload {
   isAuthorized?: boolean;
   /** 单点登录号码（老板 2026-10-01）：对不上 User.sessionVersion 就是被顶掉了。老令牌没有这个字段。 */
   sv?: number;
+  /** 老板代登录标记：by=老板用户 id，name=老板用户名，at=签发时间。 */
+  imp?: { by: string; name: string; at: number };
 }
 
 /**

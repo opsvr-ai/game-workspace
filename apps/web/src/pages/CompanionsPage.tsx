@@ -9,6 +9,7 @@ import { ReloadOutlined, DesktopOutlined, SearchOutlined } from '@ant-design/ico
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../api/companions';
 import { employeesApi } from '../api/employees';
+import { authApi } from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import { companionStatusConfig, STATUS_SORT, modeLabels, HEARTBEAT_THRESHOLD } from '../constants';
 import ErrorBanner from '../components/ErrorBanner';
@@ -126,6 +127,7 @@ const CompanionsPage: React.FC = () => {
   const roleFilter = searchParams.get('role');
   const role = user?.role;
   const isAdmin = role === 'ADMIN' || role === 'OWNER';
+  const isOwner = role === 'OWNER';
 
   const [companions, setCompanions] = useState<Personnel[]>([]);
   const [loading, setLoading] = useState(false);
@@ -496,6 +498,44 @@ const CompanionsPage: React.FC = () => {
     }
   };
 
+  /**
+   * 老板代登录：服务端只发 10 分钟目标账号令牌，不修改对方密码。
+   * 新标签页继承当前 sessionStorage 的目标令牌；当前老板标签页马上恢复自己的令牌。
+   */
+  const handleImpersonate = async (record: Personnel) => {
+    if (!isOwner) return;
+    const win = window.open('about:blank', '_blank');
+    if (!win) {
+      message.warning('浏览器拦了新窗口，请允许弹窗后重试');
+      return;
+    }
+    const ownerAccess = sessionStorage.getItem('accessToken');
+    const ownerRefresh = localStorage.getItem('refreshToken');
+    try {
+      const { data } = await authApi.impersonate(record.id);
+      const payload = data.data;
+      if (!payload?.accessToken) throw new Error('没有拿到代登录令牌');
+      sessionStorage.setItem('accessToken', payload.accessToken);
+      sessionStorage.setItem(
+        'impersonating',
+        JSON.stringify({ by: user?.username, target: payload.user?.username, at: Date.now() }),
+      );
+      localStorage.removeItem('refreshToken');
+      win.location.href = window.location.origin;
+      // 新标签页已经复制目标 sessionStorage，恢复老板当前页
+      setTimeout(() => {
+        if (ownerAccess) sessionStorage.setItem('accessToken', ownerAccess);
+        else sessionStorage.removeItem('accessToken');
+        if (ownerRefresh) localStorage.setItem('refreshToken', ownerRefresh);
+        sessionStorage.removeItem('impersonating');
+      }, 1200);
+      message.success(`已在新标签页代登录 ${record.username}，10 分钟后自动失效`);
+    } catch (e: any) {
+      try { win.close(); } catch {}
+      message.error(e?.response?.data?.message || e?.message || '代登录失败');
+    }
+  };
+
   const handleRestore = async (record: Personnel) => {
     try {
       await employeesApi.restore(record.id);
@@ -691,7 +731,8 @@ const CompanionsPage: React.FC = () => {
         // 原来是 248（四个按钮，老板 2026-09-28 定：写 240 时最后一个字会被切）；
         // 老板 2026-10-10 加了「编辑业绩」这一个，按同样的按钮规格算下来要宽 56px。
         // 老板 2026-10-11 又加了「结束会话」（只在对方卡在「接单中」时出现），再 +56。
-        width: 360,
+        // 老板 2026-10-23 加「代登录」，再 +56。
+        width: 416,
         fixed: 'right' as const,
         className: ACTIONS_CELL_CLASS,
         render: (_: unknown, record: Personnel) => (
@@ -740,6 +781,11 @@ const CompanionsPage: React.FC = () => {
                 <Button type="link" size="small" onClick={() => { setWrCompanion(record); }}>
                   工作记录
                 </Button>
+                {isOwner && (
+                  <Button type="link" size="small" onClick={() => void handleImpersonate(record)}>
+                    代登录
+                  </Button>
+                )}
                 <Button type="link" size="small" onClick={() => openDetail(record)}>
                   身份证
                 </Button>

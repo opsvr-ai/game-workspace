@@ -56,6 +56,14 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER)
+  @Post('impersonate/:id')
+  async impersonate(@Param('id') id: string, @Request() req: any): Promise<ApiResponse<any>> {
+    const data = await this.authService.impersonate(id, req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Put('users/:id/authorize')
   async authorizeUser(@Param('id') id: string, @Request() req: any): Promise<ApiResponse<null>> {
