@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,10 +12,19 @@ function ensureDir(dir: string) {
 }
 
 @Injectable()
-export class CompositeService {
+export class CompositeService implements OnModuleInit {
   private readonly logger = new Logger('CompositeService');
 
   constructor(private prisma: PrismaService) {}
+
+  onModuleInit(): void {
+    // 老板 2026-10-23：截图目录不能只靠「有人打开审核页」才清。
+    // 每天凌晨低峰跑一次 30 天清理；先等 2 分钟，避开服务启动抖动。
+    const timer = setInterval(() => this.cleanupOldDirs(), 24 * 60 * 60 * 1000);
+    timer.unref?.();
+    const first = setTimeout(() => this.cleanupOldDirs(), 2 * 60 * 1000);
+    first.unref?.();
+  }
 
   /** 延迟加载 sharp，避免该可选依赖缺失时阻断服务端启动。 */
   private loadSharp(): any {
