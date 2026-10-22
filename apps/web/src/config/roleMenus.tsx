@@ -324,6 +324,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       children: [
         { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
         { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },
+        { key: '/admin/battle-screenshots', label: '陪玩战绩图审核' },
         { key: '/cs/traffic-accounts', label: '工作室账号' },
         { key: '/content-check', label: 'AI运营辅助' },
       ],

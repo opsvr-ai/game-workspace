@@ -330,6 +330,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **客服端（邵泽慧）找不到「陪玩战绩图审核」入口（2026-10-23，网页）。**
+  老板：邵泽慧也是管理端，怎么没找到审批战绩图？
+  - 页面本身允许客服采纳 / 驳回（`canReview` 包含 CS），后端也放行；缺的是**客服菜单里没挂入口**。
+  - 现在客服「运营」菜单下加 **「陪玩战绩图审核」**，路径 `/admin/battle-screenshots`。
+  - 网页 typecheck / build 通过；已部署 **v1104**。
+
 - **工作微信客户「引流账号」和「客户昵称」之间留白太大（2026-10-22，网页）。**
   老板：这俩间隔太大，收窄到最后一个字后约 2 个字距离，给其他显示不全的列腾位置。
   - 工作微信客户表：`customerSourceAccount` 116 → **96**，`customerNickname` 96 → **104**，
