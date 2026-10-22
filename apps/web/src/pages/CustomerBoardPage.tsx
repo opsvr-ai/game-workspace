@@ -652,58 +652,6 @@ const CustomerBoardPage: React.FC = () => {
     </div>
   );
 
-  const companionCard = (c: BoardCompanion) => {
-    const cfg = companionStatusConfig[c.status] || companionStatusConfig.OFFLINE;
-    const active = focusCompanion === c.companionId;
-    return (
-      <Card
-        key={c.companionId}
-        size="small"
-        onClick={() => setFocusCompanion(active ? null : c.companionId)}
-        style={{
-          width: 232,
-          cursor: 'pointer',
-          borderColor: active ? BRAND.primary : c.servingCustomer ? SEMANTIC.dangerEdge : undefined,
-          background: active ? BG.brandSoft : c.servingCustomer ? BG.error : undefined,
-        }}
-        bodyStyle={{ padding: 10 }}
-      >
-        <Space size={8} align="start">
-          <Badge
-            dot
-            color={!c.online ? TEXT.tertiary : statusDotColor({ status: c.status })}
-            offset={[-2, 22]}
-          >
-            <Avatar size={30} src={c.avatar || undefined}>
-              {(c.name || '?').slice(0, 1)}
-            </Avatar>
-          </Badge>
-          <div style={{ minWidth: 0 }}>
-            <div>
-              <Text strong>{c.name}</Text>
-              <Tag style={{ marginInlineStart: 6 }} color={c.online ? cfg.color : 'default'}>
-                {c.online ? cfg.label : '离线'}
-              </Tag>
-              {c.resigned ? <Tag color="default">已离职</Tag> : null}
-            </div>
-            {c.servingCustomer ? (
-              <div style={{ fontSize: 12, color: SEMANTIC.dangerStrong, marginTop: 2 }}>
-                🎮 {c.servingCustomer.gameName || '游戏中'}
-                {c.servingCustomer.paused ? '（暂停）' : ' · ' + fmtDuration(c.servingCustomer.elapsedSec + Math.max(0, Math.floor((nowMs - fetchedAtRef.current) / 1000)))}
-                <div style={{ color: TEXT.secondary }}>客户 {c.servingCustomer.customerCode}</div>
-              </div>
-            ) : (
-              <div style={{ fontSize: 12, color: TEXT.tertiary, marginTop: 2 }}>此刻没在打</div>
-            )}
-            <div style={{ fontSize: 12, color: TEXT.heading, marginTop: 2 }}>
-              客户 {c.customers} · 消费 {yuan(c.spent)} · {fmtHours(c.hours)}
-            </div>
-          </div>
-        </Space>
-      </Card>
-    );
-  };
-
   return (
     <>
       <PageHeader
@@ -711,7 +659,7 @@ const CustomerBoardPage: React.FC = () => {
         subtitle={
           isCompanion
             ? '我的客户排行榜：按累计消费 / 今日消费 / 游戏时长从高到低排列，正在打的亮红点（每 15 秒自动刷新）'
-            : '每个陪玩什么样、他的客户现在什么样：今日消费 / 累计消费 / 游戏时长 / 此刻在不在打，一眼看全（今日按营业日 12:00 起算，与实时看板同口径；每 15 秒自动刷新）'
+            : '每个客户现在什么样：今日消费 / 累计消费 / 游戏时长 / 此刻在不在打，一眼看全（今日按营业日 12:00 起算，与实时看板同口径；每 15 秒自动刷新）'
         }
         extra={
           <Space wrap>
@@ -801,12 +749,6 @@ const CustomerBoardPage: React.FC = () => {
           </Space>
         </Space>
       </div>
-
-      {!isCompanion && companions.length > 0 ? (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-          {companions.map(companionCard)}
-        </div>
-      ) : null}
 
       {loading && !data ? (
         <Card size="small">
