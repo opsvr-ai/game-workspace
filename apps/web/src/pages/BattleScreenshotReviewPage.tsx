@@ -9,7 +9,7 @@ import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreen
 import PageHeader from '../components/PageHeader';
 import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '@chunlv/shared';
-import { BRAND, BORDER, TEXT } from '../styles/tokens';
+import { BRAND, BORDER, TEXT, SEMANTIC } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -174,6 +174,12 @@ const BattleScreenshotReviewPage: React.FC = () => {
                           <div style={{ fontSize: 12, color: TEXT.tertiary, marginTop: 2 }}>
                             {it.customer ? `关联客户：${it.customer.customerCode || it.customer.wechatId} · ` : ''}
                             {new Date(it.createdAt).toLocaleString('zh-CN')}
+                            {it.reviewedAt ? (
+                              <span style={{ color: SEMANTIC.successDeep }}>
+                                {' · '}审核人：{it.reviewedBy?.displayName || it.reviewedBy?.username || '—'}
+                                {' · '}{new Date(it.reviewedAt).toLocaleString('zh-CN')}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                         <Tag color={STATUS[it.status]?.color} style={{ margin: 0 }}>{STATUS[it.status]?.label}</Tag>

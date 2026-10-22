@@ -26,6 +26,7 @@ function setup(item: any = ITEM) {
     battleScreenshot: {
       findUnique: vi.fn().mockResolvedValue({ ...item }),
       update: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     companion: { update: vi.fn().mockResolvedValue({}) },
   };
@@ -45,7 +46,7 @@ describe('战绩图采纳 / 驳回（老板 2026-10-09 起客服也能点）', (
 
     expect(out.status).toBe('APPROVED');
     expect(out.bonus).toBe(2);
-    expect(prisma.battleScreenshot.update).toHaveBeenCalledTimes(1);
+    expect(prisma.battleScreenshot.updateMany).toHaveBeenCalledTimes(1);
     expect(prisma.companion.update).toHaveBeenCalledWith({
       where: { id: 'c1' },
       data: { bonusScore: { increment: 2 } },
@@ -68,7 +69,7 @@ describe('战绩图采纳 / 驳回（老板 2026-10-09 起客服也能点）', (
     await expect(
       svc.review('b1', 'u-cs', 'approve', undefined as any, { role: 'CS', studioId: 's1' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
-    expect(prisma.battleScreenshot.update).not.toHaveBeenCalled();
+    expect(prisma.battleScreenshot.updateMany).not.toHaveBeenCalled();
     expect(prisma.companion.update).not.toHaveBeenCalled();
   });
 
@@ -95,3 +96,4 @@ describe('战绩图采纳 / 驳回（老板 2026-10-09 起客服也能点）', (
     ).rejects.toThrow('该记录已处理');
   });
 });
+

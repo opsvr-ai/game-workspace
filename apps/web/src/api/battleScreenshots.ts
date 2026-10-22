@@ -8,6 +8,8 @@ export interface BattleScreenshot {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   note?: string | null;
   createdAt: string;
+  reviewedAt?: string | null;
+  reviewedBy?: { username?: string; displayName?: string | null } | null;
   companion?: { user?: { username?: string; displayName?: string | null; avatar?: string | null } };
   customer?: { customerCode?: string; wechatId?: string };
 }

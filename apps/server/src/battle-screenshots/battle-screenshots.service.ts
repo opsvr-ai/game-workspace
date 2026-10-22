@@ -50,7 +50,10 @@ export class BattleScreenshotsService {
   async listAll(studioId: string, status?: string) {
     return this.prisma.battleScreenshot.findMany({
       // 统一作用域：严格本店（没有店就一条都不给，老代码 `{ studioId }` 的 null 语义不变）
-      where: { ...scopeWhere(actorOfStudio(studioId, 'ADMIN')), ...(status ? { status } : {}) },
+      where: {
+        ...scopeWhere(actorOfStudio(studioId, 'ADMIN')),
+        ...(status && status !== 'ALL' ? { status } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         companion: { include: { user: { select: { username: true, displayName: true, avatar: true } } } },
@@ -77,8 +80,10 @@ export class BattleScreenshotsService {
     if (item.status !== 'PENDING') throw new BadRequestException('该记录已处理');
 
     const status = action === 'approve' ? 'APPROVED' : 'REJECTED';
-    await this.prisma.battleScreenshot.update({
-      where: { id },
+    // 原子抢占：两个人同时点采纳时，只有第一个 updateMany 能命中 PENDING；
+    // 第二个 count=0 直接报「已处理」，不会重复加综合分。
+    const updated = await this.prisma.battleScreenshot.updateMany({
+      where: { id, status: 'PENDING' },
       data: {
         status,
         reviewedById: reviewerUserId,
@@ -86,6 +91,7 @@ export class BattleScreenshotsService {
         note: note || undefined,
       },
     });
+    if (updated.count === 0) throw new BadRequestException('该记录已处理');
 
     let bonusApplied = 0;
     if (action === 'approve') {
