@@ -158,6 +158,24 @@ export function hibernatePc(): void {
 }
 
 /**
+ * 自动休息改成「睡眠」：内存继续供电，游戏和登录状态都在，鼠标/键盘一动就醒。
+ * 和手动点休息的「休眠」区分开 —— 老板 2026-10-23 要求 1 小时无操作后睡眠保号。
+ */
+export function sleepPc(): void {
+  execFile(
+    'rundll32.exe',
+    ['powrprof.dll,SetSuspendState', '0,1,0'],
+    { windowsHide: true },
+    (err) => {
+      if (err) {
+        logger.warn('Sleep failed, falling back to screen lock', { error: err?.message || String(err) });
+        showScreenLock();
+      }
+    },
+  );
+}
+
+/**
  * 开机时尽量把系统休眠打开。普通权限的客户端执行会失败，这里只记录不打扰；
  * 如果客户端以管理员权限运行，则能直接成功，保证「休息=休眠」可用。
  */
@@ -179,11 +197,18 @@ export function ensureHibernateEnabled(): void {
 export function handleStatusChanged(status: string): void {
   store.set('lastStatus', status);
   if (status === 'RESTING') {
-    // 点休息直接休眠整机。
+    // 手动点休息 = 整机休眠（立即、零耗电）。
     stopIdleTimer();
     hibernatePc();
   } else {
     stopIdleTimer();
     hideScreenLock();
   }
+}
+
+/** 1 小时无操作自动休息：只睡眠，不 hibernation；手动点休息仍是上面的休眠。 */
+export function handleIdleRestSleep(): void {
+  store.set('lastStatus', 'RESTING');
+  stopIdleTimer();
+  sleepPc();
 }

@@ -21,7 +21,7 @@ import {
   type ShellRole,
 } from './role-policy';
 import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending, pauseCapture, resumeCapture } from './capture';
-import { handleStatusChanged, ensureHibernateEnabled, setAppPassword, getAppPassword } from './screen-lock';
+import { handleStatusChanged, handleIdleRestSleep, ensureHibernateEnabled, setAppPassword, getAppPassword } from './screen-lock';
 import {
   decideBannerRoute,
   isFullscreenKicked,
@@ -2111,7 +2111,7 @@ async function idleRestTick(): Promise<void> {
     try {
       showBroadcastPopup({
         title: `😴 已经 ${idleMinutes} 分钟没操作`,
-        body: `${graceSec} 秒后自动进入休息并休眠电脑 · 动一下鼠标就能取消`,
+        body: `${graceSec} 秒后自动进入休息并睡眠（动一下鼠标/键盘就能唤醒）`,
         icon: '😴',
         seconds: graceSec,
       });
@@ -2132,8 +2132,8 @@ async function idleRestTick(): Promise<void> {
     const statusNow = store.get('lastStatus');
     if (statusNow === 'OFFLINE' || statusNow === 'BUSY' || statusNow === 'ENTERTAINMENT') {
       idleRestSettled = true;
-      logger.info('Idle auto-rest: hibernating locally', { status: statusNow });
-      handleStatusChanged('RESTING');
+      logger.info('Idle auto-rest: sleeping locally', { status: statusNow });
+      handleIdleRestSleep();
       return;
     }
 
@@ -2151,9 +2151,9 @@ async function idleRestTick(): Promise<void> {
       return;
     }
     idleRestSettled = true;
-    logger.info('Idle auto-rest: reporting RESTING and hibernating');
+    logger.info('Idle auto-rest: reporting RESTING and sleeping');
     emitStatus('RESTING');
-    handleStatusChanged('RESTING');
+    handleIdleRestSleep();
   } catch (err: any) {
     logger.warn('Idle auto-rest failed', { error: err?.message || String(err) });
   } finally {
