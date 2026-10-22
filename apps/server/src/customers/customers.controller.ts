@@ -11,6 +11,7 @@ import {
   Req,
   UseGuards,
   UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
@@ -121,6 +122,10 @@ export class CustomersController {
   async create(@Body() dto: CreateCustomerDto, @Req() req: any): Promise<ApiResponse<unknown>> {
     // 陪玩也能录入自己的老客户：归属到当前陪玩名下；CS/店长/老板按各自工作室。
     const user = req.user;
+    // 老板 2026-10-22：陪玩自己创建客户，没有客户微信不允许通过。
+    if (user?.role === 'COMPANION' && !String(dto.wechatId || '').trim()) {
+      throw new BadRequestException('陪玩创建客户必须填写客户微信');
+    }
     const data = await this.customersService.create({
       ...dto,
       studioId: dto.studioId || user?.studioId || '',

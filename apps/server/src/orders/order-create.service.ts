@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { OrderSessionService } from './order-session.service';
@@ -84,7 +84,18 @@ export class OrderCreateService {
       }
     }
 
-    // Resolve customerId: create a placeholder if not provided
+    // Resolve customerId: create a placeholder if not provided.
+    // 陪玩无客户ID时先校验，别先建一条空客户档案再拒绝（老板 2026-10-22）。
+    if (creator?.role === 'COMPANION' && !dto.customerId) {
+      const roomOnly = (dto as any).roomCodeOnly === true;
+      if (roomOnly) {
+        if (!String((dto as any).customerRoomCode || '').trim()) {
+          throw new BadRequestException('房间码单必须填写房间码');
+        }
+      } else if (!String(dto.customerWechat || '').trim()) {
+        throw new BadRequestException('陪玩发布的订单必须填写客户微信（房间码单除外）');
+      }
+    }
     let customerId = dto.customerId;
     if (!customerId && studioId) {
       const customerCode = await this.nextGlobalCode();
@@ -143,6 +154,45 @@ export class OrderCreateService {
         });
         if (served === 0) {
           throw new ForbiddenException('只能续单 / 复购你自己服务过的客户；这个客户不是你打的，请让客服 / 店长处理');
+        }
+      }
+    }
+
+    // 老板 2026-10-22：陪玩自己创建客户必须有微信；陪玩发布的订单不能是空客户。
+    // 放在老客归属校验之后，先报「不是你的客户」，再报资料缺失。房间码单是明确例外。
+    if (creator?.role === 'COMPANION') {
+      const roomOnly = (dto as any).roomCodeOnly === true;
+      const roomCode = String((dto as any).customerRoomCode || '').trim();
+      if (roomOnly) {
+        if (!roomCode) throw new BadRequestException('房间码单必须填写房间码');
+      } else {
+        const customerFields = [
+          dto.customerWechat,
+          (dto as any).customerNickname,
+          (dto as any).customerAccountId,
+          (dto as any).customerPlatformAccount,
+          (dto as any).customerYy,
+          (dto as any).customerGameId,
+          (dto as any).customerRoomCode,
+        ].map((v) => String(v ?? '').trim()).filter(Boolean);
+        if (dto.customerId) {
+          const existing = await this.prisma.customer
+            .findUnique({
+              where: { id: dto.customerId },
+              select: { wechatId: true, platform: true, platformAccount: true, notes: true },
+            })
+            .catch(() => null);
+          const existingInfo = [
+            existing?.wechatId,
+            existing?.platform,
+            existing?.platformAccount,
+            existing?.notes,
+          ].some((v) => String(v ?? '').trim());
+          if (!existingInfo && customerFields.length === 0) {
+            throw new BadRequestException('客户没有微信/客户资料，不能发布订单；请先补全客户资料');
+          }
+        } else if (!String(dto.customerWechat || '').trim()) {
+          throw new BadRequestException('陪玩发布的订单必须填写客户微信（房间码单除外）');
         }
       }
     }

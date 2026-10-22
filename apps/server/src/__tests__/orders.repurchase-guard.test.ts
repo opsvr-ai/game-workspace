@@ -75,7 +75,7 @@ describe('OrdersService.create 续单 / 复购兜底校验', () => {
     (prisma.user.findUnique as any).mockResolvedValue({ role: 'COMPANION', username: 'wanghao' });
     (prisma.companion.findUnique as any).mockResolvedValue({ id: 'comp-1', studioId: 'studio-1' });
     // 默认：客户真实存在、属于本店、归属别人（每个用例再按需要覆盖）
-    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1' });
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1', wechatId: 'wx-test' });
     (prisma.order.create as any).mockResolvedValue(createdOrder);
   });
 
@@ -101,7 +101,7 @@ describe('OrdersService.create 续单 / 复购兜底校验', () => {
   it('客户成交过，但不是自己服务 / 归属的（在客户 B 那一行点复购）→ 拒', async () => {
     // 第一次 count = 该客户 DONE 单数（1）；第二次 = 我服务过的 DONE 单数（0）
     (prisma.order.count as any).mockImplementation(async (args: any) => (args?.where?.OR ? 0 : 1));
-    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1' });
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1', wechatId: 'wx-test' });
 
     await expect(service.create(companionDto as any)).rejects.toThrow(/只能续单 \/ 复购你自己服务过的客户/);
     expect(prisma.order.create).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('OrdersService.create 续单 / 复购兜底校验', () => {
 
   it('续单（RENEW）同样被卡住，不给漏网（在客户 B 那一行点续单）→ 拒', async () => {
     (prisma.order.count as any).mockImplementation(async (args: any) => (args?.where?.OR ? 0 : 1));
-    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1' });
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1', wechatId: 'wx-test' });
 
     await expect(service.create(renewDto as any)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(service.create(renewDto as any)).rejects.toThrow(/只能续单 \/ 复购你自己服务过的客户/);
@@ -118,7 +118,7 @@ describe('OrdersService.create 续单 / 复购兜底校验', () => {
 
   it('自己服务过（当过副陪也算）→ 放行', async () => {
     (prisma.order.count as any).mockResolvedValue(1);
-    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1' });
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1', wechatId: 'wx-test' });
 
     const res = await service.create(companionDto as any);
     expect(res.id).toBe('order-1');
@@ -130,7 +130,7 @@ describe('OrdersService.create 续单 / 复购兜底校验', () => {
 
   it('客户在自己名下（即使没当过主陪）→ 放行', async () => {
     (prisma.order.count as any).mockImplementation(async (args: any) => (args?.where?.OR ? 0 : 1));
-    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1' });
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1', wechatId: 'wx-test' });
 
     const res = await service.create(companionDto as any);
     expect(res.id).toBe('order-1');
@@ -139,7 +139,7 @@ describe('OrdersService.create 续单 / 复购兜底校验', () => {
 
   it('自己录入的客户（在自己名下）没有 DONE 单也能直接续单 / 复购', async () => {
     (prisma.order.count as any).mockResolvedValue(0);
-    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1' });
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1', wechatId: 'wx-test' });
 
     const res = await service.create(companionDto as any);
     expect(res.id).toBe('order-1');
@@ -150,7 +150,7 @@ describe('OrdersService.create 续单 / 复购兜底校验', () => {
 
   it('自己录入的客户点「续单」（RENEW）同样放行', async () => {
     (prisma.order.count as any).mockResolvedValue(0);
-    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1' });
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1', wechatId: 'wx-test' });
 
     const res = await service.create(renewDto as any);
     expect(res.id).toBe('order-1');
@@ -166,3 +166,4 @@ describe('OrdersService.create 续单 / 复购兜底校验', () => {
     expect(prisma.order.count).not.toHaveBeenCalled();
   });
 });
+
