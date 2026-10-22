@@ -2532,10 +2532,9 @@ app.whenReady().then(() => {
           ? '点这里 → 去抢单池看这单（已指定给你）'
           : '点这里 → 去抢单池看这单（再点一下「抢单」）',
       }, {
-        // 服务端已经按状态/接单中开关筛过收件人，能到这里的就是该弹的人；
-        // 客户端不再用「全屏压住」二次吞掉（张权 2026-10-22：接单中 + 独占全屏，
-        // 本机 bannerFullscreenMode=hold，横幅被压住没弹）。
-        force: true,
+        // 老板 2026-10-22 最终口径：只要不是「接单中」，一律强制弹，哪怕把游戏顶回桌面；
+        // 接单中仍按原来的全屏策略（是否弹由服务端的接单中弹窗开关决定）。
+        force: String(store.get('lastStatus') || '') !== 'BUSY',
       });
     } catch (err: any) {
       logger.warn('Urgent order popup failed', { error: err?.message || err });
