@@ -520,9 +520,12 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                       {' · '}
                       {r.logoutAt ? `下班 ${dayjs(r.logoutAt).format('HH:mm')}` : r.online ? '在线中' : '未在线'}
                       {' · '}
-                      在线 {r.statusLogMissing ? '—（状态日志未上报）' : hm(r.onlineSec)}
+                      {r.online ? '本次在线' : '上次在线'} {r.statusLogMissing ? '—（状态日志未上报）' : hm(r.onlineSec)}
                     </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 5 }}>
+                    <div style={{ fontSize: 10, color: TEXT.tertiary, marginTop: 4 }}>
+                      {r.online ? '本次上线状态占比：' : '上次上线期间状态占比（现在已离线）：'}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
                       {[
                         ['接单', r.modeSeconds?.BUSY || 0, '#F5222D'],
                         ['娱乐', r.modeSeconds?.ENTERTAINMENT || 0, '#FAAD14'],
