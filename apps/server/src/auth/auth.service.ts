@@ -90,7 +90,9 @@ export class AuthService {
 
     const refreshToken = this.jwtService.sign(payload, {
       secret: process.env.JWT_REFRESH_SECRET,
-      expiresIn: '7d',
+      // 陪玩端是“一人一台机器”的常驻客户端：refresh token 给到 10 年，
+      // 只要机器没主动退出/没被离职，就不会因为 7 天过期掉回登录页。
+      expiresIn: user.role === UserRole.COMPANION ? '3650d' : '7d',
     });
 
     // Include pending count for OWNER/ADMIN
@@ -236,7 +238,7 @@ export class AuthService {
 
     const refreshToken = this.jwtService.sign(newPayload, {
       secret: process.env.JWT_REFRESH_SECRET,
-      expiresIn: '7d',
+      expiresIn: user.role === UserRole.COMPANION ? '3650d' : '7d',
     });
 
     return { accessToken, refreshToken };

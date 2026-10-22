@@ -66,6 +66,16 @@ const ProfilePage: React.FC = () => {
       const values = await pwdForm.validateFields();
       setPwdLoading(true);
       await authApi.changePassword(values.oldPassword, values.newPassword);
+      // 陪玩端改密后，把本机“记住的账号密码”同步成新密码：
+      // 否则下次刷新令牌失效时，还会拿旧密码自动登录、被拒绝。
+      try {
+        if (user?.username) {
+          await (window as any).electronAPI?.saveCredentials?.({
+            username: user.username,
+            password: values.newPassword,
+          });
+        }
+      } catch {}
       message.success('密码已修改，下次登录请使用新密码');
       pwdForm.resetFields();
     } catch (err: any) {
