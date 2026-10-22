@@ -330,6 +330,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **工作微信客户「引流账号」和「客户昵称」之间留白太大（2026-10-22，网页）。**
+  老板：这俩间隔太大，收窄到最后一个字后约 2 个字距离，给其他显示不全的列腾位置。
+  - `customerSourceAccount` 列宽 116 → **96**，`customerNickname` 96 → **104**，
+    `customerContact` 132 → **144**；省出的空间全部给客户昵称 / 联系方式。
+  - 网页 typecheck / build 通过；已部署 **v1102**。
+
 - **张权打游戏时新单横幅被全屏策略吞掉（2026-10-22，陪玩端外壳）。**
   老板：张权跟张钊坐一起，张钊桌面弹了，张权在玩游戏没弹。
   - 查张权客户端配置：`bannerFullscreenMode = hold`；日志明确写着
