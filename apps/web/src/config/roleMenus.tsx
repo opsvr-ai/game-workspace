@@ -320,11 +320,21 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       ],
     },
     {
-      key: 'cs-operations', icon: IconDispatch, label: '运营',
+      key: 'cs-team', icon: IconCompanions, label: '团队管理',
       children: [
-        { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
-        { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },
-        { key: '/admin/battle-screenshots', label: '陪玩战绩图审核' },
+        group('cs-group-companion', '陪玩', [
+          { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+          { key: '/admin/review', label: '陪玩实名审核' },
+          { key: '/admin/battle-screenshots', label: '陪玩战绩图审核' },
+        ]),
+        group('cs-group-cs', '客服', [
+          { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },
+        ]),
+      ],
+    },
+    {
+      key: 'cs-operations', icon: IconDispatch, label: '工作室管理',
+      children: [
         { key: '/cs/traffic-accounts', label: '工作室账号' },
         { key: '/content-check', label: 'AI运营辅助' },
       ],
