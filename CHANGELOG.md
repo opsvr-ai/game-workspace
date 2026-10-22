@@ -334,8 +334,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   老板：客户看板是展示客户的，展示陪玩干什么？
   - 删掉客户看板顶部的「陪玩小卡」整排；页面直接从客户统计 + 客户表开始。
   - 「按陪玩分组」保留，但分组里展示的仍然是客户，不是陪玩卡。
-  - 副标题从「每个陪玩什么样」改成「每个客户现在什么样」。
-  - 网页 typecheck / build 通过；已部署 **v1105**。
+  - 副标题从「每个陪玩什么样」改成「每个客户现在什么样」，顶部也去掉「陪玩数」统计。\n  - 网页 typecheck / build 通过；已部署 **v1106**。
 
 - **客服端（邵泽慧）找不到「陪玩战绩图审核」入口（2026-10-23，网页）。**
   老板：邵泽慧也是管理端，怎么没找到审批战绩图？
@@ -7972,6 +7971,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 [Unreleased]: https://github.com/opsvr-ai/game-workspace/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/opsvr-ai/game-workspace/tree/v0.1.0
+
 
 
 

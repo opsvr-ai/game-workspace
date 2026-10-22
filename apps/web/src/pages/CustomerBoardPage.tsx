@@ -681,9 +681,6 @@ const CustomerBoardPage: React.FC = () => {
         <StatCard variant="tinted" style={STAT_FLEX} label="今日消费" value={yuan(counts?.todaySpentTotal ?? 0)} tint={SEMANTIC.orangeDeeper} />
         <StatCard variant="tinted" style={STAT_FLEX} label="累计消费" value={yuan(counts?.spentTotal ?? 0)} tint={SEMANTIC.successDeep} />
         <StatCard variant="tinted" style={STAT_FLEX} label="累计时长" value={fmtHours(counts?.hoursTotal ?? 0)} tint={SEMANTIC.direct} />
-        {isCompanion ? null : (
-          <StatCard variant="tinted" style={STAT_FLEX} label="陪玩数" value={String(counts?.companions ?? companions.length)} tint={SEMANTIC.teal} />
-        )}
       </div>
 
       <div
