@@ -57,6 +57,9 @@ export class CompanionStatusSweepService implements OnModuleInit {
       // 只要心跳已经过期，不管有没有 ACTIVE 会话，都先置离线；客户端还活着才可保持 BUSY。
       const heartbeatFresh = !!c.pc?.lastHeartbeat && c.pc.lastHeartbeat >= stale;
       if (!heartbeatFresh) {
+        // 老板 2026-10-23：电脑都关机了，就不存在「还在打」。
+        // 以最后一次心跳为结束时间，自动封掉 ACTIVE 会话 / 对应订单，别让离线时间继续算钱。
+        await this.closeStaleSessions(c.id, c.pc?.lastHeartbeat ?? now, now).catch(() => {});
         await switchCompanionStatus(this.prisma, c.id, 'OFFLINE', now);
         await this.wsGateway.refreshCompanionBlacklist(c.id).catch(() => {});
         continue;
@@ -67,6 +70,57 @@ export class CompanionStatusSweepService implements OnModuleInit {
       // 改了状态就得推黑名单 —— 客户端只认 blacklist:update 里的 status（老板 2026-10-03：
       // 服务端自己动状态却不通知，「接单中」的客户端于是继续按旧状态挂/摘杀进程的名单）。
       await this.wsGateway.refreshCompanionBlacklist(c.id).catch(() => {});
+    }
+  }
+
+  /**
+   * 心跳过期（关机 / 断网 / 休眠）时，把还挂着的 ACTIVE 会话按「最后心跳时间」封口。
+   * 不能按当前时间封：人已经关机，后面的时间不能继续算服务时长。
+   */
+  private async closeStaleSessions(companionId: string, lastHeartbeat: Date, now: Date): Promise<void> {
+    const sessions = await this.prisma.orderSession.findMany({
+      where: {
+        status: 'ACTIVE',
+        startedAt: { not: null },
+        OR: [{ companionId }, { coCompanionId: companionId }],
+      },
+      select: {
+        id: true,
+        parentOrderId: true,
+        startedAt: true,
+        totalPausedSec: true,
+        parentOrder: { select: { studioId: true } },
+      },
+    });
+    for (const s of sessions) {
+      const started = s.startedAt ? new Date(s.startedAt).getTime() : now.getTime();
+      const heartbeat = new Date(lastHeartbeat).getTime();
+      const ended = new Date(Math.max(started, Math.min(now.getTime(), heartbeat)));
+      const pausedSec = Number(s.totalPausedSec || 0);
+      const activeSec = Math.max(0, (ended.getTime() - started) / 1000 - pausedSec);
+      const duration = Number((activeSec / 3600).toFixed(1)) || 0.1;
+      const closed = await this.prisma.orderSession.updateMany({
+        where: { id: s.id, status: 'ACTIVE' },
+        data: { status: 'DONE', endedAt: ended, pausedAt: null, duration },
+      }).catch(() => ({ count: 0 }));
+      if (!closed.count) continue;
+
+      await this.prisma.order.updateMany({
+        where: {
+          id: s.parentOrderId,
+          status: { in: ['CONFIRMED', 'GRABBED'] },
+          sessions: { none: { status: 'ACTIVE' } },
+        },
+        data: { status: 'DONE' },
+      }).catch(() => {});
+
+      const studioId = s.parentOrder?.studioId;
+      if (studioId) {
+        this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', {
+          id: s.parentOrderId,
+          autoEnded: true,
+        });
+      }
     }
   }
 }

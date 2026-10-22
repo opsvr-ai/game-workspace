@@ -2084,7 +2084,8 @@ function currentIdleMs(): number {
  * 接单中、已休息、离线同样不动。
  */
 function isIdleRestableStatus(status: unknown): boolean {
-  return status === 'AVAILABLE';
+  // 离线也可以自动休眠：电脑还开着、只是客户端没心跳时，不能让它空转一整天。
+  return status === 'AVAILABLE' || status === 'OFFLINE';
 }
 
 async function idleRestTick(): Promise<void> {
@@ -2123,6 +2124,15 @@ async function idleRestTick(): Promise<void> {
       return;
     }
     if (!isIdleRestableStatus(store.get('lastStatus'))) return;
+
+    // 离线状态没有「空闲 → 休息」的服务端入口，直接在本地休眠；
+    // 唤醒后 handleSystemResume 会重新上报 AVAILABLE。
+    if (store.get('lastStatus') === 'OFFLINE') {
+      idleRestSettled = true;
+      logger.info('Idle auto-rest: offline, hibernating locally');
+      handleStatusChanged('RESTING');
+      return;
+    }
 
     const token = await refreshAccessToken();
     if (!token) return;
