@@ -621,6 +621,26 @@ export class OrderSessionService {
         throw new ForbiddenException('只能操作自己的会话');
       }
     }
+    // 老板 2026-10-23：一个陪玩同一时间只能服务一个客户。
+    // 以前可以一边挂着 A 的 10 小时，一边给 B/C/D 各开一段「复购」并结束，
+    // 复购率就被刷成 100%；现在只要有另一段 ACTIVE 且已开始的会话，直接拦住。
+    const actingCompanionId = companionId || own.companionId;
+    if (actingCompanionId) {
+      const otherActive = await this.prisma.orderSession.findFirst({
+        where: {
+          id: { not: id },
+          status: 'ACTIVE',
+          startedAt: { not: null },
+          OR: [{ companionId: actingCompanionId }, { coCompanionId: actingCompanionId }],
+        },
+        select: { id: true, parentOrder: { select: { orderCode: true } } },
+      });
+      if (otherActive) {
+        throw new BadRequestException(
+          `你正在服务订单 ${otherActive.parentOrder?.orderCode || ''}，先结束当前服务再开新单`,
+        );
+      }
+    }
     const data: any = { startedAt: new Date() };
     // 复购单陪这条路只在 startSession 填价（addSession 那条路已经提醒过），
     // 用「这段会话还没记过单价」当幂等条件，避免同一次填价弹两遍。

@@ -65,6 +65,28 @@ export class OrderCreateService {
 
     // COMPANION can only create orders for themselves (not for other companions)
     const creator = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { role: true } });
+    // 老板 2026-10-23：陪玩正在服务 A 时，不能再开 B/C 的续单 / 复购；
+    // 否则他一边挂 A 的长会话，一边给 10 个客户各开 1 小时复购，复购率直接刷到 100%。
+    if (creator?.role === 'COMPANION' && (dto.type === 'RENEW' || dto.type === 'REPURCHASE')) {
+      const me = await this.prisma.companion
+        .findUnique({ where: { userId: dto.csUserId }, select: { id: true } })
+        .catch(() => null);
+      if (me) {
+        const active = await this.prisma.orderSession.findFirst({
+          where: {
+            status: 'ACTIVE',
+            startedAt: { not: null },
+            OR: [{ companionId: me.id }, { coCompanionId: me.id }],
+          },
+          select: { id: true, parentOrder: { select: { orderCode: true } } },
+        });
+        if (active) {
+          throw new BadRequestException(
+            `你正在服务订单 ${active.parentOrder?.orderCode || ''}，先结束当前服务再开续单 / 复购`,
+          );
+        }
+      }
+    }
     if (creator?.role === 'COMPANION' && dto.dispatchType === 'DIRECT' && dto.companionId) {
       const companion = await this.prisma.companion.findUnique({
         where: { userId: dto.csUserId },
