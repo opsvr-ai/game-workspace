@@ -263,10 +263,10 @@ export const ORDER_COLUMN_MAX_WIDTH: Record<string, number> = {
   game: 126, // 最长 111（「三角洲行动 机密 双」）
   amount: 82, // 最长 63（「¥35 立即打」）
   customerSource: 60, // 最长 46（「小红书」）
-  customerSourceAccount: 164, // 最长 157（「总掉萌萌泪 旧 新 鱼鱼鱼🐟」）
-  customerNickname: 130, // 最长 123（「绝密航天毁一生 · 219」，含客户编号）
+  customerSourceAccount: 96, // 2026-10-22 老板要求收窄：最后一个字后约留 2 个字；长号省略号 + 悬停看全
+  customerNickname: 140, // 最长 123（「绝密航天毁一生 · 219」，含客户编号）
   customerAccountId: 108, // 最长 100（「308798116_Peng」）
-  customerContact: 180, // 最长 167（「gqs980190843 · 房间OLJ9896」，微信 + 房间码）
+  customerContact: 238, // 从引流账号列省出的 58px 给客户联系方式，尽量一行显示完整
   orderNote: 140, // 备注一行最长 133（线上 118 单实测），够放完整一行
   studio: 116, // 最长 103（陪玩名 + 副陪 + 桥接工作室）
   createdAt: 118, // 基础 116 就够（发布人 +「MM-DD HH:mm」），留 2px 余量
