@@ -2079,13 +2079,14 @@ function currentIdleMs(): number {
 }
 
 /**
- * 只有「空闲」会因长时间无操作自动休息（老板 2026-10-04：「他点娱乐中 他人就没了，
- * 该计费计费 谁让他不切换的」—— 娱乐中一律不动，照常按 10 元/小时计费）；
- * 接单中、已休息、离线同样不动。
+ * 无操作 1 小时 → 不管当前是空闲、离线、接单中还是娱乐中，都自动休眠。
+ *
+ * 老板 2026-10-23 修正：以前只对「空闲」生效，理由是「娱乐中按小时计费，人走了照扣」；
+ * 但真实条件是「鼠标键盘 1 小时没动」——接单中 / 娱乐中如果一小时都没输入，同样说明人不在，
+ * 继续亮着空转没有意义。手动点「休息」仍是立即休眠。
  */
 function isIdleRestableStatus(status: unknown): boolean {
-  // 离线也可以自动休眠：电脑还开着、只是客户端没心跳时，不能让它空转一整天。
-  return status === 'AVAILABLE' || status === 'OFFLINE';
+  return status === 'AVAILABLE' || status === 'OFFLINE' || status === 'BUSY' || status === 'ENTERTAINMENT';
 }
 
 async function idleRestTick(): Promise<void> {
@@ -2125,11 +2126,13 @@ async function idleRestTick(): Promise<void> {
     }
     if (!isIdleRestableStatus(store.get('lastStatus'))) return;
 
-    // 离线状态没有「空闲 → 休息」的服务端入口，直接在本地休眠；
+    // 接单中 / 娱乐中 / 离线没有「空闲 → 休息」的服务端入口，直接在本地休眠；
+    // 心跳会停，服务端的 3 分钟心跳扫描会把挂着的会话按最后心跳自动封口。
     // 唤醒后 handleSystemResume 会重新上报 AVAILABLE。
-    if (store.get('lastStatus') === 'OFFLINE') {
+    const statusNow = store.get('lastStatus');
+    if (statusNow === 'OFFLINE' || statusNow === 'BUSY' || statusNow === 'ENTERTAINMENT') {
       idleRestSettled = true;
-      logger.info('Idle auto-rest: offline, hibernating locally');
+      logger.info('Idle auto-rest: hibernating locally', { status: statusNow });
       handleStatusChanged('RESTING');
       return;
     }
