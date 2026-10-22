@@ -25,9 +25,15 @@ export class CompanionStatusSweepService implements OnModuleInit {
 
   async tick(): Promise<void> {
     const stale = new Date(Date.now() - 3 * 60 * 1000);
+    // 睡眠标记：客户端睡前上报，睡眠期间没有心跳是正常的，不能判离线/封单。
+    const sleepRows = await this.prisma.systemConfig.findMany({
+      where: { key: { startsWith: 'companion.sleep.' } },
+      select: { key: true },
+    });
+    const sleeping = new Set(sleepRows.map((r) => r.key.replace('companion.sleep.', '')));
     const goneCompanions = await this.prisma.companion.findMany({
       where: {
-        status: { notIn: ['OFFLINE', 'BUSY'] },
+        status: { notIn: ['OFFLINE', 'BUSY', 'RESTING'] },
         OR: [
           { pc: { is: null } },
           { pc: { lastHeartbeat: null } },
@@ -41,6 +47,7 @@ export class CompanionStatusSweepService implements OnModuleInit {
     // 就被越摊越低（老板 2026-10-07）。
     const now = new Date();
     for (const c of goneCompanions) {
+      if (sleeping.has(c.id)) continue;
       await switchCompanionStatus(this.prisma, c.id, 'OFFLINE', now);
     }
 
@@ -53,6 +60,7 @@ export class CompanionStatusSweepService implements OnModuleInit {
       select: { id: true, pc: { select: { lastHeartbeat: true } } },
     });
     for (const c of busyCompanions) {
+      if (sleeping.has(c.id)) continue;
       // 老板 2026-10-23：王昊电脑关机十几小时，还挂在「接单中」。
       // 只要心跳已经过期，不管有没有 ACTIVE 会话，都先置离线；客户端还活着才可保持 BUSY。
       const heartbeatFresh = !!c.pc?.lastHeartbeat && c.pc.lastHeartbeat >= stale;

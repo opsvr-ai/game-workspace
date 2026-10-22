@@ -771,6 +771,85 @@ export class CompanionsService implements OnModuleInit {
    * 想停就自己切「休息」。「接单中」（有进行中的服务会话）同样拒绝：
    * 那一单正在给客户打，绝不能把机器自动睡过去。
    */
+  /**
+   * 睡眠标记：客户端睡前上报。状态表不改（接单中仍是接单中），但会：
+   *  - 写一条 RESTING 计时日志（用于统计今天休息了多久）
+   *  - 在 SystemConfig 留标记，让状态扫描不把睡眠中的人判离线 / 不封单
+   */
+  async markSleeping(id: string, user: any, reason?: string) {
+    if (user.companionId !== id) throw new ForbiddenException('只能更新自己的状态');
+    const now = new Date();
+    const current = await this.prisma.companion.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    if (!current) throw new NotFoundException('陪玩不存在');
+    if (current.status !== 'RESTING') {
+      const open = await this.prisma.companionTimeLog.findFirst({
+        where: { companionId: id, endedAt: null },
+        orderBy: { startedAt: 'desc' },
+      });
+      if (open) {
+        const sec = Math.max(0, Math.round((now.getTime() - open.startedAt.getTime()) / 1000));
+        await this.prisma.companionTimeLog.update({
+          where: { id: open.id },
+          data: { endedAt: now, durationSeconds: sec },
+        });
+      }
+      await this.prisma.companionTimeLog.create({
+        data: {
+          companionId: id,
+          mode: 'RESTING',
+          startedAt: now,
+          endedAt: null,
+          durationSeconds: 0,
+        },
+      });
+    }
+    const key = `companion.sleep.${id}`;
+    await this.prisma.systemConfig.upsert({
+      where: { key },
+      create: { key, value: { at: now.toISOString(), status: current.status, reason: reason || 'sleep' } },
+      update: { value: { at: now.toISOString(), status: current.status, reason: reason || 'sleep' } },
+    });
+    return { ok: true, status: current.status, sleepingAt: now.toISOString() };
+  }
+
+  /** 醒来：清睡眠标记；把睡眠 RESTING 日志封口，恢复当前状态日志。 */
+  async clearSleeping(id: string, user: any) {
+    if (user.companionId !== id) throw new ForbiddenException('只能更新自己的状态');
+    const key = `companion.sleep.${id}`;
+    await this.prisma.systemConfig.deleteMany({ where: { key } });
+    const current = await this.prisma.companion.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    const now = new Date();
+    const open = await this.prisma.companionTimeLog.findFirst({
+      where: { companionId: id, endedAt: null },
+      orderBy: { startedAt: 'desc' },
+    });
+    if (open && open.mode === 'RESTING') {
+      const sec = Math.max(0, Math.round((now.getTime() - open.startedAt.getTime()) / 1000));
+      await this.prisma.companionTimeLog.update({
+        where: { id: open.id },
+        data: { endedAt: now, durationSeconds: sec },
+      });
+      if (current?.status && current.status !== 'RESTING' && current.status !== 'OFFLINE') {
+        await this.prisma.companionTimeLog.create({
+          data: {
+            companionId: id,
+            mode: current.status,
+            startedAt: now,
+            endedAt: null,
+            durationSeconds: 0,
+          },
+        });
+      }
+    }
+    return { ok: true, status: current?.status || 'OFFLINE' };
+  }
+
   async autoRestOnIdle(id: string, user: any) {
     if (user.companionId !== id) throw new ForbiddenException('只能更新自己的状态');
     const now = new Date();

@@ -1779,6 +1779,30 @@ function openChatWindow(payload: {
 }
 
 // ── IPC ──
+// 睡眠标记：客户端睡前/醒后上报，服务端据此跳过心跳扫描、保留接单状态。
+async function reportSleepMarker(reason: string): Promise<void> {
+  try {
+    const token = await refreshAccessToken();
+    if (!token) return;
+    await fetch(`${getServerUrl()}/api/companions/me/sleep`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason }),
+    });
+  } catch {}
+}
+
+async function reportWakeMarker(): Promise<void> {
+  try {
+    const token = await refreshAccessToken();
+    if (!token) return;
+    await fetch(`${getServerUrl()}/api/companions/me/wake`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    });
+  } catch {}
+}
+
 function setupIPC(): void {
   ipcMain.handle('chat:open-window', (_e, payload: {
     conversationId?: string;
@@ -1894,6 +1918,8 @@ function setupIPC(): void {
       return;
     }
     emitStatus(status);
+    if (status === 'RESTING') void reportSleepMarker('manual-rest');
+    else void reportWakeMarker();
     handleStatusChanged(status);
   });
   ipcMain.handle('auth:logout', () => {
@@ -2133,6 +2159,7 @@ async function idleRestTick(): Promise<void> {
     if (statusNow === 'OFFLINE' || statusNow === 'BUSY' || statusNow === 'ENTERTAINMENT') {
       idleRestSettled = true;
       logger.info('Idle auto-rest: sleeping locally', { status: statusNow });
+      await reportSleepMarker(`idle-${statusNow}`);
       handleIdleRestSleep();
       return;
     }
@@ -2153,6 +2180,7 @@ async function idleRestTick(): Promise<void> {
     idleRestSettled = true;
     logger.info('Idle auto-rest: reporting RESTING and sleeping');
     emitStatus('RESTING');
+    await reportSleepMarker('idle-available');
     handleIdleRestSleep();
   } catch (err: any) {
     logger.warn('Idle auto-rest failed', { error: err?.message || String(err) });
@@ -2182,6 +2210,7 @@ async function handleSystemResume(): Promise<void> {
   // 先重置「无操作」基线：不重置的话唤醒后 1 分钟内就会再自动休眠一次。
   idleBaselineMs = powerMonitor.getSystemIdleTime() * 1000;
   idleRestSettled = false;
+  await reportWakeMarker();
   const wasResting = isCompanionRole(currentRole) && store.get('lastStatus') === 'RESTING';
   if (wasResting) {
     store.set('lastStatus', 'AVAILABLE');

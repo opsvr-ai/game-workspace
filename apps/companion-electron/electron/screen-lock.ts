@@ -197,9 +197,9 @@ export function ensureHibernateEnabled(): void {
 export function handleStatusChanged(status: string): void {
   store.set('lastStatus', status);
   if (status === 'RESTING') {
-    // 手动点休息 = 整机休眠（立即、零耗电）。
+    // 手动点休息也改睡眠：保留游戏/登录状态，唤醒即可继续。
     stopIdleTimer();
-    hibernatePc();
+    sleepPc();
   } else {
     stopIdleTimer();
     hideScreenLock();

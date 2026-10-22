@@ -623,6 +623,24 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Put('companions/me/sleep')
+  @Roles(UserRole.COMPANION)
+  async sleep(@Req() req: any, @Body() body: { reason?: string }): Promise<ApiResponse<unknown>> {
+    const id = req.user.companionId;
+    if (!id) return { code: 400, message: '当前用户不是陪玩', data: null };
+    const data = await this.companionsService.markSleeping(id, req.user, body?.reason);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Put('companions/me/wake')
+  @Roles(UserRole.COMPANION)
+  async wake(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const id = req.user.companionId;
+    if (!id) return { code: 400, message: '当前用户不是陪玩', data: null };
+    const data = await this.companionsService.clearSleeping(id, req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
   /**
    * 陪玩端「无操作 1 小时」自动休息（客户端本地检测到鼠标键盘 1 小时没动后调用）。
    * 只能从「空闲」进休息；娱乐中 / 接单中一律拒绝（见 service.autoRestOnIdle）。
