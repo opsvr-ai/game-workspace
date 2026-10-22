@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { isRenewalSegment } from '../common/price-rules';
 import { ratePercent } from '../common/customer-rates';
+import { isValidServiceSession } from '../common/service-duration';
 import { currentBusinessDayRangeCn, businessDayRange, businessDayRangeCn, businessDayKey } from '../common/business-day';
 import { actorOfStudio, actorOfUser, scopeWhere, visibleStudioIds } from '../common/scope';
 
@@ -602,18 +603,20 @@ export class StatsService {
     // 免得动了「时长」这栏的口径；续单判定只看这一段本身打完没有。
     const sessionWhere: any = { status: 'DONE', startedAt: { gte: start, lt: end } };
     if (Object.keys(who).length) sessionWhere.parentOrder = who;
-    const sessions = ((await this.prisma.orderSession.findMany({
+    const sessions = (((await this.prisma.orderSession.findMany({
       where: sessionWhere,
       select: {
         id: true,
         seq: true,
         duration: true,
         startedAt: true,
+        endedAt: true,
+        totalPausedSec: true,
         companionId: true,
         coCompanionId: true,
-        parentOrder: { select: { type: true, customerId: true, companionId: true, coCompanionId: true } },
+        parentOrder: { select: { type: true, amount: true, customerId: true, companionId: true, coCompanionId: true } },
       },
-    })) || []) as any[];
+    })) || []) as any[]).filter((s) => isValidServiceSession(s));
 
     const custIds = [
       ...new Set(
@@ -696,11 +699,17 @@ export class StatsService {
       if (!o.customerId) continue;
       addTo(custByDay, day, o.customerId);
       if (o.type === 'NEW') addTo(newCustByDay, day, o.customerId);
-      // 续单客户：这一张就是续单 / 复购单
-      if (o.type === 'RENEW' || o.type === 'REPURCHASE') addTo(renewCustByDay, day, o.customerId);
-      // 复购客户：客服明确标了复购单的照旧算；另外「今天来打、之前（更早的营业日）也来过」的也算
+      // 续单客户：这一张就是续单 / 复购单（实收至少 1 元，0.02 元的假单不算）
+      if ((o.type === 'RENEW' || o.type === 'REPURCHASE') && Number(o.amount) >= 1) {
+        addTo(renewCustByDay, day, o.customerId);
+      }
+      // 复购客户：客服明确标了复购单的照旧算（同样要实收 ≥1 元）；
+      // 另外「今天来打、之前（更早的营业日）也来过」的也算。
       const firstOrder = firstOrderByCust.get(o.customerId);
-      if (o.type === 'REPURCHASE' || (firstOrder && businessDayKey(firstOrder) < day)) {
+      if (
+        (o.type === 'REPURCHASE' && Number(o.amount) >= 1) ||
+        (o.type !== 'REPURCHASE' && firstOrder && businessDayKey(firstOrder) < day)
+      ) {
         addTo(buyAgainCustByDay, day, o.customerId);
       }
     }

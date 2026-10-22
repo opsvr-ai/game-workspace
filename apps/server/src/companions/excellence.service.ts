@@ -447,7 +447,13 @@ export class ExcellenceService implements OnModuleInit {
       }),
     );
     const validOrderIds = new Set(validDoneSessions.map((seg: any) => seg.parentOrderId));
-    const validOrders = windowOrders.filter((o) => validOrderIds.has(o.id));
+    // 老板 2026-10-23：复购率不能靠 0.02 元的「假复购单」刷。
+    // 金额缺失的历史单 / 测试数据按有效处理；明确低于 1 元的单不进 KPI / 业绩。
+    const validOrders = windowOrders.filter(
+      (o) => validOrderIds.has(o.id) && (o.amount == null || Number(o.amount) >= 1),
+    );
+    const validOrderIdSet = new Set(validOrders.map((o) => o.id));
+    const ratedSessions = validDoneSessions.filter((seg: any) => validOrderIdSet.has(seg.parentOrderId));
     // 算法本体在 `common/customer-rates.ts`（**全站唯一一份**）：同一段判定同时喂给
     // 优秀度 / 陪玩 KPI 和每日数据，保证「同一个单里加打一段」这种续单两边都算（老板 2026-10-08）。
     const rates = computeCustomerRates(
@@ -459,7 +465,7 @@ export class ExcellenceService implements OnModuleInit {
         coCompanionId: (o as any).coCompanionId,
         createdAt: o.createdAt,
       })),
-      validDoneSessions.map((seg: any) => ({
+      ratedSessions.map((seg: any) => ({
         customerId: seg.parentOrder?.customerId ?? null,
         companionId: seg.companionId ?? null,
         coCompanionId: seg.coCompanionId ?? null,
@@ -475,7 +481,7 @@ export class ExcellenceService implements OnModuleInit {
     // 两条一起进「最近 30 天业绩」。以前只按 companionId 汇总 amount，常当搭档的人这一段被少算，
     // 跟首页「本月业绩」对不上（同一页两个业绩不是一回事）。
     // 2026-10-18：只汇总 **有效服务段（≥10 分钟）** 的订单，短段不算业绩。
-    const validOrderIdList = [...validOrderIds];
+    const validOrderIdList = [...validOrderIdSet];
     const [mainRevenue, coRevenue] = await Promise.all([
       this.prisma.order.groupBy({
         by: ['companionId'],
