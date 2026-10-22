@@ -241,6 +241,21 @@ async function flushUploadFor(sid: string): Promise<void> {
         });
         if (res.ok) {
           fs.unlinkSync(path.join(dir, f)); // 上传成功即删除本地
+        } else if (res.status === 410 || res.status === 403) {
+          // 服务端明确说会话已结束 / 已无权限：停止这台机器上的旧截图定时器，
+          // 否则陪玩关机/换单后还会每 10 分钟一直截、一直传（老板 2026-10-23）。
+          log(`session closed/rejected status=${res.status}, stop capture`);
+          if (sessionId === sid) {
+            if (timer) clearTimeout(timer);
+            timer = null;
+            sessionId = null;
+          }
+          try {
+            fs.rmSync(dir, { recursive: true, force: true });
+          } catch {
+            /* ignore */
+          }
+          break;
         } else {
           log(`upload ${f} failed status=${res.status}`);
           break; // 网络问题，保留剩余本地文件下次再传

@@ -14,6 +14,7 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  GoneException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -22,7 +23,7 @@ import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { CompositeService } from './composite.service';
@@ -86,11 +87,36 @@ export class SessionShotsController {
   ): Promise<ApiResponse<unknown>> {
     const session = await this.prisma.orderSession.findUnique({
       where: { id },
-      select: { companionId: true, status: true, flagged: true },
+      select: { companionId: true, coCompanionId: true, status: true, flagged: true, endedAt: true },
     });
-    if (!session) throw new NotFoundException('会话不存在');
-    if (session.companionId !== req.user.companionId) throw new ForbiddenException('只能上传自己会话的截图');
+    const cleanup = () => {
+      try {
+        if (file?.path) unlinkSync(file.path);
+      } catch {
+        /* 已删除 / 文件没落盘 */
+      }
+    };
+    if (!session) {
+      cleanup();
+      throw new NotFoundException('会话不存在');
+    }
+    // 双陪的副陪也要能上传自己的截图：以前只认主陪，副陪每 10 分钟传一次都被 403，
+    // 文件却已经被 multer 落盘，越堆越多。
+    if (session.companionId !== req.user.companionId && session.coCompanionId !== req.user.companionId) {
+      cleanup();
+      throw new ForbiddenException('只能上传自己会话的截图');
+    }
     if (!file) throw new BadRequestException('未收到文件');
+
+    // 已结束的会话只接受「当时拍下的迟到补传」，不接受结束之后继续截的图。
+    if (session.status === 'DONE' && session.endedAt) {
+      const raw = req.body?.captureTime;
+      const shotAt = raw ? new Date(Array.isArray(raw) ? raw[0] : raw) : new Date();
+      if (Number.isFinite(shotAt.getTime()) && shotAt.getTime() > session.endedAt.getTime() + 5 * 60 * 1000) {
+        cleanup();
+        throw new GoneException('会话已结束，不能继续上传截图');
+      }
+    }
 
     // 补传场景：会话已结束时收到迟到截图 → 重建长图；若之前因 0 截图标红，重新分析
     if (session.status === 'DONE') {
