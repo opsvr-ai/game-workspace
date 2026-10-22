@@ -42,6 +42,7 @@ describe('StatsService.getDailyKpi（每日数据）', () => {
     rows.filter((r) => {
       if (where?.studioId && r.studioId !== where.studioId) return false;
       if (where?.type && r.type !== where.type) return false;
+      if (where?.companionId && r.companionId !== where.companionId) return false;
       if (where?.OR) return where.OR.some((c: any) => c.companionId === r.companionId || c.coCompanionId === r.coCompanionId);
       return true;
     });
@@ -108,20 +109,20 @@ describe('StatsService.getDailyKpi（每日数据）', () => {
     expect(res.scope).toBe('COMPANION');
     expect(res.companionName).toBe('周达');
     const row = res.rows[0];
-    expect(row.orders).toBe(3); // o1 / o2 / o3（o0 是昨天，o4 是 C 的单）
+    expect(row.orders).toBe(2); // 只看主陪 A 的 o1 / o2；o3 他是副陪，不算 KPI
     expect(row.first).toBe(1);
-    expect(row.renew).toBe(2); // c1（续单单）+ c2（复购单）——按客户去重
-    expect(row.repurchase).toBe(1); // c2：昨天来过，今天又来
-    expect(row.renewRate).toBe(100); // 2 ÷ 2（都是打过首单的客户）
-    expect(row.repurchaseRate).toBe(50); // 1 ÷ 2
-    expect(row.customers).toBe(2); // c1 / c2
-    expect(row.newCustomers).toBe(1); // c1
-    expect(row.partnerOrders).toBe(1); // o3
-    expect(row.amount).toBe(400);
+    expect(row.renew).toBe(1); // c1（续单单）
+    expect(row.repurchase).toBe(0);
+    expect(row.renewRate).toBe(100);
+    expect(row.repurchaseRate).toBe(0);
+    expect(row.customers).toBe(1); // c1
+    expect(row.newCustomers).toBe(1);
+    expect(row.partnerOrders).toBe(0); // 副陪单不记 KPI
+    expect(row.amount).toBe(200);
     expect(row.hours).toBe(3.5);
-    expect(res.total.orders).toBe(4);
-    expect(res.total.renew).toBe(2);
-    expect(res.total.repurchase).toBe(1);
+    expect(res.total.orders).toBe(3);
+    expect(res.total.renew).toBe(1);
+    expect(res.total.repurchase).toBe(0);
   });
 
   it('「同一个单里加打一段」（会话 seq > 1）也算续单 —— 老板 2026-10-08 报的那个洞', async () => {
@@ -168,7 +169,7 @@ describe('StatsService.getDailyKpi（每日数据）', () => {
     );
     expect(res.companionId).toBe('ME');
     const where = (prisma.order.findMany as any).mock.calls[0][0].where;
-    expect(where.OR).toEqual([{ companionId: 'ME' }, { coCompanionId: 'ME' }]);
+    expect(where.companionId).toBe('ME');
     expect(where.studioId).toBe('s1');
   });
 

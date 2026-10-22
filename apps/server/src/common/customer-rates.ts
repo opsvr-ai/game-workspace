@@ -68,22 +68,19 @@ export function computeCustomerRates(
   const out = new Map<string, CustomerRateRow>();
   for (const cid of companionIds) out.set(cid, emptyCustomerRateRow());
 
-  // 段按「实际打这一段的人」归户（会话上的主陪 + 搭档，缺了退回父单上的），
-  // 这样搭档也拿得到「他参与过的那次续单」。
+  // 段只按主陪归户：老板 2026-10-23 定稿——副陪只拿金额，不拿续单/复购/KPI。
+  // 如果副陪想要这个客户的 KPI，他自己去客户管理创建客户，再自己点复购。
   const doneSegments = new Map<string, Map<string, number>>(); // 人 -> 客户 -> 打完的段数
   for (const seg of sessions) {
     if (!seg.customerId) continue;
     const mainId = seg.companionId || seg.parentCompanionId || null;
-    const coId = seg.coCompanionId || seg.parentCoCompanionId || null;
-    const owners = new Set([mainId, coId].filter((v): v is string => !!v && ids.has(v)));
-    for (const pid of owners) {
-      let byCust = doneSegments.get(pid);
-      if (!byCust) {
-        byCust = new Map<string, number>();
-        doneSegments.set(pid, byCust);
-      }
-      byCust.set(seg.customerId, (byCust.get(seg.customerId) || 0) + 1);
+    if (!mainId || !ids.has(mainId)) continue;
+    let byCust = doneSegments.get(mainId);
+    if (!byCust) {
+      byCust = new Map<string, number>();
+      doneSegments.set(mainId, byCust);
     }
+    byCust.set(seg.customerId, (byCust.get(seg.customerId) || 0) + 1);
   }
 
   type CustAgg = {
@@ -99,7 +96,7 @@ export function computeCustomerRates(
     if (!o.customerId) continue;
     const day = o.createdAt ? businessDayKey(new Date(o.createdAt)) : null;
     const participants = new Set(
-      [o.companionId, o.coCompanionId].filter((v): v is string => !!v && ids.has(v)),
+      [o.companionId].filter((v): v is string => !!v && ids.has(v)),
     );
     for (const pid of participants) {
       let byCust = perCustomer.get(pid);

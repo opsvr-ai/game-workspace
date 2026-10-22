@@ -584,7 +584,7 @@ export class StatsService {
     const who: any = {};
     // 统一作用域：老板（解析后 studioId 为 null）不加店铺过滤，其余看本店。
     if (studioId) Object.assign(who, scopeWhere(actorOfStudio(studioId)));
-    if (companionId) who.OR = [{ companionId }, { coCompanionId: companionId }];
+    if (companionId) who.companionId = companionId;
 
     const orders = ((await this.prisma.order.findMany({
       where: { status: 'DONE', createdAt: { gte: start, lt: end }, ...who },
