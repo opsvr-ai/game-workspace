@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
-import { Modal, Tag, Typography } from 'antd';
+import { Modal, Tag } from 'antd';
 import { BRAND, SEMANTIC } from '../styles/tokens';
 import { orderTypeConfig } from '../constants/orders';
 import { cleanRoomCode } from '../constants/orderFields';
@@ -42,7 +42,8 @@ const GrabSuccessModal: React.FC<Props> = ({ order, onClose }) => (
             )}
             {g.customFields?.customerWechat && (
               <div>
-                💬 微信：<Typography.Text copyable>{g.customFields.customerWechat}</Typography.Text>
+                💬 微信：<span>{g.customFields.customerWechat}</span>
+                <CopyTextButton text={String(g.customFields.customerWechat)} />
               </div>
             )}
             {g.customFields?.customerRoomCode && (
@@ -54,8 +55,8 @@ const GrabSuccessModal: React.FC<Props> = ({ order, onClose }) => (
             )}
             {g.customFields?.customerPlatformAccount && (
               <div>
-                🔗 平台号：
-                <Typography.Text copyable>{g.customFields.customerPlatformAccount}</Typography.Text>
+                🔗 平台号：<span>{g.customFields.customerPlatformAccount}</span>
+                <CopyTextButton text={String(g.customFields.customerPlatformAccount)} />
               </div>
             )}
             {g.csUser?.username && <div>发布者：{g.csUser.username}</div>}

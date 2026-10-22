@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
 import { Button } from 'antd';
+import { CopyOutlined } from '@ant-design/icons';
 import { message } from '../utils/feedback';
 
 /** 兜底复制：Electron 的 http 页面里 navigator.clipboard 不一定可用。 */
@@ -34,27 +35,27 @@ function fallbackCopy(value: string): void {
 
 interface Props {
   text: string;
-  /** 复制按钮文字，默认「复制」 */
-  label?: string;
 }
 
 /**
  * 显式复制值（不复制旁边的「房间码 / 微信」等标签）。
+ * 统一用 AntD 的复制图标，和微信 / 平台号旁边的图标保持一致。
  * 老板 2026-10-22 再次反馈房间码复制带标签，所以不再依赖 Typography 的 children 推断。
  */
-const CopyTextButton: React.FC<Props> = ({ text, label = '复制' }) => (
+const CopyTextButton: React.FC<Props> = ({ text }) => (
   <Button
     type="text"
     size="small"
-    style={{ paddingInline: 4, height: 20, fontSize: 11, color: '#1677ff' }}
+    title="复制"
+    aria-label="复制"
+    icon={<CopyOutlined />}
+    style={{ paddingInline: 2, height: 20, minWidth: 20, color: '#1677ff' }}
     onClick={(e) => {
       e.stopPropagation();
       copyTextToClipboard(String(text ?? ''));
       message.success('已复制');
     }}
-  >
-    {label}
-  </Button>
+  />
 );
 
 export default CopyTextButton;

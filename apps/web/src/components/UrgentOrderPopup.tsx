@@ -171,7 +171,8 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
               </div>
               {urgentGrabbed.customFields?.customerWechat && (
                 <div>
-                  💬 微信：<Text copyable>{urgentGrabbed.customFields.customerWechat}</Text>
+                  💬 微信：<span>{urgentGrabbed.customFields.customerWechat}</span>
+                  <CopyTextButton text={String(urgentGrabbed.customFields.customerWechat)} />
                 </div>
               )}
               {urgentGrabbed.customFields?.customerRoomCode && (
