@@ -53,9 +53,16 @@ export class CompanionStatusSweepService implements OnModuleInit {
       select: { id: true, pc: { select: { lastHeartbeat: true } } },
     });
     for (const c of busyCompanions) {
+      // 老板 2026-10-23：王昊电脑关机十几小时，还挂在「接单中」。
+      // 只要心跳已经过期，不管有没有 ACTIVE 会话，都先置离线；客户端还活着才可保持 BUSY。
+      const heartbeatFresh = !!c.pc?.lastHeartbeat && c.pc.lastHeartbeat >= stale;
+      if (!heartbeatFresh) {
+        await switchCompanionStatus(this.prisma, c.id, 'OFFLINE', now);
+        await this.wsGateway.refreshCompanionBlacklist(c.id).catch(() => {});
+        continue;
+      }
       if (await this.companionsService.hasActiveServiceSession(c.id)) continue;
-      const nextStatus =
-        c.pc?.lastHeartbeat && c.pc.lastHeartbeat >= stale ? 'AVAILABLE' : 'OFFLINE';
+      const nextStatus = 'AVAILABLE';
       await switchCompanionStatus(this.prisma, c.id, nextStatus, now);
       // 改了状态就得推黑名单 —— 客户端只认 blacklist:update 里的 status（老板 2026-10-03：
       // 服务端自己动状态却不通知，「接单中」的客户端于是继续按旧状态挂/摘杀进程的名单）。

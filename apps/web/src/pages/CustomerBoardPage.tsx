@@ -356,6 +356,18 @@ const CustomerBoardPage: React.FC = () => {
       );
     }
     const live = r.live;
+    // 老板 2026-10-23：王昊电脑关机很久，状态墙还挂「接单」；状态服务已改回离线，
+    // 客户看板这里也不能再把一个没有心跳的人显示成「正在打」。
+    if (!r.companionOnline) {
+      return (
+        <div style={{ lineHeight: 1.5 }}>
+          <Text strong style={{ color: TEXT.tertiary }}>客户端已离线</Text>
+          <div style={{ fontSize: 12, color: TEXT.tertiary }}>
+            会话还挂着{live.servingCompanionName ? ` · 陪玩 ${live.servingCompanionName}` : ''}
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={{ lineHeight: 1.5 }}>
         <div>
