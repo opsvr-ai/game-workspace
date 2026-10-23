@@ -434,6 +434,7 @@ const CustomersPage: React.FC = () => {
   const openCreateModal = () => {
     setEditingCustomer(null);
     form.resetFields();
+    form.setFieldsValue({ customerType: 'new' });
     setModalOpen(true);
   };
   const openEditModal = (record: Customer) => {
@@ -455,7 +456,11 @@ const CustomersPage: React.FC = () => {
         await customersApi.update(editingCustomer.id, values);
         message.success('客户信息已更新');
       } else {
-        const res: any = await customersApi.create(values);
+        const res: any = await customersApi.create({
+          ...values,
+          // 新客户 = 没打过首单，列表只给「开始首单」；老客户 = 直接走「复购」。
+          isLegacy: values.customerType === 'old',
+        });
         const createdId = res?.data?.data?.id;
         // 老板 2026-10-04：老客户手里还剩没打完的存单，陪玩录入客户时就能一起填上，
         // 走的是同一个客户存单接口（depositBalance），财务那边「未打存单预留」立刻同步。
@@ -832,12 +837,6 @@ const CustomersPage: React.FC = () => {
                 <>
                   <Button type="primary" size="small" onClick={() => startFresh('first')}>
                     开始首单
-                  </Button>
-                  <Button size="small" onClick={() => startFresh('renew')}>
-                    续单
-                  </Button>
-                  <Button size="small" onClick={() => startFresh('repurchase')}>
-                    复购
                   </Button>
                 </>
               );
@@ -1244,6 +1243,14 @@ const CustomersPage: React.FC = () => {
           destroyOnClose
         >
           <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+            {!editingCustomer && (
+              <Form.Item name="customerType" label="客户类型" initialValue="new">
+                <Radio.Group>
+                  <Radio value="new">新客户（从开始首单开始）</Radio>
+                  <Radio value="old">老客户（直接走复购）</Radio>
+                </Radio.Group>
+              </Form.Item>
+            )}
             <Form.Item name="wechatId" label="微信号" rules={[{ required: true, message: '请输入微信号' }]}>
               <Input placeholder="请输入微信号" />
             </Form.Item>
