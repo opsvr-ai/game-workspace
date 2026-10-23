@@ -76,8 +76,31 @@ export class AgentController {
     this.agentService.setUpdateNotifier(() => this.pumpUpdateQueue());
     // 排队不是只等“名额释放”那一下：接单中的机器被跳过会重新排队，
     // 这里每分钟再看一眼，打完游戏空闲下来就能自动轮到它下载。
-    const timer = setInterval(() => { void this.pumpUpdateQueue(); }, 60_000);
+    const timer = setInterval(() => {
+      void this.autoQueueQueuedRollout();
+      void this.pumpUpdateQueue();
+    }, 60_000);
     timer.unref?.();
+  }
+
+  /**
+   * 发布时把 target version 放在 agent.queued_version，不碰 agent.latest_version：
+   * 旧客户端轮询 /agent/version 仍然拿到 1.0.0，不会在接单中自己下载；
+   * 这里只把在线机器排进服务端队列，队列按空闲/休息逐台推。
+   */
+  private async autoQueueQueuedRollout(): Promise<void> {
+    try {
+      const { version } = await this.agentService.getQueuedVersion();
+      if (!version || version === '1.0.0') return;
+      const targets = await this.agentService.getOnlineCompanionTargets();
+      for (const target of targets) {
+        if (target.agentVersion === version) continue;
+        const scope = await this.agentService.resolveUpdateScope(target.companionId);
+        this.agentService.enqueueUpdateWaiter(target.companionId, scope);
+      }
+    } catch (err: any) {
+      logger.warn(`Auto queue rollout failed: ${err?.message || err}`);
+    }
   }
 
   /**
@@ -87,7 +110,7 @@ export class AgentController {
   private async pumpUpdateQueue(): Promise<void> {
     const skipped: UpdateWaiter[] = [];
     try {
-      const { version, downloadUrl } = await this.agentService.getLatestVersion();
+      const { version, downloadUrl } = await this.agentService.getQueuedVersion();
       for (let i = 0; i < 50; i += 1) {
         const next = this.agentService.takeNextUpdateWaiter();
         if (!next) break;

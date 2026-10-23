@@ -505,6 +505,22 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /** 队列专用目标版本：旧客户端不会被 `/agent/version` 提前唤醒下载，只有排到队且空闲的机器才收到。 */
+  async getQueuedVersion() {
+    const [versionCfg, urlCfg] = await Promise.all([
+      this.prisma.systemConfig.findUnique({ where: { key: 'agent.queued_version' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'agent.queued_download_url' } }),
+    ]);
+    const version = String(versionCfg?.value || '').replace(/^"|"$/g, '');
+    if (version) {
+      return {
+        version,
+        downloadUrl: String(urlCfg?.value || '/api/agent/download/latest').replace(/^"|"$/g, ''),
+      };
+    }
+    return this.getLatestVersion();
+  }
+
   async getCsLatestVersion() {
     const [versionCfg, urlCfg, zipCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'cs.latest_version' } }),
