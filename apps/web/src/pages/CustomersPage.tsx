@@ -45,6 +45,7 @@ import CreateOrderModal from '../components/CreateOrderModal';
 import StartServiceModal from '../components/StartServiceModal';
 import ServiceTimer from '../components/ServiceTimer';
 import EndServiceModal from '../components/EndServiceModal';
+import ContinueServiceModal from '../components/ContinueServiceModal';
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer';
 import CustomerTrackingCenter from '../components/CustomerTrackingCenter';
 import CompanionTrackingPanel from '../components/CompanionTrackingPanel';
@@ -224,6 +225,12 @@ const CustomersPage: React.FC = () => {
     paidByDeposit?: boolean;
     depositBalance?: number;
     suggestedDeduct?: number;
+  } | null>(null);
+  const [continueTarget, setContinueTarget] = useState<{
+    orderId: string;
+    isDouble: boolean;
+    mainPrice: number;
+    coPrice: number;
   } | null>(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
@@ -906,6 +913,23 @@ const CustomersPage: React.FC = () => {
                       暂停
                     </Button>
                   )}
+                  {!activeSession.pausedAt && (
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        const segDur = Number(activeSession.duration) || 1;
+                        const unit = Number(activeSession.claimedPrice) || 0;
+                        setContinueTarget({
+                          orderId: activeOrder.id,
+                          isDouble: !!activeSession.coCompanionId,
+                          mainPrice: unit > 0 ? unit : (Number((activeSession as any).amount) || 0) / segDur,
+                          coPrice: activeSession.coCompanionId ? (Number(activeSession.coAmount) || 0) / segDur : 0,
+                        });
+                      }}
+                    >
+                      加时
+                    </Button>
+                  )}
                   <Button
                     size="small"
                     danger
@@ -1379,6 +1403,15 @@ const CustomersPage: React.FC = () => {
           depositBalance={endServiceTarget?.depositBalance}
           suggestedDeduct={endServiceTarget?.suggestedDeduct}
           onClose={() => setEndServiceTarget(null)}
+          onDone={() => fetchCustomers()}
+        />
+        <ContinueServiceModal
+          open={!!continueTarget}
+          orderId={continueTarget?.orderId ?? null}
+          isDouble={continueTarget?.isDouble}
+          mainPrice={continueTarget?.mainPrice}
+          coPrice={continueTarget?.coPrice}
+          onClose={() => setContinueTarget(null)}
           onDone={() => fetchCustomers()}
         />
         <Modal

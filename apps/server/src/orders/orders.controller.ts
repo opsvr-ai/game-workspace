@@ -690,6 +690,17 @@ export class OrdersController {
     return { code: 200, message: '计时结束', data };
   }
 
+  @Post('orders/:id/continue')
+  @Roles(UserRole.COMPANION)
+  async continueService(
+    @Param('id') id: string,
+    @Body() body: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.continueSession(id, req.user.companionId, body || {});
+    return { code: 200, message: '已加时，继续服务', data };
+  }
+
   @Post('orders/:id/decline-assignment')
   @Roles(UserRole.COMPANION)
   async declineAssignment(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {

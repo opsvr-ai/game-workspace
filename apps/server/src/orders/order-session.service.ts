@@ -774,7 +774,98 @@ export class OrderSessionService {
   }
 
   /**
-   * 会话结束后把主陪 / 副陪放回空闲，并广播给同工作室（客服端人员列表不用等轮询）。
+   * 正在服务中「加时 / 继续续单」：不结束游戏、不释放任何人。
+   * 旧会话按当前时刻封口（业绩/时长入账），同订单立刻开下一段 ACTIVE。
+   */
+  async continueSession(
+    orderId: string,
+    actorCompanionId: string | undefined,
+    dto: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean },
+  ) {
+    if (!actorCompanionId) throw new ForbiddenException('当前用户不是陪玩');
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, gameName: true, studioId: true, companionId: true, coCompanionId: true },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    const active = await this.prisma.orderSession.findFirst({
+      where: { parentOrderId: orderId, status: 'ACTIVE', startedAt: { not: null } },
+      orderBy: { seq: 'desc' },
+    });
+    if (!active) throw new BadRequestException('当前没有正在进行的服务');
+    if (active.companionId !== actorCompanionId && active.coCompanionId !== actorCompanionId) {
+      throw new ForbiddenException('只能操作自己正在进行的服务');
+    }
+
+    const now = new Date();
+    const started = active.startedAt ? new Date(active.startedAt).getTime() : now.getTime();
+    const pausedSec = active.pausedAt
+      ? Math.max(0, Math.floor((now.getTime() - new Date(active.pausedAt).getTime()) / 1000))
+      : 0;
+    const totalPaused = (active.totalPausedSec || 0) + pausedSec;
+    const activeSec = Math.max(0, (now.getTime() - started) / 1000 - totalPaused);
+    const oldDuration = Math.max(0.1, Math.round((activeSec / 3600) * 10) / 10);
+
+    await this.prisma.orderSession.update({
+      where: { id: active.id },
+      data: {
+        status: 'DONE',
+        endedAt: now,
+        duration: oldDuration,
+        pausedAt: null,
+        totalPausedSec: totalPaused,
+      },
+    });
+
+    const duration = Math.max(0.5, Number(dto.duration) || 1);
+    const mainPrice = Number(dto.price) > 0
+      ? Number(dto.price)
+      : (Number(active.claimedPrice) > 0 ? Number(active.claimedPrice) : (active.duration > 0 ? active.amount / active.duration : active.amount));
+    const oldCoUnit = active.coCompanionId && active.duration > 0 ? (Number(active.coAmount) || 0) / active.duration : 0;
+    const coPrice = Number(dto.coPrice) > 0 ? Number(dto.coPrice) : oldCoUnit;
+    const seqRow = await this.prisma.orderSession.findFirst({
+      where: { parentOrderId: orderId },
+      orderBy: { seq: 'desc' },
+      select: { seq: true },
+    });
+    const next = await this.prisma.orderSession.create({
+      data: {
+        parentOrderId: orderId,
+        seq: (seqRow?.seq || 0) + 1,
+        companionId: active.companionId,
+        coCompanionId: active.coCompanionId,
+        amount: mainPrice * duration,
+        coAmount: active.coCompanionId ? coPrice * duration : null,
+        duration,
+        status: 'ACTIVE',
+        startedAt: now,
+        claimedMode: dto.claimedMode || active.claimedMode || null,
+        claimedPrice: mainPrice,
+        paidByDeposit: dto.useDeposit === true || active.paidByDeposit,
+      },
+    });
+
+    // 不释放人、不结束游戏：只把两人的 BUSY 计时继续接上。
+    for (const id of [active.companionId, active.coCompanionId].filter(Boolean) as string[]) {
+      const row = await this.prisma.companion.findUnique({ where: { id }, select: { status: true } }).catch(() => null);
+      if (row?.status !== 'BUSY') await switchCompanionStatus(this.prisma, id, 'BUSY');
+    }
+    for (const id of [active.companionId, active.coCompanionId].filter(Boolean) as string[]) {
+      this.wsGateway.pushToCompanion(id as string, 'order:session_continued', {
+        orderId,
+        oldSessionId: active.id,
+        sessionId: next.id,
+        gameName: order.gameName,
+        duration,
+        seq: next.seq,
+      });
+    }
+    this.wsGateway.broadcastToStudio(order.studioId || '', 'order:pool_updated', { id: orderId, sessionId: next.id });
+    return { sessionId: next.id, seq: next.seq, oldSessionId: active.id, duration };
+  }
+
+  /**
+   * 会话结束后把主陪 / 副陪放回空闲，并广播给同工作室（客服端列表不用等轮询）。
    */
   private async releaseCompanionsAfterSession(s: {
     id: string;

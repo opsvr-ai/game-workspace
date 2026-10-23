@@ -548,6 +548,14 @@ export class OrdersService implements OnModuleInit {
     return this.orderSession.endSession(id, companionId);
   }
 
+  async continueSession(
+    orderId: string,
+    companionId: string | undefined,
+    dto: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean },
+  ) {
+    return this.orderSession.continueSession(orderId, companionId, dto);
+  }
+
   async updatePayment(
     orderId: string,
     dto: {
