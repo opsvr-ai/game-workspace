@@ -784,12 +784,23 @@ export class OrderSessionService {
   async continueSession(
     orderId: string,
     actorCompanionId: string | undefined,
-    dto: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean },
+    dto: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean; mode?: 'RENEW' | 'REPURCHASE' },
   ) {
     if (!actorCompanionId) throw new ForbiddenException('当前用户不是陪玩');
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, gameName: true, studioId: true, companionId: true, coCompanionId: true },
+      select: {
+        id: true,
+        orderCode: true,
+        type: true,
+        gameName: true,
+        studioId: true,
+        customerId: true,
+        csUserId: true,
+        companionId: true,
+        coCompanionId: true,
+        customFields: true,
+      },
     });
     if (!order) throw new NotFoundException('订单不存在');
     const active = await this.prisma.orderSession.findFirst({
@@ -832,14 +843,52 @@ export class OrderSessionService {
       orderBy: { seq: 'desc' },
       select: { seq: true },
     });
+    const mainId = active.companionId || order.companionId;
+    const coId = active.coCompanionId || order.coCompanionId;
+    let sessionOrderId = orderId;
+    let seq = (seqRow?.seq || 0) + 1;
+
+    // 中午 12 点后「续单」切换为「复购」：开一张新的 REPURCHASE 单，
+    // 这样复购 KPI 统计到新单，旧单留作首单/续单历史；游戏和会话不中断。
+    if (dto.mode === 'REPURCHASE') {
+      const orderCode = 'R' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+      const repurchase = await this.prisma.order.create({
+        data: {
+          orderCode,
+          type: 'REPURCHASE',
+          studioId: order.studioId,
+          csUserId: order.csUserId,
+          customerId: order.customerId,
+          dispatchType: 'DIRECT',
+          source: 'OFFLINE',
+          companionId: mainId,
+          coCompanionId: coId,
+          coAmount: coId ? coPrice * duration : null,
+          status: 'CONFIRMED',
+          amount: mainPrice * duration,
+          gameName: order.gameName,
+          serviceType: 'PLAY_WITH',
+          duration,
+          customFields: {
+            ...(order.customFields as any || {}),
+            proxyMode: (order.customFields as any)?.proxyMode === true ? true : undefined,
+            continuedFromOrderId: orderId,
+          },
+        },
+      });
+      sessionOrderId = repurchase.id;
+      seq = 1;
+      await this.prisma.order.update({ where: { id: orderId }, data: { status: 'DONE' } }).catch(() => {});
+    }
+
     const next = await this.prisma.orderSession.create({
       data: {
-        parentOrderId: orderId,
-        seq: (seqRow?.seq || 0) + 1,
-        companionId: active.companionId,
-        coCompanionId: active.coCompanionId,
+        parentOrderId: sessionOrderId,
+        seq,
+        companionId: mainId,
+        coCompanionId: coId,
         amount: mainPrice * duration,
-        coAmount: active.coCompanionId ? coPrice * duration : null,
+        coAmount: coId ? coPrice * duration : null,
         duration,
         status: 'ACTIVE',
         startedAt: now,
@@ -850,22 +899,22 @@ export class OrderSessionService {
     });
 
     // 不释放人、不结束游戏：只把两人的 BUSY 计时继续接上。
-    for (const id of [active.companionId, active.coCompanionId].filter(Boolean) as string[]) {
+    for (const id of [mainId, coId].filter(Boolean) as string[]) {
       const row = await this.prisma.companion.findUnique({ where: { id }, select: { status: true } }).catch(() => null);
       if (row?.status !== 'BUSY') await switchCompanionStatus(this.prisma, id, 'BUSY');
     }
-    for (const id of [active.companionId, active.coCompanionId].filter(Boolean) as string[]) {
+    for (const id of [mainId, coId].filter(Boolean) as string[]) {
       this.wsGateway.pushToCompanion(id as string, 'order:session_continued', {
-        orderId,
+        orderId: sessionOrderId,
         oldSessionId: active.id,
         sessionId: next.id,
         gameName: order.gameName,
         duration,
-        seq: next.seq,
+        seq,
       });
     }
-    this.wsGateway.broadcastToStudio(order.studioId || '', 'order:pool_updated', { id: orderId, sessionId: next.id });
-    return { sessionId: next.id, seq: next.seq, oldSessionId: active.id, duration };
+    this.wsGateway.broadcastToStudio(order.studioId || '', 'order:pool_updated', { id: sessionOrderId, sessionId: next.id });
+    return { sessionId: next.id, seq, oldSessionId: active.id, duration, orderId: sessionOrderId };
   }
 
   /**

@@ -63,7 +63,7 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
     expect(pushed[0].data.message).toContain('续单'); // 客户接着打就先点续单，别让人白打
     expect(pushed[0].data.message).toContain('不计业绩');
     expect(pushed[0].data.message).toContain('不算首单成交');
-    expect(pushed[0].data.overdueMin).toBeGreaterThan(50);
+    expect(pushed[0].data.overdueMin).toBeGreaterThan(40);
     expect(updated).toHaveLength(1);
     expect(updated[0].data.durationRemindedAt).toBeInstanceOf(Date);
   });
@@ -84,7 +84,7 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
   it('超时很久：文案带上「已经超时 X 小时 Y 分钟」', async () => {
     const { svc, pushed } = setup([row({ startedAt: new Date(Date.now() - 5 * HOUR), duration: 1 })]);
     await svc.tick();
-    expect(pushed[0].data.message).toContain('已经超时 4 小时');
+    expect(pushed[0].data.message).toContain('已经超时 3 小时 50 分钟');
   });
 
   it('没有陪玩（companionId 为空）：只记提醒时间，不推送', async () => {

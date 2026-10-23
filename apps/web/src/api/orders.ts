@@ -102,7 +102,7 @@ export const ordersApi = {
   pauseSession: (sessionId: string) => http.put(`/sessions/${sessionId}/pause`),
   resumeSession: (sessionId: string) => http.put(`/sessions/${sessionId}/resume`),
   endSession: (sessionId: string) => http.put(`/sessions/${sessionId}/end`),
-  continueSession: (orderId: string, data?: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean }) =>
+  continueSession: (orderId: string, data?: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean; mode?: 'RENEW' | 'REPURCHASE' }) =>
     http.post(`/orders/${orderId}/continue`, data || {}),
   finishSession: (sessionId: string, data?: { transferTotalYuan?: number; depositDeductYuan?: number }) =>
     http.put(`/sessions/${sessionId}/finish`, data || {}),

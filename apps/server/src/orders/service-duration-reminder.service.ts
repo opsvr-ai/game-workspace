@@ -27,6 +27,8 @@ export class ServiceDurationReminderService implements OnModuleInit {
 
   /** 到点之后每隔这么久再提醒一次（直到这段被点「结束服务」） */
   private static readonly REPEAT_MS = 30 * 60 * 1000;
+  /** 填写 2h 就 2h 后再多给 10 分钟，再提醒结束 */
+  private static readonly REMIND_GRACE_MS = 10 * 60 * 1000;
 
   async tick() {
     const now = Date.now();
@@ -49,7 +51,7 @@ export class ServiceDurationReminderService implements OnModuleInit {
     for (const s of sessions) {
       if (!s.startedAt) continue;
       const durationH = Number(s.duration) || 1;
-      const dueAt = new Date(s.startedAt).getTime() + durationH * 3600 * 1000;
+      const dueAt = new Date(s.startedAt).getTime() + durationH * 3600 * 1000 + ServiceDurationReminderService.REMIND_GRACE_MS;
       if (now < dueAt) continue;
       // 提醒过一次、还没到下一次间隔 → 跳过（不然每 30 秒 tick 一次会刷屏）
       const lastAt = s.durationRemindedAt ? new Date(s.durationRemindedAt).getTime() : 0;

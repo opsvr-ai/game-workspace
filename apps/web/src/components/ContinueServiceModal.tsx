@@ -10,6 +10,7 @@ interface Props {
   open: boolean;
   orderId: string | null;
   isDouble?: boolean;
+  mode?: 'RENEW' | 'REPURCHASE';
   mainPrice?: number;
   coPrice?: number;
   onClose: () => void;
@@ -20,7 +21,7 @@ interface Props {
  * 正在服务中「加时 / 继续」：不结束当前会话、不退出游戏。
  * 服务端把旧段按当前时刻结算，同一个订单立刻开下一段；两人都继续 BUSY。
  */
-const ContinueServiceModal: React.FC<Props> = ({ open, orderId, isDouble, mainPrice, coPrice, onClose, onDone }) => {
+const ContinueServiceModal: React.FC<Props> = ({ open, orderId, isDouble, mode = 'RENEW', mainPrice, coPrice, onClose, onDone }) => {
   const [duration, setDuration] = useState(1);
   const [price, setPrice] = useState<number | undefined>();
   const [partnerPrice, setPartnerPrice] = useState<number | undefined>();
@@ -44,12 +45,13 @@ const ContinueServiceModal: React.FC<Props> = ({ open, orderId, isDouble, mainPr
         duration,
         price,
         coPrice: isDouble ? partnerPrice : undefined,
+        mode,
       });
       const data = res?.data?.data;
       if (data?.sessionId) {
         try { (window as any).electronAPI?.sessionWatch?.(data.sessionId); } catch {}
       }
-      message.success('已加时，继续服务，不用退出游戏');
+      message.success(mode === 'REPURCHASE' ? '已复购，继续服务，不用退出游戏' : '已续单，继续服务，不用退出游戏');
       onDone();
       onClose();
     } catch (e: any) {
@@ -62,11 +64,11 @@ const ContinueServiceModal: React.FC<Props> = ({ open, orderId, isDouble, mainPr
   return (
     <Modal
       open={open}
-      title="加时 / 继续服务"
+      title={mode === 'REPURCHASE' ? '复购 / 继续服务' : '续单 / 继续服务'}
       onOk={submit}
       onCancel={onClose}
       confirmLoading={saving}
-      okText="确认加时"
+      okText={mode === 'REPURCHASE' ? '确认复购' : '确认续单'}
       cancelText="取消"
       width={420}
     >

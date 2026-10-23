@@ -694,7 +694,7 @@ export class OrdersController {
   @Roles(UserRole.COMPANION)
   async continueService(
     @Param('id') id: string,
-    @Body() body: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean },
+    @Body() body: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean; mode?: 'RENEW' | 'REPURCHASE' },
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.continueSession(id, req.user.companionId, body || {});

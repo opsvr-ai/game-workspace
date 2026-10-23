@@ -551,7 +551,7 @@ export class OrdersService implements OnModuleInit {
   async continueSession(
     orderId: string,
     companionId: string | undefined,
-    dto: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean },
+    dto: { duration?: number; price?: number; coPrice?: number; claimedMode?: string; useDeposit?: boolean; mode?: 'RENEW' | 'REPURCHASE' },
   ) {
     return this.orderSession.continueSession(orderId, companionId, dto);
   }

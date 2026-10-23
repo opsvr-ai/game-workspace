@@ -229,6 +229,7 @@ const CustomersPage: React.FC = () => {
   const [continueTarget, setContinueTarget] = useState<{
     orderId: string;
     isDouble: boolean;
+    mode: 'RENEW' | 'REPURCHASE';
     mainPrice: number;
     coPrice: number;
   } | null>(null);
@@ -913,23 +914,29 @@ const CustomersPage: React.FC = () => {
                       暂停
                     </Button>
                   )}
-                  {!activeSession.pausedAt && (
-                    <Button
-                      size="small"
-                      onClick={() => {
-                        const segDur = Number(activeSession.duration) || 1;
-                        const unit = Number(activeSession.claimedPrice) || 0;
-                        setContinueTarget({
-                          orderId: activeOrder.id,
-                          isDouble: !!activeSession.coCompanionId,
-                          mainPrice: unit > 0 ? unit : (Number((activeSession as any).amount) || 0) / segDur,
-                          coPrice: activeSession.coCompanionId ? (Number(activeSession.coAmount) || 0) / segDur : 0,
-                        });
-                      }}
-                    >
-                      加时
-                    </Button>
-                  )}
+                  {!activeSession.pausedAt && (() => {
+                    // 中午 12 点后：续单切换为复购；复购单本身一直是复购。
+                    const isRepurchase = activeOrder.type === 'REPURCHASE' || new Date().getHours() >= 12;
+                    const continuationMode = isRepurchase ? 'REPURCHASE' : 'RENEW';
+                    const segDur = Number(activeSession.duration) || 1;
+                    const unit = Number(activeSession.claimedPrice) || 0;
+                    return (
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setContinueTarget({
+                            orderId: activeOrder.id,
+                            isDouble: !!activeSession.coCompanionId,
+                            mode: continuationMode,
+                            mainPrice: unit > 0 ? unit : (Number((activeSession as any).amount) || 0) / segDur,
+                            coPrice: activeSession.coCompanionId ? (Number(activeSession.coAmount) || 0) / segDur : 0,
+                          });
+                        }}
+                      >
+                        {isRepurchase ? '复购' : '续单'}
+                      </Button>
+                    );
+                  })()}
                   <Button
                     size="small"
                     danger
@@ -1409,6 +1416,7 @@ const CustomersPage: React.FC = () => {
           open={!!continueTarget}
           orderId={continueTarget?.orderId ?? null}
           isDouble={continueTarget?.isDouble}
+          mode={continueTarget?.mode}
           mainPrice={continueTarget?.mainPrice}
           coPrice={continueTarget?.coPrice}
           onClose={() => setContinueTarget(null)}
