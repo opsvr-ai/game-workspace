@@ -297,6 +297,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **克隆电脑 MachineGuid 相同导致 machineId 撞车（2026-10-23，陪玩端 20261037）。**
+  陈佳祺和别梦晨等多台电脑是同一系统镜像克隆，Windows `MachineGuid` 全部相同；上一版用它生成
+  `pc-...`，服务端把多台电脑当成同一台，远程任务/更新可能打到别人电脑上。
+  - 客户端改为 `C:\ProgramData\chunlv\machine-id.txt` 持久化的**每台机器随机 UUID**；
+  - 识别旧格式 `pc-<32位Guid>` 后自动重新生成；
+  - 20261037 已发布并推送 12/12 在线机器；
+  - 服务端清单按 hostname+loginUser 去重保留。
+  - 这次陈佳祺重启前服务端**没有下发过 shutdown/reboot 任务**；已排除本次是关机指令直接导致，
+    但 machineId 撞车会让远程指令打错电脑，已一并修掉。
+
 - **服务到点提醒后 10 分钟仍不处理：强制结束（2026-10-23，服务端）。**
   - 到点后 10 分钟先提醒；提醒后再过 10 分钟仍未结束/续单/复购，服务端自动结束该段、按实际时长计入业绩、陪玩回空闲；
   - 自动结束同时支持主陪/副陪，并推 `service:auto_ended`；

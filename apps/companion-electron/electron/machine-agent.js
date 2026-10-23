@@ -14,7 +14,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawn, execFileSync } = require('child_process');
+const { spawn } = require('child_process');
 const { randomUUID } = require('crypto');
 
 const REPORT_TOKEN = 'c4f1a2e7d9b8435fa6e10c7d2b9f8e34';
@@ -67,35 +67,32 @@ function hostName() {
 }
 
 /**
- * 稳定机器 ID：优先 ProgramData 持久化文件，其次 Windows MachineGuid。
- * 旧实现用「计算机名 + 第一块网卡 MAC」——网卡顺序/MAC 随机化/换网卡都会变，
- * 服务端就当成新机器，台账里出现大量重复行（2026-10-23 老板截图反馈）。
+ * 稳定机器 ID：ProgramData 下持久化的**每台电脑随机 UUID**。
+ *
+ * 不能用 Windows MachineGuid：这批电脑是同一个系统镜像克隆出来的，MachineGuid 全都一样，
+ * 结果多台机器拿到同一个 machineId，服务端把陈佳祺/别梦晨的机器认成同一台，远程指令会打到别人电脑上。
+ * 旧文件是 `pc-<32位MachineGuid>`（35 字符），检测到这种旧格式就重新生成一个 36 位随机 UUID。
  */
 const MACHINE_ID_FILE = 'C:\\ProgramData\\chunlv\\machine-id.txt';
 let cachedMachineId = '';
 
+function newRandomMachineId() {
+  return 'pc-' + randomUUID();
+}
+
 function stableMachineId() {
   if (cachedMachineId) return cachedMachineId;
+  let saved = '';
   try {
-    const saved = String(fs.readFileSync(MACHINE_ID_FILE, 'utf-8') || '').trim();
-    if (saved && saved.length >= 8 && saved.length <= 120) {
-      cachedMachineId = saved;
-      return saved;
-    }
+    saved = String(fs.readFileSync(MACHINE_ID_FILE, 'utf-8') || '').trim();
   } catch { /* 第一次没有文件 */ }
-
-  let guid = '';
-  try {
-    const out = execFileSync(
-      'reg.exe',
-      ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'],
-      { encoding: 'utf-8', windowsHide: true, timeout: 5000 },
-    );
-    const m = String(out).match(/MachineGuid\s+REG_SZ\s+([0-9a-fA-F-]+)/);
-    if (m) guid = m[1];
-  } catch { /* 没有权限就读不到 */ }
-  if (!guid) guid = randomUUID();
-  const id = 'pc-' + guid.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  // 新格式：pc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx（39 字符，含连字符）
+  if (saved && saved.length > 36 && saved.length <= 120) {
+    cachedMachineId = saved;
+    return saved;
+  }
+  // 旧格式（pc- + 32 位 MachineGuid）或空文件：生成随机 UUID，彻底避免克隆机撞 ID。
+  const id = newRandomMachineId();
   try {
     fs.mkdirSync(path.dirname(MACHINE_ID_FILE), { recursive: true });
     fs.writeFileSync(MACHINE_ID_FILE, id, 'utf-8');
