@@ -1535,46 +1535,18 @@ function deferBannerWhileFullscreen(payload: BannerPayload, exe: string): void {
  *   该弹   → 跟以前完全一样，直接画。auto 档在「看起来不会被顶出去」时还会顺手复查一次
  *            （见 watchFullscreenKick）：这台机器真被顶出去了就记下来，以后自动压住。
  */
-function showBroadcastPopup(payload: BannerPayload, opts?: { force?: boolean }): void {
-  // 老板 2026-10-21：空闲 / 休息 / 娱乐中必须弹，不许被「全屏压住」吞掉；
-  // 接单中仍按原策略（避免把人从正在打的单里拽出来）。
-  if (opts?.force) {
-    showBannerNow(payload);
-    return;
+function showBroadcastPopup(payload: BannerPayload, _opts?: { force?: boolean }): void {
+  // 老板 2026-10-24：陪玩不喜欢软件置顶弹窗/无边框，打游戏时会顶鼠标、顶画面。
+  // 所有软件横幅一律取消，改成 Windows 系统通知；不再探测全屏、不再抢前台。
+  try {
+    new Notification({
+      title: String(payload?.title || SHELL_BRAND),
+      body: String(payload?.body || ''),
+      silent: false,
+    }).show();
+  } catch (err: any) {
+    logger.warn('Windows notification failed', { error: err?.message || String(err) });
   }
-  const mode = bannerFullscreenMode();
-  if (mode === 'show') {
-    // 明确选了「照弹」：连探都不用探，行为跟老版本一模一样。
-    showBannerNow(payload);
-    return;
-  }
-  const learned = bannerKicksGameKnown();
-  // 「全屏一律压住」和「这台机器被顶出去过」这两种情况必须等探测回来再决定：
-  // 宁可晚几百毫秒，也不能把正在打游戏的人从游戏里拽出来。
-  const mustHold = mode === 'hold' || learned;
-  void (async () => {
-    const fg = mustHold ? await probeForegroundFullscreen() : await probeForegroundFullscreenQuick();
-    if (decideBannerRoute({ mode, probe: fg, learnedKick: learned }) === 'show') {
-      showBannerNow(payload);
-      // auto 档 + 正在全屏打游戏：这次先弹了，顺手验一下这台机器会不会被顶出去。
-      if (mode === 'auto' && fg?.full) watchFullscreenKick(fg);
-      return;
-    }
-    logger.info('Banner held back: fullscreen game in foreground', {
-      mode,
-      exe: fg?.exe,
-      exclusive: fg?.exclusive,
-      learnedKick: learned,
-      title: payload?.title,
-      orderId: payload?.orderId,
-    });
-    try {
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.flashFrame(true);
-    } catch {
-      /* 闪任务栏失败不影响什么 */
-    }
-    if (fg) deferBannerWhileFullscreen(payload, fg.exe);
-  })();
 }
 
 /**

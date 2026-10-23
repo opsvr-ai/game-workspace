@@ -74,6 +74,10 @@ export class AgentController {
     // 没有这一步的话，一台下完名额就空着，其他人要等 30 分钟才来问一次，
     // 一次发布要几小时才能铺开。
     this.agentService.setUpdateNotifier(() => this.pumpUpdateQueue());
+    // 排队不是只等“名额释放”那一下：接单中的机器被跳过会重新排队，
+    // 这里每分钟再看一眼，打完游戏空闲下来就能自动轮到它下载。
+    const timer = setInterval(() => { void this.pumpUpdateQueue(); }, 60_000);
+    timer.unref?.();
   }
 
   /**
@@ -412,23 +416,19 @@ export class AgentController {
       return { code: 400, message: '请选择至少一个陪玩', data: null };
     }
 
-    const { version, downloadUrl } = await this.agentService.getLatestVersion();
+    const { version } = await this.agentService.getLatestVersion();
     const targets = await this.agentService.getCompanionTargetsByIds(companionIds);
-    // 旧客户端不会判断“接单中不下载”，服务端必须替它挡住：
-    // 正在接单/娱乐的机器只排进更新队列，绝不在游戏时下 120MB 抢带宽。
-    const busy = targets.filter((t) => t.status === 'BUSY' || t.status === 'ENTERTAINMENT');
-    const idle = targets.filter((t) => t.status !== 'BUSY' && t.status !== 'ENTERTAINMENT');
-    let successCount = 0;
-    const results = idle.map((target) => {
-      const sent = this.wsGateway.sendCommand(target.companionId, 'update', { downloadUrl, version });
-      if (sent) successCount += 1;
-      return { ...target, sent };
-    });
+    // 不直接让客户端下载，全部进服务端队列：接单中跳过，空闲一台一台下，
+    // 避免同一时间多台电脑抢满办公室网络。
+    for (const target of targets) {
+      const scope = await this.agentService.resolveUpdateScope(target.companionId);
+      this.agentService.enqueueUpdateWaiter(target.companionId, scope);
+    }
 
     return {
       code: 200,
-      message: `已向 ${successCount}/${idle.length} 位空闲陪玩发送更新命令；${busy.length} 位接单中跳过`,
-      data: { successCount, total: idle.length, skippedBusy: busy.length, version, results },
+      message: `已加入更新队列 ${targets.length} 台，按空闲状态逐台下载`,
+      data: { queued: targets.length, version, results: targets },
     };
   }
 
@@ -437,7 +437,7 @@ export class AgentController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async pushUpdateStudio(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const { version, downloadUrl } = await this.agentService.getLatestVersion();
+    const { version } = await this.agentService.getLatestVersion();
     const studioId = req.user?.studioId;
 
     if (!studioId && req.user?.role !== 'OWNER') {
@@ -445,19 +445,15 @@ export class AgentController {
     }
 
     const targets = await this.agentService.getOnlineCompanionTargets(studioId || undefined);
-    const busy = targets.filter((t) => t.status === 'BUSY' || t.status === 'ENTERTAINMENT');
-    const idle = targets.filter((t) => t.status !== 'BUSY' && t.status !== 'ENTERTAINMENT');
-    let successCount = 0;
-    const results = idle.map((target) => {
-      const sent = this.wsGateway.sendCommand(target.companionId, 'update', { downloadUrl, version });
-      if (sent) successCount += 1;
-      return { ...target, sent };
-    });
+    for (const target of targets) {
+      const scope = await this.agentService.resolveUpdateScope(target.companionId);
+      this.agentService.enqueueUpdateWaiter(target.companionId, scope);
+    }
 
     return {
       code: 200,
-      message: `已向 ${successCount}/${idle.length} 位空闲陪玩发送更新命令；${busy.length} 位接单中跳过`,
-      data: { successCount, total: idle.length, skippedBusy: busy.length, version, results },
+      message: `已加入更新队列 ${targets.length} 台，按空闲状态逐台下载`,
+      data: { queued: targets.length, version, results: targets },
     };
   }
 

@@ -46,6 +46,7 @@ interface UseSocketOptions {
   onServiceHandoff?: (data: any) => void;
   onSegmentFinished?: (data: any) => void;
   onServiceDurationReminder?: (data: any) => void;
+  onServiceAutoEnded?: (data: any) => void;
   onWalletReviewed?: (data: any) => void;
   onUserAuthorized?: (data: any) => void;
   onUserRejected?: (data: any) => void;
@@ -552,6 +553,7 @@ export function useSocket(opts: UseSocketOptions = {}) {
       ['order:service_handoff', (data: any) => optsRef.current.onServiceHandoff?.(data)],
       ['order:segment_finished', (data: any) => optsRef.current.onSegmentFinished?.(data)],
       ['service:duration_reminder', (data: any) => optsRef.current.onServiceDurationReminder?.(data)],
+      ['service:auto_ended', (data: any) => optsRef.current.onServiceAutoEnded?.(data)],
       ['order:contact_reminder', (data: any) => optsRef.current.onOrderContactReminder?.(data)],
       ['order:contact_reminder_admin', (data: any) => optsRef.current.onOrderContactReminderAdmin?.(data)],
       ['order:unstarted_reminder', (data: any) => optsRef.current.onOrderUnstartedReminder?.(data)],

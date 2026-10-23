@@ -358,6 +358,16 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
     return next;
   }
 
+  /** 把一台机器加入排队；真正下载仍由名额和「接单中跳过」控制。 */
+  enqueueUpdateWaiter(companionId: string, scope: string = DEFAULT_UPDATE_SCOPE): void {
+    const key = scope || DEFAULT_UPDATE_SCOPE;
+    const queue = waitersOf(key);
+    if (!queue.has(companionId)) {
+      queue.set(companionId, { firstAskedAt: Date.now() });
+    }
+    this.pumpUpdateQueue(key);
+  }
+
   /** 被跳过（例如正在接单）的机器放回队列，保留原来的排队时间，别让它排到队尾。 */
   requeueUpdateWaiter(waiter: UpdateWaiter): void {
     const queue = waitersOf(waiter.scope || DEFAULT_UPDATE_SCOPE);

@@ -15,7 +15,7 @@ import type { UserInfo } from '@chunlv/shared';
 import { notification } from 'antd';
 import { message } from '../utils/feedback';
 import { notifyNotice, recordNotice } from '../utils/notice';
-import { playNotificationSound, showBannerNotification } from '../utils/notify';
+import { playNotificationSound, showBannerNotification, showSystemNotification } from '../utils/notify';
 import { rolePage } from '../config/roleMenus';
 import http from '../api/client';
 import { useSocket } from './useSocket';
@@ -357,6 +357,12 @@ export function useShellRealtime({
         action: 'open-orders',
       });
     },
+    onServiceAutoEnded: (data: any) => {
+      showSystemNotification(
+        '⏰ 服务已自动结束',
+        data?.message || '服务到点后仍未处理，已自动结束并计入业绩；游戏不会退出，打完后请切回空闲',
+      );
+    },
     onOrderPoolUpdated: (data: any) => {
       // 同 onOrderNew：陪玩端的新广播单要等弹窗那一下再刷新，避免订单池先出现。
       const isNewPending =
@@ -372,23 +378,8 @@ export function useShellRealtime({
       const content = String(data?.content || '').trim();
       if (!content) return;
       const title = `📢 ${senderName} 广播`;
-      const electronApi = (window as any).electronAPI;
-      if (electronApi?.broadcastPopup) {
-        // 陪玩端：交给 Electron 主进程画一个置顶窗口，最小化/全屏时也能看到
-        try {
-          electronApi.broadcastPopup({ title, body: content });
-        } catch {
-          /* ignore */
-        }
-      } else {
-        // 浏览器里打开时的兜底
-        notification.warning({
-          message: title,
-          description: content,
-          placement: 'bottomRight',
-          duration: 5,
-        });
-      }
+      // 群聊广播也走 Windows 通知，不再画置顶窗。
+      showSystemNotification(title, content);
       playNotificationSound();
     },
     onOrderUrgent: (data: any) => {
@@ -413,18 +404,11 @@ export function useShellRealtime({
           dedupeKey: `urgent:${data?.id || data?.orderCode || urgentDesc}`,
           dedupeMs: 5 * 60_000,
         });
-        // 陪玩客户端里，主进程收到 order:urgent 已经画了那张能点的桌面横幅（见 electron/main.ts），
-        // 这里不再补一条「点了没反应、还容易被系统吞掉」的系统通知；只有浏览器里打开时才兜底。
-        if (!(window as any).electronAPI?.broadcastPopup) {
-          showBannerNotification({
-            title: data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
-            body: urgentDesc,
-            icon: data?._direct ? '🎯' : '⚡',
-            seconds: 15,
-            hint: '点这里 → 去抢单池看这单',
-            action: 'open-pool',
-          });
-        }
+        // 统一走 Windows 系统通知，不再依赖软件置顶横幅（会把全屏游戏顶出去）。
+        showSystemNotification(
+          data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
+          urgentDesc,
+        );
       }
     },
     onScheduledReminder: (data: any) => {

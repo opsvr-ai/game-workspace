@@ -60,24 +60,9 @@ export interface BannerNotificationOptions {
 }
 
 export function showBannerNotification(opts: BannerNotificationOptions) {
-  try {
-    const electronApi = (window as any).electronAPI;
-    if (electronApi?.broadcastPopup) {
-      electronApi.broadcastPopup({
-        title: opts.title,
-        body: opts.body,
-        icon: opts.icon,
-        seconds: opts.seconds,
-        hint: opts.hint,
-        action: opts.action,
-        actionPayload: opts.actionPayload,
-      });
-      return;
-    }
-  } catch {
-    /* 横幅失败时退回系统通知，别两边都看不到 */
-  }
-  if (opts.fallbackNotification !== false) showSystemNotification(opts.title, opts.body);
+  // 老板 2026-10-24：陪玩不喜欢软件置顶弹窗/无边框，打游戏时会把鼠标和画面顶出去。
+  // 所有提醒统一走 Windows 系统通知，不再画软件横幅、不再抢前台。
+  showSystemNotification(opts.title, opts.body);
 }
 
 // 提示音：搭配重要提醒（如搭档邀请）一起用，陪玩端最小化/在打游戏时也能听到。
