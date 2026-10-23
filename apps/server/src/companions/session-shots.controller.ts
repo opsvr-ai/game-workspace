@@ -158,7 +158,28 @@ export class SessionShotsController {
       },
     });
     if (!session) throw new NotFoundException('会话不存在');
-    if (session.companionId !== req.user.companionId) throw new ForbiddenException('只能操作自己的会话');
+    const isMain = session.companionId === req.user.companionId;
+    const isCo = session.coCompanionId === req.user.companionId;
+    if (!isMain && !isCo) throw new ForbiddenException('只能操作自己的会话');
+
+    // 双陪 / 代打：主陪点结束只结束自己，搭档继续打；不能把整段会话和搭档一起结束。
+    // 主陪的陪伴段先摘掉，会话保留 ACTIVE、保留副陪和 startedAt，等副陪自己结束。
+    if (isMain && session.coCompanionId && session.coCompanionId !== req.user.companionId) {
+      await this.prisma.orderSession.update({
+        where: { id },
+        data: { companionId: null },
+      });
+      await releaseCompanionIfIdle(this.prisma, req.user.companionId, id);
+      return {
+        code: 200,
+        message: '你已结束，搭档继续服务',
+        data: {
+          mainDetached: true,
+          coCompanionId: session.coCompanionId,
+          orderId: session.parentOrderId,
+        },
+      };
+    }
 
     const shotCount = this.composite.countShots(id);
     const blackCount = this.composite.countBlackShots(id);

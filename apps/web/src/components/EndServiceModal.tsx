@@ -49,10 +49,17 @@ const EndServiceModal: React.FC<Props> = ({
     try { await (window as any).electronAPI?.sessionWatchStop?.(); } catch {}
     setEnding(true);
     try {
-      await ordersApi.finishSession(sessionId, {
+      const res: any = await ordersApi.finishSession(sessionId, {
         transferTotalYuan: transferTotal,
         depositDeductYuan: paidByDeposit ? depositDeduct : undefined,
       });
+      // 双陪：主陪先结束只摘掉自己，搭档继续打；这时绝不能把订单 complete 掉。
+      if (res?.data?.data?.mainDetached) {
+        message.success('你已结束，搭档会继续服务');
+        onDone?.();
+        onClose();
+        return;
+      }
       // 结束服务 = 结束会话 + 完成订单，避免订单一直停在「进行中」
       if (orderId) {
         try {
