@@ -127,6 +127,54 @@ export class OrderWorkflowService {
       throw new ForbiddenException('该订单已被其他陪玩抢先抢走');
     }
 
+    // 离职陪玩客户放进抢单池的单：抢到后给这个陪玩自动生成一份客户档案。
+    const grabCf = (order.customFields as any) || {};
+    if (grabCf.resignedCustomerPool === true && order.customerId) {
+      try {
+        const original = await this.prisma.customer.findUnique({
+          where: { id: order.customerId },
+          select: {
+            id: true,
+            wechatId: true,
+            platform: true,
+            platformAccount: true,
+            notes: true,
+            studioId: true,
+            companionId: true,
+            status: true,
+          },
+        });
+        if (original && original.companionId !== companionId) {
+          const clone = await this.prisma.customer.create({
+            data: {
+              studioId: original.studioId,
+              customerCode: `C${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+              wechatId: original.wechatId,
+              platform: original.platform,
+              platformAccount: original.platformAccount,
+              notes: original.notes,
+              status: original.status || 'ACTIVE',
+              isLegacy: false,
+              companionId,
+            },
+          });
+          await this.prisma.order.update({
+            where: { id: orderId },
+            data: {
+              customerId: clone.id,
+              customFields: {
+                ...grabCf,
+                originalCustomerId: original.id,
+                customerAutoCreatedFromPool: true,
+              },
+            },
+          });
+        }
+      } catch (err) {
+        logger.error('Auto-create customer for resigned pool order failed', { error: (err as Error).message });
+      }
+    }
+
     // Re-fetch with includes for broadcasting
     const grabbedOrder = await this.prisma.order.findUnique({
       where: { id: orderId },

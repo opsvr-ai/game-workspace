@@ -142,6 +142,17 @@ export class CustomersController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Post('customers/:id/pool')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async createPoolOrders(
+    @Param('id') id: string,
+    @Body() body: { count?: number; amount?: number; duration?: number; gameName?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.createPoolOrders(id, body || {}, req.user);
+    return { code: 200, message: `已放入抢单池 ${data.count} 单`, data };
+  }
+
   @Post('customers/:id/transfer')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async transferCustomer(

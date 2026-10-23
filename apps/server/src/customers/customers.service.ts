@@ -1573,9 +1573,58 @@ export class CustomersService {
   }
 
   /**
-   * 离职陪玩的客户重新当新单派给在职陪玩：
-   * 客户归属改到新主陪，同时新开一张 NEW 单（KPI 归新主陪）。
+   * 把离职陪玩的客户放进抢单池：一次生成 N 张 NEW / POOL 单（N 个陪玩可各抢一张）。
+   * 客户档案不换主；抢到的陪玩会在 grab 时自动生成一份自己的客户副本。
    */
+  async createPoolOrders(
+    customerId: string,
+    body: { count?: number; amount?: number; duration?: number; gameName?: string },
+    user: AuthenticatedUser,
+  ) {
+    const customer = await this.findOne(customerId, user);
+    if (user.role !== 'OWNER' && user.studioId && customer.studioId !== user.studioId) {
+      throw new ForbiddenException('不能操作其它工作室的客户');
+    }
+    const count = Math.min(20, Math.max(1, Number(body?.count) || 1));
+    const amount = Number(body?.amount) || 0;
+    const duration = Math.max(0.5, Number(body?.duration) || 1);
+    if (amount < 1) throw new BadRequestException('请填写有效金额');
+    const latest = await this.prisma.order.findFirst({
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+      select: { gameName: true },
+    });
+    const gameName = String(body?.gameName || latest?.gameName || '三角洲行动');
+    const base = Date.now().toString(36).toUpperCase();
+    const orders = await Promise.all(
+      Array.from({ length: count }).map((_, i) =>
+        this.prisma.order.create({
+          data: {
+            orderCode: `P${base}${i}`,
+            type: 'NEW',
+            studioId: customer.studioId,
+            csUserId: user.id,
+            customerId,
+            dispatchType: 'POOL',
+            source: 'OFFLINE',
+            status: 'PENDING',
+            amount,
+            gameName,
+            serviceType: 'PLAY_WITH',
+            duration,
+            customFields: {
+              resignedCustomerPool: true,
+              originalCustomerId: customerId,
+              poolCreatedBy: user.id,
+              poolCreatedAt: new Date().toISOString(),
+            },
+          },
+        }),
+      ),
+    );
+    return { count: orders.length, orderIds: orders.map((o) => o.id) };
+  }
+
   /**
    * 离职陪玩的客户只做「移交查看」：归属给新陪玩，让他能在客户管理里看到完整资料和历史。
    * **不新开订单、不产生新 KPI** —— 只有真正开始服务后才另算。

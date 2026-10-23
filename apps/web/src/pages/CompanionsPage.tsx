@@ -524,7 +524,7 @@ const CompanionsPage: React.FC = () => {
 
   const openRedispatch = (customer: any) => {
     setRedispatchCustomer(customer);
-    redispatchForm.resetFields();
+    redispatchForm.setFieldsValue({ count: 1, amount: 35, duration: 1, gameName: '三角洲行动' });
   };
 
   const submitRedispatch = async () => {
@@ -533,13 +533,18 @@ const CompanionsPage: React.FC = () => {
     if (!values) return;
     setRedispatching(true);
     try {
-      await customersApi.transfer(redispatchCustomer.id, values.companionId);
-      message.success('客户已移交，新陪玩可在客户管理里查看全部资料');
+      await customersApi.pool(redispatchCustomer.id, {
+        count: Number(values.count),
+        amount: Number(values.amount),
+        duration: Number(values.duration),
+        gameName: values.gameName,
+      });
+      message.success('已放入抢单池，其他陪玩可以抢；抢到后会自动生成客户档案');
       setRedispatchCustomer(null);
       if (formerCompanion?.companionId) void openFormerCustomers(formerCompanion);
       fetchCompanions();
     } catch (err: any) {
-      message.error(extractErrorMessage(err, '移交失败'));
+      message.error(extractErrorMessage(err, '放入抢单池失败'));
     } finally {
       setRedispatching(false);
     }
@@ -1368,7 +1373,7 @@ const CompanionsPage: React.FC = () => {
               width: 120,
               render: (_: unknown, row: any) => (
                 <Button type="link" size="small" onClick={() => openRedispatch(row)}>
-                  移交客户
+                  放入抢单池
                 </Button>
               ),
             },
@@ -1377,25 +1382,31 @@ const CompanionsPage: React.FC = () => {
       </Modal>
 
       <Modal
-        title={`移交客户 — ${redispatchCustomer?.customerCode || ''}`}
+        title={`放入抢单池 — ${redispatchCustomer?.customerCode || ''}`}
         open={!!redispatchCustomer}
         onOk={submitRedispatch}
         onCancel={() => setRedispatchCustomer(null)}
         confirmLoading={redispatching}
-        okText="确认移交"
+        okText="确认放入"
         cancelText="取消"
       >
         <Form form={redispatchForm} layout="vertical" style={{ marginTop: 12 }}>
-          <Form.Item name="companionId" label="移交给哪个陪玩" rules={[{ required: true, message: '请选择陪玩' }]}>
-            <Select
-              placeholder="选择在职陪玩"
-              options={companions
-                .filter((c) => !c.isResigned && c.companionId)
-                .map((c) => ({ label: c.username, value: c.companionId as string }))}
-            />
+          <Form.Item name="count" label="生成几单给陪玩抢" rules={[{ required: true, message: '请填写数量' }]}>
+            <InputNumber min={1} max={20} style={{ width: '100%' }} suffix="单" />
           </Form.Item>
+          <Form.Item name="gameName" label="游戏" rules={[{ required: true, message: '请填写游戏' }]}>
+            <Input />
+          </Form.Item>
+          <Space>
+            <Form.Item name="amount" label="金额（元）" rules={[{ required: true, message: '请填写金额' }]}>
+              <InputNumber min={1} style={{ width: 160 }} />
+            </Form.Item>
+            <Form.Item name="duration" label="时长（小时）" rules={[{ required: true, message: '请填写时长' }]}>
+              <InputNumber min={0.5} step={0.5} style={{ width: 160 }} />
+            </Form.Item>
+          </Space>
           <Typography.Text type="secondary">
-            只移交客户资料和全部历史，让新陪玩在客户管理里查看；不新开订单，也不产生 KPI。实际开始服务后才计 KPI。
+            生成后其他陪玩在抢单池抢；抢到的人会自动生成一份自己的客户档案，不用重新录入。抢单本身算首单，只有实际服务完成才计 KPI。
           </Typography.Text>
         </Form>
       </Modal>

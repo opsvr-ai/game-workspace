@@ -5,6 +5,8 @@ export const customersApi = {
   byCompanion: (companionId: string) => http.get(`/customers/by-companion/${companionId}`),
   transfer: (id: string, companionId: string) =>
     http.post(`/customers/${id}/transfer`, { companionId }),
+  pool: (id: string, data: { count?: number; amount?: number; duration?: number; gameName?: string }) =>
+    http.post(`/customers/${id}/pool`, data),
   getById: (id: string) => http.get(`/customers/${id}`),
   create: (data: any) => http.post('/customers', data),
   update: (id: string, data: any) => http.put(`/customers/${id}`, data),
