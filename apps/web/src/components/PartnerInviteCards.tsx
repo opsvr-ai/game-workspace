@@ -45,7 +45,7 @@ export const PartnerInviteCards: React.FC = () => {
     setBusy(p.sessionId);
     try {
       await ordersApi.acceptPartnerInvite(p.sessionId);
-      message.success('已接受搭档邀请，开始计时');
+      message.success(p.proxyMode ? '已接受代打任务，开始计时' : '已接受搭档邀请，开始计时');
       remove(p.sessionId);
       (window as any).electronAPI?.sessionWatch?.(p.sessionId);
       window.dispatchEvent(new Event('chunlv:service-started'));
@@ -73,7 +73,7 @@ export const PartnerInviteCards: React.FC = () => {
     <Card
       size="small"
       style={{ marginBottom: 12, borderColor: SEMANTIC.warning, background: '#FFFBEB' }}
-      title={<span style={{ color: SEMANTIC.warningDeep }}>🤝 待我确认的搭档邀请（{invites.length}）</span>}
+      title={<span style={{ color: SEMANTIC.warningDeep }}>🎯 待我确认的{invites.every((p) => p.proxyMode) ? '代打任务' : '搭档邀请'}（{invites.length}）</span>}
     >
       {invites.map((p: any) => (
         <div
@@ -88,7 +88,7 @@ export const PartnerInviteCards: React.FC = () => {
           }}
         >
           <div>
-            <Text strong>{p.inviterName || '有陪玩'} 邀请你搭档</Text>
+            <Text strong>{p.inviterName || '有陪玩'} {p.proxyMode ? '让你代打' : '邀请你搭档'}</Text>
             <span style={{ marginLeft: 8, fontSize: 13, color: '#666' }}>
               {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)} · {p.duration || 1}h
             </span>

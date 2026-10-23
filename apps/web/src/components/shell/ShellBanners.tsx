@@ -46,7 +46,7 @@ export const PartnerInvitePopover: React.FC<PartnerInvitePopoverProps> = ({
     onOpenChange={onOpenChange}
     trigger="click"
     placement="bottomRight"
-    title="待处理搭档邀请"
+    title="待处理代打 / 搭档邀请"
     content={
       <div style={{ width: 320 }}>
         {partnerInvites.length === 0 ? (
@@ -57,7 +57,7 @@ export const PartnerInvitePopover: React.FC<PartnerInvitePopoverProps> = ({
             return (
               <div key={p.sessionId} style={{ padding: '8px 0', borderBottom: `1px solid ${BORDER.secondary}` }}>
                 <div>
-                  <Text strong>🤝 {p.inviterName} 邀请你搭档</Text>
+                  <Text strong>🤝 {p.inviterName} {p.proxyMode ? '让你代打' : '邀请你搭档'}</Text>
                 </div>
                 <div style={{ fontSize: 12, color: TEXT.secondary }}>
                   {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)} · {p.duration || 1}h
@@ -72,7 +72,7 @@ export const PartnerInvitePopover: React.FC<PartnerInvitePopoverProps> = ({
                     onClick={async () => {
                       try {
                         await ordersApi.acceptPartnerInvite(p.sessionId);
-                        message.success('已接受搭档邀请，开始计时');
+                        message.success(p.proxyMode ? '已接受代打任务，开始计时' : '已接受搭档邀请，开始计时');
                         removePartnerInvite(p.sessionId);
                         (window as any).electronAPI?.sessionWatch?.(p.sessionId);
                         window.dispatchEvent(new Event('chunlv:service-started'));

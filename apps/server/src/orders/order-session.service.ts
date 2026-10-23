@@ -299,6 +299,7 @@ export class OrderSessionService {
         gameName: order.gameName,
         orderId,
         type: 'DUAL_INVITE',
+        proxyMode: (order.customFields as any)?.proxyMode === true,
         inviterName,
         expiresInSec: PARTNER_INVITE_TTL_SEC,
       });

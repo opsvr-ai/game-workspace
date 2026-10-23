@@ -404,9 +404,9 @@ export class OrderCreateService {
         this.wsGateway.pushOrder(session.coCompanionId, {
           ...session,
           gameName: newOrder.gameName,
-          customerId: newOrder.customerId,
           orderId: newOrder.id,
           type: 'DUAL_INVITE',
+          proxyMode: (newOrder.customFields as any)?.proxyMode === true,
           inviterName,
           expiresInSec: PARTNER_INVITE_TTL_SEC,
         });

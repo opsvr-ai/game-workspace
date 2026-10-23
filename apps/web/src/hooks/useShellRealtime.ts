@@ -71,7 +71,10 @@ export function useShellRealtime({
       }
       if (!user?.companionId || data?.coCompanionId !== user.companionId) return;
       const inviter = data.inviterName || '有陪玩';
-      const desc = `${inviter}邀请你搭档服务：${data.gameName || ''} · 搭档金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`;
+      const isProxy = data.proxyMode === true;
+      const desc = isProxy
+        ? `${inviter}让你代打：${data.gameName || ''} · 代打金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`
+        : `${inviter}邀请你搭档服务：${data.gameName || ''} · 搭档金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`;
       const ttl = data.expiresInSec ?? 15;
       addPartnerInvite({
         sessionId: data.id,
@@ -79,12 +82,13 @@ export function useShellRealtime({
         gameName: data.gameName || '',
         amount: Number((data.coAmount ?? data.amount) || 0),
         duration: data.duration || 1,
+        proxyMode: isProxy,
         expiresAt: Date.now() + ttl * 1000,
       });
       recordNotice({
         kind: 'invite',
-        icon: '🤝',
-        title: `搭档邀请 · ${inviter}`,
+        icon: isProxy ? '🎯' : '🤝',
+        title: isProxy ? `代打任务 · ${inviter}` : `搭档邀请 · ${inviter}`,
         desc,
         dedupeKey: `partner-invite:${data.id}`,
         dedupeMs: 60_000,
@@ -92,11 +96,13 @@ export function useShellRealtime({
       // 老板 2026-10-03：删掉 Windows 弹窗，只留「客服广播那种」置顶横幅 ——
       // 点一下直接打开「订单管理」，在最上面那张卡片里同意 / 拒绝。
       showBannerNotification({
-        title: '🤝 搭档邀请',
+        title: isProxy ? '🎯 代打任务' : '🤝 搭档邀请',
         body: desc,
-        icon: '🤝',
+        icon: isProxy ? '🎯' : '🤝',
         seconds: 20,
-        hint: '点这里 → 打开订单管理，同意搭档邀请',
+        hint: isProxy
+          ? '点这里 → 打开订单管理，接受代打任务'
+          : '点这里 → 打开订单管理，同意搭档邀请',
         action: 'open-orders',
         actionPayload: { sessionId: data.id },
       });

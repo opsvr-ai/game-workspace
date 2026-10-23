@@ -17,6 +17,8 @@ export interface PartnerInvite {
   gameName: string;
   amount: number;
   duration: number;
+  /** true = 代打任务（主陪不参与）；false/缺省 = 普通双陪搭档邀请 */
+  proxyMode?: boolean;
   /** 到这个时刻还没处理就自动作废（服务端也会取消） */
   expiresAt: number;
 }
