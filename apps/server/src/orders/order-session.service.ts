@@ -740,6 +740,10 @@ export class OrderSessionService {
     const s = await this.getOwnedSession(id, companionId);
     if (s.status !== 'ACTIVE' || !s.startedAt) throw new ForbiddenException('只有进行中的服务才能暂停');
     if (s.pausedAt) throw new ForbiddenException('服务已处于暂停状态');
+    // 暂停保护：累计 20 分钟用完就不能再暂停（单次 10 分钟由定时任务自动恢复）。
+    if ((s.totalPausedSec || 0) >= 20 * 60) {
+      throw new BadRequestException('本次服务暂停额度已用完（累计最多 20 分钟）');
+    }
     return this.prisma.orderSession.update({ where: { id }, data: { pausedAt: new Date() } });
   }
 
