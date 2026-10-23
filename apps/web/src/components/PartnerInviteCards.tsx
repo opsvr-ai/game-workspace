@@ -103,7 +103,7 @@ export const PartnerInviteCards: React.FC = () => {
               loading={busy === p.sessionId}
               onClick={() => accept(p)}
             >
-              同意
+              {p.proxyMode ? '接受代打' : '同意'}
             </Button>
             <Button size="small" loading={busy === p.sessionId} onClick={() => reject(p)}>
               拒绝

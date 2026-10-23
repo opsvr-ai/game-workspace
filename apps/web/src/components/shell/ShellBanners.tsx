@@ -82,7 +82,7 @@ export const PartnerInvitePopover: React.FC<PartnerInvitePopoverProps> = ({
                       }
                     }}
                   >
-                    接受
+                    {p.proxyMode ? '接受代打' : '接受'}
                   </Button>
                   <Button
                     size="small"
