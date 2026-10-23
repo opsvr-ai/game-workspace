@@ -2,6 +2,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
+import { releaseCompanionIfIdle } from '../common/companion-presence';
 
 /**
  * 服务时长到点提醒：由服务端定时检查进行中的会话，到达约定时长后推送给主陪客户端
@@ -29,6 +30,8 @@ export class ServiceDurationReminderService implements OnModuleInit {
   private static readonly REPEAT_MS = 30 * 60 * 1000;
   /** 填写 2h 就 2h 后再多给 10 分钟，再提醒结束 */
   private static readonly REMIND_GRACE_MS = 10 * 60 * 1000;
+  /** 提醒后 10 分钟仍不处理：强制结束，避免无限挂着不计业绩 */
+  private static readonly AUTO_END_MS = 10 * 60 * 1000;
 
   async tick() {
     const now = Date.now();
@@ -53,8 +56,13 @@ export class ServiceDurationReminderService implements OnModuleInit {
       const durationH = Number(s.duration) || 1;
       const dueAt = new Date(s.startedAt).getTime() + durationH * 3600 * 1000 + ServiceDurationReminderService.REMIND_GRACE_MS;
       if (now < dueAt) continue;
-      // 提醒过一次、还没到下一次间隔 → 跳过（不然每 30 秒 tick 一次会刷屏）
       const lastAt = s.durationRemindedAt ? new Date(s.durationRemindedAt).getTime() : 0;
+      // 提醒后 10 分钟仍没处理 → 强制结束，计入业绩后回空闲。
+      if (lastAt && now - lastAt >= ServiceDurationReminderService.AUTO_END_MS) {
+        await this.autoEnd(s.id);
+        continue;
+      }
+      // 提醒过一次、还没到下一次间隔 → 跳过（不然每 30 秒 tick 一次会刷屏）
       if (lastAt && now - lastAt < ServiceDurationReminderService.REPEAT_MS) continue;
 
       const overdueMin = Math.floor((now - dueAt) / 60000);
@@ -80,6 +88,50 @@ export class ServiceDurationReminderService implements OnModuleInit {
       await this.prisma.orderSession
         .update({ where: { id: s.id }, data: { durationRemindedAt: new Date() } })
         .catch(() => {});
+    }
+  }
+
+  /** 到点提醒后 10 分钟仍不处理：强制结束这一单，按实际时长计入业绩，陪玩回空闲。 */
+  private async autoEnd(sessionId: string): Promise<void> {
+    const s = await this.prisma.orderSession.findUnique({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        companionId: true,
+        coCompanionId: true,
+        status: true,
+        startedAt: true,
+        pausedAt: true,
+        totalPausedSec: true,
+        parentOrderId: true,
+      },
+    });
+    if (!s || s.status !== 'ACTIVE' || !s.startedAt) return;
+    const endedAt = new Date();
+    let totalPaused = s.totalPausedSec || 0;
+    if (s.pausedAt) totalPaused += Math.floor((endedAt.getTime() - new Date(s.pausedAt).getTime()) / 1000);
+    const activeSec = Math.max(0, (endedAt.getTime() - new Date(s.startedAt).getTime()) / 1000 - totalPaused);
+    await this.prisma.orderSession.update({
+      where: { id: sessionId },
+      data: {
+        status: 'DONE',
+        endedAt,
+        pausedAt: null,
+        totalPausedSec: totalPaused,
+        duration: Math.max(0.1, Math.round((activeSec / 3600) * 10) / 10),
+      },
+    }).catch(() => {});
+    await this.prisma.order.updateMany({
+      where: { id: s.parentOrderId, sessions: { none: { status: 'ACTIVE' } } },
+      data: { status: 'DONE' },
+    }).catch(() => {});
+    for (const id of [s.companionId, s.coCompanionId].filter(Boolean) as string[]) {
+      await releaseCompanionIfIdle(this.prisma, id, sessionId).catch(() => {});
+      this.wsGateway.pushToCompanion(id, 'service:auto_ended', {
+        sessionId,
+        orderId: s.parentOrderId,
+        message: '服务到点提醒后 10 分钟仍未处理，已自动结束并计入业绩',
+      });
     }
   }
 }

@@ -19,11 +19,14 @@ function setup(rows: any[]) {
   const prisma = {
     orderSession: {
       findMany: vi.fn(() => Promise.resolve(rows)),
+      findUnique: vi.fn((args: any) => Promise.resolve(rows.find((r) => r.id === args?.where?.id) || null)),
       update: vi.fn((args: any) => {
         updated.push(args);
         return Promise.resolve({});
       }),
     },
+    order: { updateMany: vi.fn(() => Promise.resolve({ count: 1 })) },
+    companion: { findUnique: vi.fn(() => Promise.resolve(null)), update: vi.fn(() => Promise.resolve({})) },
   };
   const ws = {
     pushToCompanion: vi.fn((id: string, event: string, data: any) => {
@@ -40,6 +43,11 @@ const row = (over: any = {}) => ({
   duration: 1,
   startedAt: new Date(Date.now() - 2 * HOUR),
   durationRemindedAt: null,
+  status: 'ACTIVE',
+  parentOrderId: 'o1',
+  coCompanionId: null,
+  pausedAt: null,
+  totalPausedSec: 0,
   parentOrder: { id: 'o1', gameName: '三角洲行动' },
   ...over,
 });
@@ -68,17 +76,18 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
     expect(updated[0].data.durationRemindedAt).toBeInstanceOf(Date);
   });
 
-  it('刚提醒过（10 分钟前）：不再打扰', async () => {
-    const { svc, pushed } = setup([row({ durationRemindedAt: new Date(Date.now() - 10 * MIN) })]);
+  it('刚提醒过（9 分钟前）：还没到自动结束', async () => {
+    const { svc, pushed } = setup([row({ durationRemindedAt: new Date(Date.now() - 9 * MIN) })]);
     await svc.tick();
     expect(pushed).toHaveLength(0);
   });
 
-  it('提醒过但已经过了 30 分钟、单还挂着：再提醒一次（一直提醒到点结束）', async () => {
-    const { svc, pushed } = setup([row({ durationRemindedAt: new Date(Date.now() - 31 * MIN) })]);
+  it('提醒后 10 分钟仍没处理：自动结束并计入业绩', async () => {
+    const { svc, pushed, updated } = setup([row({ durationRemindedAt: new Date(Date.now() - 11 * MIN) })]);
     await svc.tick();
     expect(pushed).toHaveLength(1);
-    expect(pushed[0].data.message).toContain('超时');
+    expect(pushed[0].event).toBe('service:auto_ended');
+    expect(updated.at(-1)?.data?.status).toBe('DONE');
   });
 
   it('超时很久：文案带上「已经超时 X 小时 Y 分钟」', async () => {
