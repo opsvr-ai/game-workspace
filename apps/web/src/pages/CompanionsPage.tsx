@@ -8,6 +8,7 @@ import { message } from '../utils/feedback';
 import { ReloadOutlined, DesktopOutlined, SearchOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../api/companions';
+import { customersApi } from '../api/customers';
 import { employeesApi } from '../api/employees';
 import { authApi } from '../api/client';
 import { useAuthStore } from '../stores/authStore';
@@ -144,6 +145,14 @@ const CompanionsPage: React.FC = () => {
   const [financeCompanion, setFinanceCompanion] = useState<Personnel | null>(null);
   const [financeSaving, setFinanceSaving] = useState(false);
   const [financeForm] = Form.useForm();
+
+  // 离职陪玩客户清单 + 重新派新单
+  const [formerCompanion, setFormerCompanion] = useState<Personnel | null>(null);
+  const [formerCustomers, setFormerCustomers] = useState<any[]>([]);
+  const [formerLoading, setFormerLoading] = useState(false);
+  const [redispatchCustomer, setRedispatchCustomer] = useState<any | null>(null);
+  const [redispatchForm] = Form.useForm();
+  const [redispatching, setRedispatching] = useState(false);
   // 他一条条业绩记录（老板 2026-10-11）：他打的单 + 钱包记录，店长 / 老板能改能删。
   const [moneyRecords, setMoneyRecords] = useState<any>({
     orders: [],
@@ -498,6 +507,49 @@ const CompanionsPage: React.FC = () => {
     }
   };
 
+  const openFormerCustomers = async (record: Personnel) => {
+    if (!record.companionId) return;
+    setFormerCompanion(record);
+    setFormerLoading(true);
+    setFormerCustomers([]);
+    try {
+      const { data }: any = await customersApi.byCompanion(record.companionId);
+      setFormerCustomers(data?.data?.customers || []);
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '客户清单加载失败'));
+    } finally {
+      setFormerLoading(false);
+    }
+  };
+
+  const openRedispatch = (customer: any) => {
+    setRedispatchCustomer(customer);
+    redispatchForm.setFieldsValue({ amount: 35, duration: 1, gameName: '三角洲行动' });
+  };
+
+  const submitRedispatch = async () => {
+    if (!redispatchCustomer) return;
+    const values = await redispatchForm.validateFields().catch(() => null);
+    if (!values) return;
+    setRedispatching(true);
+    try {
+      await customersApi.redispatch(redispatchCustomer.id, {
+        companionId: values.companionId,
+        amount: Number(values.amount),
+        duration: Number(values.duration),
+        gameName: values.gameName,
+      });
+      message.success('已重新当新单派给新陪玩');
+      setRedispatchCustomer(null);
+      if (formerCompanion?.companionId) void openFormerCustomers(formerCompanion);
+      fetchCompanions();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '派单失败'));
+    } finally {
+      setRedispatching(false);
+    }
+  };
+
   /**
    * 老板代登录：服务端只发 10 分钟目标账号令牌，不修改对方密码。
    * 新标签页继承当前 sessionStorage 的目标令牌；当前老板标签页马上恢复自己的令牌。
@@ -791,6 +843,11 @@ const CompanionsPage: React.FC = () => {
                 </Button>
                 {record.isResigned ? (
                   <>
+                    {record.companionId && (
+                      <Button type="link" size="small" onClick={() => void openFormerCustomers(record)}>
+                        客户
+                      </Button>
+                    )}
                     <Tag color="default" style={{ margin: 0 }}>已离职</Tag>
                     <Popconfirm
                       title="恢复在职？"
@@ -1287,6 +1344,72 @@ const CompanionsPage: React.FC = () => {
           <Form.Item name="note" label="备注" extra="改完会在备注里留一句「原来多少 → 改成多少、谁改的」">
             <Input placeholder="为什么改（比如：这单记错了）" />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`${formerCompanion?.username || '离职陪玩'} 的客户`}
+        open={!!formerCompanion}
+        onCancel={() => {
+          setFormerCompanion(null);
+          setFormerCustomers([]);
+        }}
+        footer={<Button onClick={() => setFormerCompanion(null)}>关闭</Button>}
+        width={760}
+      >
+        <Table
+          rowKey="id"
+          size="small"
+          loading={formerLoading}
+          dataSource={formerCustomers}
+          pagination={{ pageSize: 10 }}
+          locale={{ emptyText: '这个陪玩名下没有客户' }}
+          columns={[
+            { title: '客户编号', dataIndex: 'customerCode', width: 110 },
+            { title: '微信号', dataIndex: 'wechatId', ellipsis: true },
+            { title: '累计消费', dataIndex: 'totalSpent', width: 100, render: (v: number) => `¥${Number(v || 0).toFixed(0)}` },
+            {
+              title: '操作',
+              width: 120,
+              render: (_: unknown, row: any) => (
+                <Button type="link" size="small" onClick={() => openRedispatch(row)}>
+                  重新派新单
+                </Button>
+              ),
+            },
+          ]}
+        />
+      </Modal>
+
+      <Modal
+        title={`重新派新单 — ${redispatchCustomer?.customerCode || ''}`}
+        open={!!redispatchCustomer}
+        onOk={submitRedispatch}
+        onCancel={() => setRedispatchCustomer(null)}
+        confirmLoading={redispatching}
+        okText="确认派单"
+        cancelText="取消"
+      >
+        <Form form={redispatchForm} layout="vertical" style={{ marginTop: 12 }}>
+          <Form.Item name="companionId" label="派给哪个陪玩" rules={[{ required: true, message: '请选择陪玩' }]}>
+            <Select
+              placeholder="选择在职陪玩"
+              options={companions
+                .filter((c) => !c.isResigned && c.companionId)
+                .map((c) => ({ label: c.username, value: c.companionId as string }))}
+            />
+          </Form.Item>
+          <Form.Item name="gameName" label="游戏" rules={[{ required: true, message: '请填写游戏' }]}>
+            <Input />
+          </Form.Item>
+          <Space>
+            <Form.Item name="amount" label="金额（元）" rules={[{ required: true, message: '请填写金额' }]}>
+              <InputNumber min={1} style={{ width: 160 }} />
+            </Form.Item>
+            <Form.Item name="duration" label="时长（小时）" rules={[{ required: true, message: '请填写时长' }]}>
+              <InputNumber min={0.5} step={0.5} style={{ width: 160 }} />
+            </Form.Item>
+          </Space>
         </Form>
       </Modal>
 

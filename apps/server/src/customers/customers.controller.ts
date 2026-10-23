@@ -135,6 +135,31 @@ export class CustomersController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('customers/by-companion/:companionId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async listByCompanion(@Param('companionId') companionId: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.listByCompanion(companionId, req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('customers/:id/redispatch')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async redispatch(
+    @Param('id') id: string,
+    @Body() body: { companionId: string; amount: number; duration?: number; gameName?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.dispatchNewOrder(id, body?.companionId, body || {}, req.user);
+    this.wsGateway.notifyCompanionNotice(data.companionId, {
+      title: '📥 离职同事的客户重新派给你',
+      desc: `客户订单已重新派给你（单号 ${data.orderCode}），可以开始首单`,
+      icon: '📥',
+      kind: 'order',
+      hrefKey: 'orders',
+    });
+    return { code: 200, message: '已重新派新单', data };
+  }
+
   @Put('customers/:id')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
   async update(

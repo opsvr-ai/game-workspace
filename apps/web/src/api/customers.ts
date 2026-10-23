@@ -2,6 +2,9 @@ import http from './client';
 
 export const customersApi = {
   list: (params?: any) => http.get('/customers', { params }),
+  byCompanion: (companionId: string) => http.get(`/customers/by-companion/${companionId}`),
+  redispatch: (id: string, data: { companionId: string; amount: number; duration?: number; gameName?: string }) =>
+    http.post(`/customers/${id}/redispatch`, data),
   getById: (id: string) => http.get(`/customers/${id}`),
   create: (data: any) => http.post('/customers', data),
   update: (id: string, data: any) => http.put(`/customers/${id}`, data),

@@ -34,6 +34,12 @@ import {
 // 说明见 electron/machine-agent.js（和客服端同一套实现）。
 const { createMachineAgent } = require('./machine-agent');
 
+// 老机器 GPU 崩溃后，下一次启动直接走软件渲染；正常机器不受影响。
+if (process.env.CHUNLV_DISABLE_GPU === '1' || store.get('disableGpu') === true) {
+  app.disableHardwareAcceleration();
+}
+let rendererCrashTimes: number[] = [];
+
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
 // 统一客户端（2026-10-17）：一个安装包按网页登录角色自适应，不再按包名写死身份。
@@ -576,6 +582,7 @@ const STORE_KEYS = new Set([
   'appPassword',
   'notificationPrefs',
   'notifyWhileBusy',
+  'disableGpu',
   'notifSound',
   'notifVolume',
   // 全屏打游戏时弹不弹窗：三档设置 + 本机学习标记 + 「本机陪玩端是新策略」的能力标记。
@@ -2498,13 +2505,32 @@ app.whenReady().then(() => {
   // 渲染进程崩了先在原窗口 reload；GPU/Utility 等子进程交给 Chromium 自己拉起，不再退出整个客户端。
   mainWindow.webContents.on('render-process-gone', (_e, details) => {
     if (isQuitting) return;
-    logger.warn('Renderer process gone, reload window', { reason: details.reason });
+    const now = Date.now();
+    rendererCrashTimes = rendererCrashTimes.filter((t) => now - t < 10 * 60 * 1000);
+    rendererCrashTimes.push(now);
+    logger.warn('Renderer process gone, reload window', {
+      reason: details.reason,
+      crashesIn10Min: rendererCrashTimes.length,
+    });
+    if (rendererCrashTimes.length >= 2) {
+      // 10 分钟内连续崩两次：这台机器的 GPU 路径不稳，切软件渲染并重启整个客户端。
+      try { store.set('disableGpu', true); } catch {}
+      logger.warn('Renderer crashed repeatedly, relaunch with software rendering');
+      app.relaunch();
+      app.exit(0);
+      return;
+    }
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.reload();
     } else {
       app.relaunch();
       app.exit(0);
     }
+  });
+  mainWindow.on('unresponsive', () => {
+    if (isQuitting) return;
+    logger.warn('Main window unresponsive, reload');
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload();
   });
   app.on('child-process-gone', (_e, details) => {
     if (isQuitting) return;

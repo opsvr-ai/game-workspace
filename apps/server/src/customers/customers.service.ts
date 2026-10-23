@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001
-import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { canSeeCustomerSource } from '../common/order-privacy';
 import { currentBusinessDayRange } from '../common/business-day';
@@ -1531,6 +1531,122 @@ export class CustomersService {
         },
       },
     });
+  }
+
+  /** 离职陪玩的客户清单（只读管理端查看，不自动改归属）。 */
+  async listByCompanion(companionId: string, user: AuthenticatedUser) {
+    const companion = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: {
+        id: true,
+        studioId: true,
+        isResigned: true,
+        user: { select: { username: true, displayName: true, resignedAt: true } },
+      },
+    });
+    if (!companion) throw new NotFoundException('陪玩不存在');
+    if (user.role !== 'OWNER' && user.studioId && companion.studioId !== user.studioId) {
+      throw new ForbiddenException('不能查看其它工作室的离职陪玩客户');
+    }
+    const customers = await this.prisma.customer.findMany({
+      where: { companionId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        customerCode: true,
+        wechatId: true,
+        platform: true,
+        totalSpent: true,
+        depositBalance: true,
+        createdAt: true,
+        archivedAt: true,
+      },
+    });
+    return {
+      companion: {
+        id: companion.id,
+        name: companion.user?.displayName || companion.user?.username || '',
+        resigned: companion.isResigned || !!companion.user?.resignedAt,
+      },
+      customers,
+    };
+  }
+
+  /**
+   * 离职陪玩的客户重新当新单派给在职陪玩：
+   * 客户归属改到新主陪，同时新开一张 NEW 单（KPI 归新主陪）。
+   */
+  async dispatchNewOrder(
+    customerId: string,
+    targetCompanionId: string,
+    body: { amount?: number; duration?: number; gameName?: string },
+    user: AuthenticatedUser,
+  ) {
+    const customer = await this.findOne(customerId, user);
+    if (user.role !== 'OWNER' && user.studioId && customer.studioId !== user.studioId) {
+      throw new ForbiddenException('不能操作其它工作室的客户');
+    }
+    const target = await this.prisma.companion.findUnique({
+      where: { id: targetCompanionId },
+      select: {
+        id: true,
+        studioId: true,
+        isResigned: true,
+        user: { select: { resignedAt: true, username: true, displayName: true } },
+      },
+    });
+    if (!target || target.isResigned || target.user?.resignedAt) {
+      throw new BadRequestException('目标陪玩已离职或不存在');
+    }
+    if (user.role !== 'OWNER' && target.studioId !== customer.studioId) {
+      throw new ForbiddenException('只能派给同工作室的陪玩');
+    }
+    const duration = Math.max(0.5, Number(body?.duration) || 1);
+    const amount = Math.max(1, Number(body?.amount) || 0);
+    if (!amount) throw new BadRequestException('请填写金额');
+    const latest = await this.prisma.order.findFirst({
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+      select: { gameName: true },
+    });
+    const gameName = String(body?.gameName || latest?.gameName || '三角洲行动');
+    const orderCode = 'R' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.customer.update({
+        where: { id: customerId },
+        data: { companionId: targetCompanionId, isLegacy: false },
+      });
+      const order = await tx.order.create({
+        data: {
+          orderCode,
+          type: 'NEW',
+          studioId: customer.studioId,
+          csUserId: user.id,
+          companionId: targetCompanionId,
+          customerId,
+          dispatchType: 'DIRECT',
+          source: 'OFFLINE',
+          status: 'GRABBED',
+          amount,
+          gameName,
+          serviceType: 'PLAY_WITH',
+          duration,
+          grabbedAt: new Date(),
+          customFields: {
+            redispatchedFromCompanion: customer.companionId || null,
+            redispatchedBy: user.id,
+            redispatchedAt: new Date().toISOString(),
+          },
+        },
+      });
+      return { order, target };
+    });
+    return {
+      orderId: result.order.id,
+      orderCode: result.order.orderCode,
+      companionId: targetCompanionId,
+      companionName: target.user?.displayName || target.user?.username || '',
+    };
   }
 
   async findOrders(id: string, user?: AuthenticatedUser) {
