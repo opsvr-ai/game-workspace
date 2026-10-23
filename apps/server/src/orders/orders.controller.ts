@@ -631,6 +631,7 @@ export class OrdersController {
       claimedPrice: body.claimedPrice,
       transferScreenshotUrl: body.transferScreenshotUrl,
       autoStart: body.autoStart,
+      proxyMode: body.proxyMode === true,
     });
     return { code: 200, message: '续费成功', data };
   }

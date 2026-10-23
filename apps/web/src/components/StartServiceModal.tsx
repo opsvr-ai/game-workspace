@@ -32,6 +32,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
   const user = useAuthStore((s) => s.user);
   const [mainId, setMainId] = useState<string | undefined>(undefined);
   const [dual, setDual] = useState(false);
+  const [proxyMode, setProxyMode] = useState(false);
   const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast'>('assign');
   const [coId, setCoId] = useState<string | undefined>();
   const [coPrice, setCoPrice] = useState<number | null>(null);
@@ -55,6 +56,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
     if (open) {
       setMainId(user?.companionId || undefined);
       setDual(initialValues?.dual ?? false);
+      setProxyMode(false);
       setCoId(initialValues?.coId);
       setCoPrice(initialValues?.coPrice ?? null);
       setClaimMode(initialValues?.claimMode ?? '机密');
@@ -97,6 +99,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           duration: claimDuration,
           coCompanionId: dual && partnerMode === 'assign' ? coId : undefined,
           coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
+          proxyMode: proxyMode === true,
           deltaMission: claimMode,
           deltaCount: dual ? '双' : '单',
           useDeposit,
@@ -116,6 +119,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           duration: claimDuration,
           coCompanionId: dual && partnerMode === 'assign' ? coId : undefined,
           coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
+          proxyMode: proxyMode === true,
           claimedMode: claimMode,
           claimedPrice: price,
           useDeposit,
@@ -196,7 +200,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
         <Col span={12}>
           <Text>单/双陪</Text>
           <div>
-            <Button size="small" type={!dual ? 'primary' : 'default'} onClick={() => setDual(false)} style={{ marginRight: 8 }}>单陪</Button>
+            <Button size="small" type={!dual ? 'primary' : 'default'} onClick={() => { setDual(false); setProxyMode(false); }} style={{ marginRight: 8 }}>单陪</Button>
             <Button
               size="small"
               type={dual ? 'primary' : 'default'}
@@ -212,6 +216,23 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
             <Select.Option value="机密">机密</Select.Option>
             <Select.Option value="绝密">绝密</Select.Option>
           </Select>
+        </Col>
+      </Row>
+      <Row gutter={12} align="middle" style={{ marginTop: 8 }}>
+        <Col span={24}>
+          <Switch
+            checked={proxyMode}
+            onChange={(v) => {
+              setProxyMode(v);
+              if (v) {
+                setDual(true);
+                setPartnerMode('assign');
+              }
+            }}
+          />
+          <Text style={{ marginLeft: 8 }}>
+            让搭档代打（我不参与，客户和 KPI 仍归我，只算搭档的业绩和时长）
+          </Text>
         </Col>
       </Row>
       <Row gutter={12} align="middle">

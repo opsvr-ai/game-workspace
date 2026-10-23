@@ -184,6 +184,8 @@ export class OrderSessionService {
       actorCompanionId?: string;
       /** 单陪开段时服务端直接开始计时；双陪 / 广播找搭档必须等搭档接受，传 false */
       autoStart?: boolean;
+      /** 代打：主陪不参与，只让副陪服务；主陪仍持有客户/KPI。 */
+      proxyMode?: boolean;
     },
   ) {
     const sessions = await this.prisma.orderSession.findMany({
@@ -195,6 +197,15 @@ export class OrderSessionService {
     const seq = (last?.seq || 0) + 1;
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (order) {
+      // 代打：把标记写回订单，后续业绩计算/管理端能识别「主陪不参与」。
+      if (dto.proxyMode) {
+        const fields = (order.customFields as any) || {};
+        if (fields.proxyMode !== true) {
+          await this.prisma.order
+            .update({ where: { id: orderId }, data: { customFields: { ...fields, proxyMode: true } } })
+            .catch(() => {});
+        }
+      }
       // 业务状态：首单之后只能在同一个营业日续单一次；续单打完就进入复购，复购可一直重复。
       // 不再用「30 秒冷却」这种拍脑袋的时间：续单只有一次，靠状态判断，不靠等多久。
       const priorRenew = await this.prisma.order.count({
@@ -286,7 +297,6 @@ export class OrderSessionService {
       this.wsGateway.pushOrder(session.coCompanionId, {
         ...session,
         gameName: order.gameName,
-        customerId: order.customerId,
         orderId,
         type: 'DUAL_INVITE',
         inviterName,
@@ -596,7 +606,11 @@ export class OrderSessionService {
       },
     });
     if (!s) throw new NotFoundException('会话不存在');
-    if (companionId && s.companionId !== companionId) throw new ForbiddenException('只能操作自己的会话');
+    // 代打 / 双陪：实际服务人（副陪）也必须能结束自己正在跑的这一段。
+    // 以前只认主陪，导致别梦晨点结束服务提示没有可结束的订单。
+    if (companionId && s.companionId !== companionId && s.coCompanionId !== companionId) {
+      throw new ForbiddenException('只能操作自己的会话');
+    }
     return s;
   }
 

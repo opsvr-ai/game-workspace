@@ -501,6 +501,8 @@ export class OrdersService implements OnModuleInit {
       actorCompanionId?: string;
       /** 单陪开段时服务端直接开始计时；双陪 / 广播找搭档必须等搭档接受，传 false */
       autoStart?: boolean;
+      /** 代打：主陪不参与，只让副陪服务；主陪仍持有客户/KPI。 */
+      proxyMode?: boolean;
     },
   ) {
     return this.orderSession.addSession(orderId, dto);

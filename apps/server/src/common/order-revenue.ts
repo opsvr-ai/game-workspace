@@ -23,8 +23,11 @@ export function companionOrderRevenue(order: OrderRevenueInput, companionId: str
   const splits: Array<{ companionId: string; amount: number }> = (order.customFields as any)?.splits || [];
   const isPrimary = order.companionId === companionId;
   const isCo = order.coCompanionId === companionId;
+  // 代打：客户/订单归主陪，但主陪没有实际服务 → 主陪不拿这笔业绩；只给实际代打的副陪。
+  const proxyMode = (order.customFields as any)?.proxyMode === true;
 
   if (isPrimary) {
+    if (proxyMode) return 0;
     const splitOut = splits
       .filter((s) => s.companionId !== companionId)
       .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);

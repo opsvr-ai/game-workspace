@@ -16,6 +16,8 @@ export class CreateOrderDto {
   @IsOptional() @IsString() companionId?: string;
   @IsOptional() @IsString() coCompanionId?: string;
   @IsOptional() @IsNumber() @Min(0) coAmount?: number;
+  /** 代打：主陪不参与，实际服务人只拿金额/时长，客户和 KPI 仍归主陪。 */
+  @IsOptional() @IsBoolean() proxyMode?: boolean;
   @IsOptional() @IsString() serviceType?: string;
 
   // Customer info fields

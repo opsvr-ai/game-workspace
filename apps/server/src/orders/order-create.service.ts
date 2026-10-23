@@ -50,6 +50,8 @@ export class OrderCreateService {
     amount: number;
     gameName: string;
     duration?: number;
+    /** 代打：客户/订单仍归主陪，实际服务人只拿金额和时长，不抢客户 KPI。 */
+    proxyMode?: boolean;
     customFields?: any;
     companionId?: string;
     /** 陪玩自己录入客户、直接开单时是否用客户存单抵扣（落到自动建的会话上，双陪也走这条） */
@@ -67,7 +69,7 @@ export class OrderCreateService {
     const creator = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { role: true } });
     // 老板 2026-10-23：陪玩正在服务 A 时，不能再开 B/C 的续单 / 复购；
     // 否则他一边挂 A 的长会话，一边给 10 个客户各开 1 小时复购，复购率直接刷到 100%。
-    if (creator?.role === 'COMPANION' && (dto.type === 'RENEW' || dto.type === 'REPURCHASE')) {
+    if (creator?.role === 'COMPANION' && (dto.type === 'RENEW' || dto.type === 'REPURCHASE') && !dto.proxyMode) {
       const me = await this.prisma.companion
         .findUnique({ where: { userId: dto.csUserId }, select: { id: true } })
         .catch(() => null);
@@ -276,6 +278,8 @@ export class OrderCreateService {
           serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
           gameMode: (dto as any).gameMode,
           isCompensation: (dto as any).isCompensation === true ? true : undefined,
+          // 代打：订单客户/主陪仍是原主陪；副陪只拿 coAmount，不拿客户 KPI。
+          proxyMode: dto.proxyMode === true ? true : undefined,
           ...((dto as any).directAdd === true
             ? {
                 directAdd: true,
