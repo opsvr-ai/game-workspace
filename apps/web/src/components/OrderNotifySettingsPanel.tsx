@@ -20,7 +20,12 @@ export default function OrderNotifySettingsPanel() {
   useEffect(() => {
     companionsApi
       .notifyPrefs()
-      .then(({ data }: any) => setNotifyWhileBusy(!!data?.data?.notifyWhileBusy))
+      .then(({ data }: any) => {
+        const next = !!data?.data?.notifyWhileBusy;
+        setNotifyWhileBusy(next);
+        // 主进程弹 Windows 通知时要知道“接单中是否允许弹”，否则网页关了也拦不住。
+        (window as any).electronAPI?.storeSet?.('notifyWhileBusy', next);
+      })
       .catch(() => {});
   }, []);
 
@@ -29,6 +34,7 @@ export default function OrderNotifySettingsPanel() {
     setSaving(true);
     try {
       await companionsApi.setNotifyPrefs({ notifyWhileBusy: next });
+      (window as any).electronAPI?.storeSet?.('notifyWhileBusy', next);
       message.success(next ? '已允许：接单中也会弹新单' : '已关闭：接单中不弹新单');
     } catch {
       setNotifyWhileBusy(!next);

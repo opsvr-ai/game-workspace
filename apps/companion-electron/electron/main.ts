@@ -575,6 +575,7 @@ const STORE_KEYS = new Set([
   'studioName',
   'appPassword',
   'notificationPrefs',
+  'notifyWhileBusy',
   'notifSound',
   'notifVolume',
   // 全屏打游戏时弹不弹窗：三档设置 + 本机学习标记 + 「本机陪玩端是新策略」的能力标记。
@@ -1535,10 +1536,22 @@ function deferBannerWhileFullscreen(payload: BannerPayload, exe: string): void {
  *   该弹   → 跟以前完全一样，直接画。auto 档在「看起来不会被顶出去」时还会顺手复查一次
  *            （见 watchFullscreenKick）：这台机器真被顶出去了就记下来，以后自动压住。
  */
+function shouldSuppressBusyNotification(title: string, body: string): boolean {
+  try {
+    if (String(store.get('lastStatus') || '') !== 'BUSY') return false;
+    if (store.get('notifyWhileBusy') === true) return false;
+    // 接单中关闭其他弹窗，但服务时间到/自动结束必须让陪玩看到。
+    return !/(时间到|到点|自动结束|服务时长|续单|复购)/.test(`${title} ${body}`);
+  } catch {
+    return false;
+  }
+}
+
 function showBroadcastPopup(payload: BannerPayload, _opts?: { force?: boolean }): void {
   // 老板 2026-10-24：陪玩不喜欢软件置顶弹窗/无边框，打游戏时会顶鼠标、顶画面。
   // 所有软件横幅一律取消，改成 Windows 系统通知；不再探测全屏、不再抢前台。
   try {
+    if (shouldSuppressBusyNotification(String(payload?.title || ''), String(payload?.body || ''))) return;
     new Notification({
       title: String(payload?.title || SHELL_BRAND),
       body: String(payload?.body || ''),
@@ -2002,6 +2015,7 @@ function setupIPC(): void {
   // 系统通知：陪玩端最小化/在打游戏时也能弹出 Windows 通知（搭档邀请、订单提醒等）。
   ipcMain.on('notify', (_e, title: string, body: string) => {
     try {
+      if (shouldSuppressBusyNotification(String(title || ''), String(body || ''))) return;
       new Notification({ title: String(title || SHELL_BRAND), body: String(body || '') }).show();
     } catch {}
   });

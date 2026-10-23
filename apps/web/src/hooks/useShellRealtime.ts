@@ -43,6 +43,13 @@ export function useShellRealtime({
   // 「当前状态」的计时日志——否则只看首页心跳会漏掉一直在别的页面挂机的陪玩。
   useEffect(() => {
     if (user?.role !== 'COMPANION' || !user?.companionId) return;
+    // 接单中弹窗开关同步到本机主进程，主进程才知道哪些 Windows 通知要拦。
+    http.get('/companions/me/notify-prefs')
+      .then(({ data }: any) => {
+        const next = !!data?.data?.notifyWhileBusy;
+        (window as any).electronAPI?.storeSet?.('notifyWhileBusy', next);
+      })
+      .catch(() => {});
     const ping = () => {
       http.post('/companions/me/status-heartbeat').catch(() => {});
     };
