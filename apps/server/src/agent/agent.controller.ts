@@ -414,8 +414,12 @@ export class AgentController {
 
     const { version, downloadUrl } = await this.agentService.getLatestVersion();
     const targets = await this.agentService.getCompanionTargetsByIds(companionIds);
+    // 旧客户端不会判断“接单中不下载”，服务端必须替它挡住：
+    // 正在接单/娱乐的机器只排进更新队列，绝不在游戏时下 120MB 抢带宽。
+    const busy = targets.filter((t) => t.status === 'BUSY' || t.status === 'ENTERTAINMENT');
+    const idle = targets.filter((t) => t.status !== 'BUSY' && t.status !== 'ENTERTAINMENT');
     let successCount = 0;
-    const results = targets.map((target) => {
+    const results = idle.map((target) => {
       const sent = this.wsGateway.sendCommand(target.companionId, 'update', { downloadUrl, version });
       if (sent) successCount += 1;
       return { ...target, sent };
@@ -423,8 +427,8 @@ export class AgentController {
 
     return {
       code: 200,
-      message: `已向 ${successCount}/${targets.length} 位在线陪玩发送更新命令`,
-      data: { successCount, total: targets.length, version, results },
+      message: `已向 ${successCount}/${idle.length} 位空闲陪玩发送更新命令；${busy.length} 位接单中跳过`,
+      data: { successCount, total: idle.length, skippedBusy: busy.length, version, results },
     };
   }
 
@@ -441,8 +445,10 @@ export class AgentController {
     }
 
     const targets = await this.agentService.getOnlineCompanionTargets(studioId || undefined);
+    const busy = targets.filter((t) => t.status === 'BUSY' || t.status === 'ENTERTAINMENT');
+    const idle = targets.filter((t) => t.status !== 'BUSY' && t.status !== 'ENTERTAINMENT');
     let successCount = 0;
-    const results = targets.map((target) => {
+    const results = idle.map((target) => {
       const sent = this.wsGateway.sendCommand(target.companionId, 'update', { downloadUrl, version });
       if (sent) successCount += 1;
       return { ...target, sent };
@@ -450,8 +456,8 @@ export class AgentController {
 
     return {
       code: 200,
-      message: `已向 ${successCount}/${targets.length} 位在线陪玩发送更新命令`,
-      data: { successCount, total: targets.length, version, results },
+      message: `已向 ${successCount}/${idle.length} 位空闲陪玩发送更新命令；${busy.length} 位接单中跳过`,
+      data: { successCount, total: idle.length, skippedBusy: busy.length, version, results },
     };
   }
 

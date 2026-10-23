@@ -165,6 +165,11 @@ export class WsConnectionService {
 
   async handleConnection(client: Socket): Promise<void> {
     try {
+      // 服务刚启动、runtime 还没挂上时，先断开让客户端重连；绝不能在这里 throw 把整个进程打崩。
+      if (!this.runtime) {
+        client.disconnect(true);
+        return;
+      }
       const token = (client.handshake.auth?.token || client.handshake.query?.token) as string | undefined;
       if (!token) {
         client.disconnect(true);
@@ -395,6 +400,8 @@ export class WsConnectionService {
   async handleDisconnect(client: Socket): Promise<void> {
     const user = client.data.user as ConnectedUser | undefined;
     if (!user) return;
+    // 停止/重启服务时 runtime 可能已卸载，disconnect 不应该把进程打崩。
+    if (!this.runtime) return;
     presence.removeSocket(user.id);
     // 同一客户端可能有好几条连接（网页 + 陪玩端主进程），只有一条都不剩才算真的走了，
     // 不然主进程那条连接一抖就把正在进行的语音通话掐断。

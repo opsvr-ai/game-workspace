@@ -139,6 +139,32 @@ function restoreShellState(): void {
   logger.info('Shell role restored at startup', { stored: lastRole, effective: currentRole });
 }
 
+/**
+ * 清掉历史遗留的错误启动项：曾把映射盘 Z:\Program Files\... 写进 Startup，
+ * 导致的后果是每次开机弹「系统找不到指定的驱动器」。正常启动由 SystemHelper
+ * 在用户会话里拉起客户端，不需要这个 bat。
+ */
+function repairBrokenStartupEntry(): void {
+  try {
+    const startup = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
+    if (!fs.existsSync(startup)) return;
+    for (const name of fs.readdirSync(startup)) {
+      if (!/\.(bat|cmd)$/i.test(name)) continue;
+      const file = path.join(startup, name);
+      let text = '';
+      try { text = fs.readFileSync(file, 'utf-8'); } catch { continue; }
+      if (/Z:\\Program Files|Z:\\Program Files \(x86\)/i.test(text)) {
+        try {
+          fs.unlinkSync(file);
+          logger.warn('Removed broken Z: startup entry', { file });
+        } catch { /* 没有权限就留给下一次 */ }
+      }
+    }
+  } catch (e: any) {
+    logger.debug('Startup entry repair skipped', { error: e?.message || String(e) });
+  }
+}
+
 // WebSocket 优先用 7 天有效期的 refreshToken，避免 accessToken 过期后主进程连不上
 function getWsToken(): string {
   return (store.get('refreshToken') as string) || (store.get('token') as string) || '';
@@ -146,18 +172,29 @@ function getWsToken(): string {
 
 /** 从服务端同步全店统一的客户端管理员密码哈希（只存哈希，不存明文）。 */
 async function syncClientAdminPassword(): Promise<boolean> {
-  const token = getWsToken();
-  if (!token) return false;
   try {
-    const res = await fetch(`${getServerUrl()}/api/auth/client-admin-password`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return false;
-    const body: any = await res.json();
-    const hash = String(body?.data?.hash || '');
-    if (hash) {
-      setAppPasswordHash(hash);
-      return true;
+    // 这个接口 AuthGuard 要的是 access token；以前发送 refreshToken 每次都被 401，
+    // 结果全店密码改了客户端也同步不到。
+    let token = (store.get('token') as string) || '';
+    if (!token) token = await refreshAccessToken();
+    if (!token) return false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch(`${getServerUrl()}/api/auth/client-admin-password`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401 && attempt === 0) {
+        token = await refreshAccessToken();
+        if (!token) return false;
+        continue;
+      }
+      if (!res.ok) return false;
+      const body: any = await res.json();
+      const hash = String(body?.data?.hash || '');
+      if (hash) {
+        setAppPasswordHash(hash);
+        return true;
+      }
+      return false;
     }
   } catch { /* 网络失败就用本机缓存 */ }
   return false;
@@ -2310,6 +2347,7 @@ app.whenReady().then(() => {
   // 先恢复上次角色（员工角色直接认；陪玩/未知先按 UNKNOWN 中性起），再建窗口/托盘，
   // 保证第一帧就是中性品牌，未登录机器不会被当成陪玩。
   restoreShellState();
+  repairBrokenStartupEntry();
   ensureDesktopShortcut();
   writeHealthMarker();
   setInterval(writeHealthMarker, 60 * 1000);

@@ -2,6 +2,7 @@
 var import_electron = require("electron");
 import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   pwSubmit: (pass) => import_electron.ipcRenderer.send("pw:submit", pass),
+  refreshClientAdminPassword: () => import_electron.ipcRenderer.invoke("client-password:refresh"),
   promptLogoutPassword: () => import_electron.ipcRenderer.invoke("auth:promptLogoutPassword"),
   storeGet: (key) => import_electron.ipcRenderer.invoke("store:get", key),
   storeSet: (key, value) => import_electron.ipcRenderer.invoke("store:set", key, value),

@@ -303,6 +303,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **更新在接单中下载抢带宽导致全店卡顿（2026-10-24，客户端 20261041 + 服务端）。**
+  - 20261040 推送时老逻辑只延迟“安装”，没有阻止“下载”，多台电脑同时下 120MB 把游戏网络打满；
+  - 已把线上 `agent.latest_version` 临时置为 `1.0.0` 暂停更新；
+  - 20261041：BUSY / ENTERTAINMENT 状态下连下载都不做；
+  - 服务端推送更新时跳过 BUSY / ENTERTAINMENT，只给空闲机器发命令；
+  - 等这一波打完再恢复版本号，不在接单中推。
+
+- **config.json 被更新强杀写坏导致不自动登录（2026-10-24，客户端 20261040/41）。**
+  - store 改临时文件 + fsync + rename 原子写，并保留 `config.json.bak`；
+  - 主文件 JSON 坏了自动回退备份，避免 token/refreshToken 丢失后停在登录页；
+  - 启动时清理历史遗留的 `Z:\Program Files` 错误启动项。
+
+- **WebSocket 断开时 runtime 未挂载导致服务端崩溃重启（2026-10-24，服务端，待空闲部署）。**
+  - `handleConnection` / `handleDisconnect` 增加 runtime 空值保护，不再 throw 打崩进程。
+
+- **客户端同步全店管理员密码一直 401（2026-10-24，客户端）。**
+  - 同步接口错误地发送 refreshToken，改为 accessToken + 401 自动刷新重试。
+
 - **休息/睡眠失败不再弹锁屏，优先让电脑真正睡眠（2026-10-24，客户端 20261039）。**
   - 去掉休眠/睡眠失败后的兜底锁屏和弹窗；
   - 睡眠前先 `powercfg /hibernate on`，再发 `SetSuspendState`；

@@ -359,6 +359,11 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
   const localZip = path.join(localDir, 'update.zip');
   // 上一轮在接单时已经把这一版的包下好了 → 不用再下 123MB，等空闲直接装。
   const havePackage = stagedPackageReady(version, localZip);
+  // 接单/娱乐中不下载：120MB 会抢客户网络，游戏直接卡。等空闲再下，包不会过期。
+  if (!havePackage && companionBusy()) {
+    logger.info('Companion is busy, defer update download until idle', { version });
+    return;
+  }
   if (!havePackage) {
     const free = freeDiskBytes('C:\\');
     if (free < MIN_FREE_DISK_BYTES) {
@@ -677,6 +682,11 @@ export async function handleUpdateCommand(downloadUrl?: string, pushedVersion?: 
         version,
         localVersion: app.getVersion(),
       });
+      return;
+    }
+    // 接单/娱乐中绝不下载整包：120MB 下载会抢满客户网络，导致三角洲卡顿/掉线。
+    if (companionBusy()) {
+      logger.info('Update command received while companion is busy, skip download until idle', { version });
       return;
     }
     // 远程推送的机器，服务端已经把这个名额预约给它了（见 reserveUpdateSlot），
