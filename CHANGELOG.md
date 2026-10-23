@@ -286,6 +286,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **机器台账大量重复行：稳定机器 ID + 服务端去重（2026-10-23，陪玩端 20261036 + 服务端）。**
+  老板截图：同一台 `User-20240831VS` 出现童祥瑞 3 条、王辰浩 17 条。
+  - 根因：旧 `machineId = 主机名 + 第一块网卡 MAC`，网卡顺序/MAC 随机化/换网卡就变成新机器；
+  - 客户端改用 `C:\ProgramData\chunlv\machine-id.txt`（其次 Windows `MachineGuid`）的稳定 ID；
+  - 服务端客户端上报时按 `hostname + loginUser` 清理旧重复行；
+  - 机器管理列表再按 `clientType + hostname + loginUser` 兜底去重，只显示最近一条。
+  - 服务端 94 文件 / 920 用例全绿；服务端已部署，客户端包 20261036 已打。
+
 - **陪玩改密码后开机不自动登录（2026-10-23，服务端 + 网页 v1111）。**
   老板：不能因为改个密码就掉回登录页，开机必须自动登录。
   - 陪玩端 refreshToken 从 **7 天延长到 3650 天**（10 年），密码修改 / 管理员重置密码不会让已登录设备掉线；

@@ -170,6 +170,11 @@ export class MachineService {
       update: { value: record },
     });
     this.logger.log(`机器上报: ${record.hostname}[${record.clientType}] ${record.primaryIp} v${record.appVersion}`);
+    // 同一台电脑因为旧 machineId（主机名+MAC）变化留下的重复行：以本次上报的行为准，
+    // 清掉同 hostname + loginUser 的旧行。稳定 machineId 上线后不会再新增重复。
+    if (!fromScript && record.hostname && record.loginUser) {
+      void this.dedupeMachineRows(record.hostname, record.loginUser, machineId).catch(() => {});
+    }
     // 客户端本人来报：顺手清掉运维脚本在这台机器名下留下的重复台账行（2026-10-01 现场：
     // PC-20260409CDBJ 台账里挂着两条，一条是客户端/看门狗的、一条是「开通远程管理」脚本留下的）。
     // 不 await —— 清理出问题绝不许影响客户端心跳。
@@ -178,6 +183,25 @@ export class MachineService {
     // 「以后都弄全自动」）。不 await —— 自愈出问题绝不许影响客户端心跳。
     void this.autoHeal(record).catch(() => {});
     return { machineId, lastSeenAt: record.lastSeenAt };
+  }
+
+  /** 同一台电脑旧 machineId 的重复行清理：保留本次上报行，删同 hostname+loginUser 的旧行。 */
+  private async dedupeMachineRows(hostname: string, loginUser: string, keepMachineId: string): Promise<void> {
+    const rows = await this.prisma.systemConfig.findMany({
+      where: { key: { startsWith: 'client.machine.' } },
+      select: { key: true, value: true },
+    });
+    const staleKeys: string[] = [];
+    for (const row of rows) {
+      const m: any = row.value || {};
+      const id = String(m.machineId || row.key.replace('client.machine.', ''));
+      if (id === keepMachineId) continue;
+      if (m.hostname === hostname && m.loginUser === loginUser) staleKeys.push(row.key);
+    }
+    if (staleKeys.length) {
+      await this.prisma.systemConfig.deleteMany({ where: { key: { in: staleKeys } } });
+      this.logger.log('清理重复机器台账', { hostname, loginUser, keepMachineId, removed: staleKeys.length });
+    }
   }
 
   private async readMachine(machineId: string): Promise<any | null> {
@@ -357,7 +381,7 @@ export class MachineService {
     }
 
     const seenLogins = new Set<string>();
-    const items: any[] = [];
+    let items: any[] = [];
     for (const row of machineRows) {
       const m = (row.value as any) || {};
       if (!m.machineId) continue;
@@ -459,6 +483,21 @@ export class MachineService {
         lastTaskStatus: pc.lastAction || null,
       });
     }
+
+    // 历史重复行在列表里再兜底去重：同一 hostname + loginUser 只保留最近上报的一条。
+    // 数据库清理是异步的，列表先保证老板看不到一串重复机器。
+    const grouped = new Map<string, any>();
+    const nonMachine: any[] = [];
+    for (const item of items) {
+      if (item.source !== 'machine') {
+        nonMachine.push(item);
+        continue;
+      }
+      const key = `${item.clientType}|${item.hostname}|${item.loginUser}`;
+      const prev = grouped.get(key);
+      if (!prev || String(item.lastSeenAt || '') > String(prev.lastSeenAt || '')) grouped.set(key, item);
+    }
+    items = [...grouped.values(), ...nonMachine];
 
     items.sort((a, b) => {
       // 真有客户端上报的机器排最前（那些才点得动「一键诊断」），其次是旧版客服端账号行、

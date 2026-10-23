@@ -14,7 +14,8 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
+const { randomUUID } = require('crypto');
 
 const REPORT_TOKEN = 'c4f1a2e7d9b8435fa6e10c7d2b9f8e34';
 const REPORT_INTERVAL_MS = 5 * 60 * 1000;
@@ -65,12 +66,54 @@ function hostName() {
   return os.hostname() || process.env.COMPUTERNAME || '';
 }
 
-/** 机器唯一标识：计算机名 + 网卡 MAC。两台机器不会撞，换了 IP 也认得出来。 */
+/**
+ * 稳定机器 ID：优先 ProgramData 持久化文件，其次 Windows MachineGuid。
+ * 旧实现用「计算机名 + 第一块网卡 MAC」——网卡顺序/MAC 随机化/换网卡都会变，
+ * 服务端就当成新机器，台账里出现大量重复行（2026-10-23 老板截图反馈）。
+ */
+const MACHINE_ID_FILE = 'C:\\ProgramData\\chunlv\\machine-id.txt';
+let cachedMachineId = '';
+
+function stableMachineId() {
+  if (cachedMachineId) return cachedMachineId;
+  try {
+    const saved = String(fs.readFileSync(MACHINE_ID_FILE, 'utf-8') || '').trim();
+    if (saved && saved.length >= 8 && saved.length <= 120) {
+      cachedMachineId = saved;
+      return saved;
+    }
+  } catch { /* 第一次没有文件 */ }
+
+  let guid = '';
+  try {
+    const out = execFileSync(
+      'reg.exe',
+      ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'],
+      { encoding: 'utf-8', windowsHide: true, timeout: 5000 },
+    );
+    const m = String(out).match(/MachineGuid\s+REG_SZ\s+([0-9a-fA-F-]+)/);
+    if (m) guid = m[1];
+  } catch { /* 没有权限就读不到 */ }
+  if (!guid) guid = randomUUID();
+  const id = 'pc-' + guid.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  try {
+    fs.mkdirSync(path.dirname(MACHINE_ID_FILE), { recursive: true });
+    fs.writeFileSync(MACHINE_ID_FILE, id, 'utf-8');
+  } catch { /* 写不了也先在本进程内稳定 */ }
+  cachedMachineId = id;
+  return id;
+}
+
+/** 机器唯一标识：稳定 ID；旧版本才回退到主机名 + MAC。 */
 function machineId() {
-  const net = collectNetwork();
-  const macPart = String(net.mac || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  const base = hostName().toLowerCase().replace(/[^a-z0-9-]/g, '');
-  return macPart ? base + '-' + macPart : base;
+  try {
+    return stableMachineId();
+  } catch {
+    const net = collectNetwork();
+    const macPart = String(net.mac || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const base = hostName().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    return macPart ? base + '-' + macPart : base;
+  }
 }
 
 function osText() {
