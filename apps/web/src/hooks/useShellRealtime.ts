@@ -411,15 +411,11 @@ export function useShellRealtime({
           dedupeKey: `urgent:${data?.id || data?.orderCode || urgentDesc}`,
           dedupeMs: 5 * 60_000,
         });
-        // 统一走 Windows 系统通知，不再依赖软件置顶横幅（会把全屏游戏顶出去）。
-        // Electron 主进程已经监听同一条 order:urgent 并弹系统通知，网页这边不能再弹一次；
-        // 只有浏览器打开（没有 Electron API）时才由网页补一条。
-        if (!(window as any).electronAPI?.orderBannerClick) {
-          showSystemNotification(
-            data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
-            urgentDesc,
-          );
-        }
+        // 统一由网页侧发 Windows 通知；主进程只闪任务栏，避免一条单弹两次。
+        showSystemNotification(
+          data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
+          urgentDesc,
+        );
       }
     },
     onScheduledReminder: (data: any) => {

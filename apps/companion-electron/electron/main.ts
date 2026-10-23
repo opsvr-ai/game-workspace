@@ -2612,46 +2612,12 @@ app.whenReady().then(() => {
     // 抢单弹窗是陪玩专属：客服/店长/老板/未登录不弹（客服自己是发单方）。
     if (!isCompanionRole(currentRole)) return;
     try {
-      // 老板 2026-10-01：新单统一只弹 Windows 横幅（窗口在前面也照弹，
-      // 软件里那张右下角卡片不再弹）；顺手闪一下任务栏也不误事。
+      // 通知统一由网页侧发 Windows 通知；主进程只负责闪任务栏，避免同一条单弹两次。
       const facing =
         !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && mainWindow.isFocused();
       if (facing) mainWindow!.flashFrame(true);
-      const title = data?._direct
-        ? '🎯 客服指定给你接单'
-        : data?._bridged
-          ? `🌉 桥接工作室发单！${data?._createdBy || '系统'} 发布`
-          : `⚡ 新订单！${data?._createdBy || '系统'} 发布`;
-      // 老板 2026-10-06：大字那一行只放「哪个游戏 · 机密/绝密 · 单陪/双陪」，
-      // 金额时长放小字那行；发单备注单独标红加粗（陪玩忙着打游戏，字小了看不见）。
-      const orderCf = data?.customFields || {};
-      const mission = orderCf.deltaMission ? String(orderCf.deltaMission) : '';
-      const dual = data?.coCompanionId || orderCf.deltaCount === '双' ? '双陪' : '单陪';
-      const big = [data?.gameName || '新订单', mission, dual].filter(Boolean).join(' · ');
-      const body = `¥${Number(data?.amount || 0).toFixed(0)} · ${data?.duration || 1}h · ${
-        orderCf.urgency === 'later' ? '预约单' : '立即打（占名额）'
-      }`;
-      showBroadcastPopup({
-        title,
-        big,
-        body,
-        note: orderCf.deltaNote ? `备注：${orderCf.deltaNote}` : '',
-        icon: '⚡',
-        seconds: Number(data?._popupSeconds) > 0 ? Number(data._popupSeconds) : 15,
-        // 带上订单号 + 提示：横幅就可点，点了跳到抢单池并标出这一单。
-        // 客服「指定」单在池子里已经是灰色「🎯 客服指定给你接」，是陪玩自己的单了，
-        // 不能再提示「再点一下抢单」（老板 2026-10-06）。
-        orderId: data?.id || data?.orderId,
-        hint: data?._direct
-          ? '点这里 → 去抢单池看这单（已指定给你）'
-          : '点这里 → 去抢单池看这单（再点一下「抢单」）',
-      }, {
-        // 老板 2026-10-22 最终口径：只要不是「接单中」，一律强制弹，哪怕把游戏顶回桌面；
-        // 接单中仍按原来的全屏策略（是否弹由服务端的接单中弹窗开关决定）。
-        force: String(store.get('lastStatus') || '') !== 'BUSY',
-      });
     } catch (err: any) {
-      logger.warn('Urgent order popup failed', { error: err?.message || err });
+      logger.warn('Urgent order flash failed', { error: err?.message || err });
     }
   });
   const token = getWsToken();

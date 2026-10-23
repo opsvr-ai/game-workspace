@@ -314,6 +314,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **发布订单没有任何弹窗（2026-10-24，网页 v1129 + 客户端 20261045）。**
+  - 上一版为了避免双弹，网页在 Electron 里完全跳过通知、只依赖主进程；
+  - 主进程 `order:urgent` 又被本地 `lastStatus=BUSY` 的旧值过滤，导致两边都不弹；
+  - 现在 **主进程只闪任务栏，网页统一发一次 Windows 通知**，不会再 0 次或 2 次。
+
 - **发布一条订单弹两次通知（2026-10-24，网页 v1127）。**
   - 主进程和网页都监听了 `order:urgent`，两边各弹一次 Windows 通知；
   - Electron 端改为主进程唯一发通知，网页只在浏览器里兜底；
