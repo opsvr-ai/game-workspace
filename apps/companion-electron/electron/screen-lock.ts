@@ -1,9 +1,8 @@
-import { BrowserWindow, app, screen, Notification } from 'electron';
+import { BrowserWindow, app, screen } from 'electron';
 import { createHash } from 'crypto';
 import { store } from './store';
 import { logger } from './logger';
 import { emitStatus } from './websocket';
-import { SHELL_BRAND } from './role-policy';
 import { execFile } from 'child_process';
 
 let lockWindow: BrowserWindow | null = null;
@@ -146,47 +145,52 @@ export function hideScreenLock(): void {
 }
 
 /**
- * 「休息」改为休眠：点休息后直接让整机进入休眠（看起来像关机、断电，只有电源键能唤醒）。
- * 鼠标/键盘不会唤醒休眠中的电脑，所以也满足“碰鼠标键盘不激活”。
- * 如果当前机器没开启休眠，命令会失败，这里回退到锁屏，避免陪玩点休息后完全没反应。
+ * 「休息」改为休眠：点休息后直接让整机进入休眠。
+ * 失败时不再锁屏，也不再弹窗；只记录日志。
  */
 export function hibernatePc(): void {
-  // 先尝试执行休眠；shutdown /h 需要系统已启用休眠。
-  execFile(
-    'shutdown.exe',
-    ['/h'],
-    { windowsHide: true },
-    (err) => {
+  enableHibernate(() => {
+    execFile('shutdown.exe', ['/h'], { windowsHide: true }, (err) => {
       if (err) {
-        logger.warn('Hibernate failed, falling back to screen lock', { error: err?.message || String(err) });
-        try {
-          new Notification({
-            title: SHELL_BRAND,
-            body: '休眠失败，已改为锁屏。请联系管理员确认这台电脑已开启休眠。',
-          }).show();
-        } catch {}
-        showScreenLock();
+        logger.warn('Hibernate failed; keep running without screen lock', { error: err?.message || String(err) });
+      } else {
+        logger.info('Hibernate command issued');
       }
-    },
-  );
+    });
+  });
+}
+
+function enableHibernate(done: () => void): void {
+  // 有些机器关机菜单里有「休眠」但 hibernate 是关的，先打开再发命令。
+  execFile('powercfg.exe', ['/hibernate', 'on'], { windowsHide: true }, (err) => {
+    if (err) logger.warn('Enable hibernate failed', { error: err?.message || String(err) });
+    done();
+  });
 }
 
 /**
  * 自动休息改成「睡眠」：内存继续供电，游戏和登录状态都在，鼠标/键盘一动就醒。
- * 和手动点休息的「休眠」区分开 —— 老板 2026-10-23 要求 1 小时无操作后睡眠保号。
+ * 不再锁屏；睡眠失败时退到休眠，休眠也失败就保持运行并记录日志。
  */
 export function sleepPc(): void {
-  execFile(
-    'rundll32.exe',
-    ['powrprof.dll,SetSuspendState', '0,1,0'],
-    { windowsHide: true },
-    (err) => {
-      if (err) {
-        logger.warn('Sleep failed, falling back to screen lock', { error: err?.message || String(err) });
-        showScreenLock();
-      }
-    },
-  );
+  enableHibernate(() => {
+    execFile(
+      'rundll32.exe',
+      ['powrprof.dll,SetSuspendState', '0,1,0'],
+      { windowsHide: true },
+      (err) => {
+        if (!err) {
+          logger.info('Sleep command issued');
+          return;
+        }
+        logger.warn('Sleep failed; trying hibernate fallback', { error: err?.message || String(err) });
+        execFile('shutdown.exe', ['/h'], { windowsHide: true }, (err2) => {
+          if (err2) logger.warn('Hibernate fallback failed; keep running', { error: err2?.message || String(err2) });
+          else logger.info('Hibernate fallback issued');
+        });
+      },
+    );
+  });
 }
 
 /**

@@ -303,6 +303,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **休息/睡眠失败不再弹锁屏，优先让电脑真正睡眠（2026-10-24，客户端 20261039）。**
+  - 去掉休眠/睡眠失败后的兜底锁屏和弹窗；
+  - 睡眠前先 `powercfg /hibernate on`，再发 `SetSuspendState`；
+  - 睡眠失败自动退到休眠（`shutdown /h`），休眠也失败只记日志，不锁屏；
+  - 不锁屏不影响退出密码。
+  - 客户端 20261039 已发布并推送 11/11。
+
 - **客户端管理员密码改成全店统一，不再每台电脑单独设置（2026-10-24，服务端 + 网页 v1120 + 客户端 20261038）。**
   之前 `appPassword` 存在每台电脑本地，改一台不影响其他电脑，店长在 A 电脑改密码，陪玩在 B 电脑退出仍认 123456。
   - 服务端新增 `GET/PUT /auth/client-admin-password`，存 SHA-256，全店一份；
