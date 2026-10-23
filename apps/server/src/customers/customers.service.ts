@@ -1585,7 +1585,7 @@ export class CustomersService {
     if (user.role !== 'OWNER' && user.studioId && customer.studioId !== user.studioId) {
       throw new ForbiddenException('不能操作其它工作室的客户');
     }
-    const count = Math.min(20, Math.max(1, Number(body?.count) || 1));
+    const count = 1;
     const amount = Number(body?.amount) || 0;
     const duration = Math.max(0.5, Number(body?.duration) || 1);
     if (amount < 1) throw new BadRequestException('请填写有效金额');

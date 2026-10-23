@@ -524,7 +524,7 @@ const CompanionsPage: React.FC = () => {
 
   const openRedispatch = (customer: any) => {
     setRedispatchCustomer(customer);
-    redispatchForm.setFieldsValue({ count: 1, amount: 35, duration: 1, gameName: '三角洲行动' });
+    redispatchForm.setFieldsValue({ amount: 35, duration: 1, gameName: '三角洲行动' });
   };
 
   const submitRedispatch = async () => {
@@ -534,12 +534,12 @@ const CompanionsPage: React.FC = () => {
     setRedispatching(true);
     try {
       await customersApi.pool(redispatchCustomer.id, {
-        count: Number(values.count),
+        count: 1,
         amount: Number(values.amount),
         duration: Number(values.duration),
         gameName: values.gameName,
       });
-      message.success('已放入抢单池，其他陪玩可以抢；抢到后会自动生成客户档案');
+      message.success('已放入抢单池 1 单；过几天想再放，再发布一次即可');
       setRedispatchCustomer(null);
       if (formerCompanion?.companionId) void openFormerCustomers(formerCompanion);
       fetchCompanions();
@@ -1391,9 +1391,6 @@ const CompanionsPage: React.FC = () => {
         cancelText="取消"
       >
         <Form form={redispatchForm} layout="vertical" style={{ marginTop: 12 }}>
-          <Form.Item name="count" label="生成几单给陪玩抢" rules={[{ required: true, message: '请填写数量' }]}>
-            <InputNumber min={1} max={20} style={{ width: '100%' }} suffix="单" />
-          </Form.Item>
           <Form.Item name="gameName" label="游戏" rules={[{ required: true, message: '请填写游戏' }]}>
             <Input />
           </Form.Item>
@@ -1406,7 +1403,7 @@ const CompanionsPage: React.FC = () => {
             </Form.Item>
           </Space>
           <Typography.Text type="secondary">
-            生成后其他陪玩在抢单池抢；抢到的人会自动生成一份自己的客户档案，不用重新录入。抢单本身算首单，只有实际服务完成才计 KPI。
+            每次只放 1 单。过几天想再放，再发布一次；同一客户每次只给一个陪玩抢，抢到后自动生成这个陪玩的客户档案。
           </Typography.Text>
         </Form>
       </Modal>
