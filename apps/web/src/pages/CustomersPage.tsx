@@ -134,14 +134,17 @@ function canRenewNow(c: Customer): boolean {
  * 已经点过开始首单还没结束），保证「整行在闪」和「标签写着服务中」永远是同一件事。
  */
 function servingSessionOf(c: Customer): { orderId: string; sessionId: string; startedAt: string } | null {
+  // 不能只看订单状态：RENEW/REPURCHASE 单有可能先被标成 DONE，但会话还在 ACTIVE。
+  // 那样界面找不到“正在服务中的订单”，陪玩点结束服务就会提示没有可结束的订单。
   const activeOrder =
+    c.orders?.find((o) => o.sessions?.some((s) => s.status === 'ACTIVE' && s.startedAt)) ||
     c.orders?.find((o) => o.status === 'CONFIRMED') ||
     c.orders?.find(
       (o) =>
         o.status === 'GRABBED' &&
         o.sessions?.some((s) => s.status === 'ACTIVE' && !s.startedAt && s.coCompanionId),
     );
-  const s = activeOrder?.sessions?.find((x) => x.status === 'ACTIVE');
+  const s = activeOrder?.sessions?.find((x) => x.status === 'ACTIVE' && x.startedAt);
   if (!activeOrder || !s?.startedAt) return null;
   return { orderId: activeOrder.id, sessionId: s.id, startedAt: s.startedAt };
 }
@@ -848,13 +851,15 @@ const CustomersPage: React.FC = () => {
           })()}
           {(() => {
             const activeOrder =
+              record.orders?.find((o: any) => o.sessions?.some((s: any) => s.status === 'ACTIVE' && s.startedAt)) ||
               record.orders?.find((o: any) => o.status === 'CONFIRMED') ||
               record.orders?.find(
                 (o: any) =>
                   o.status === 'GRABBED' &&
                   o.sessions?.some((s: any) => s.status === 'ACTIVE' && !s.startedAt && s.coCompanionId),
               );
-            const activeSession = activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE');
+            const activeSession = activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE' && s.startedAt)
+              || activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE');
             if (!activeOrder || !activeSession) return null;
             if (activeSession.startedAt) {
               return (
