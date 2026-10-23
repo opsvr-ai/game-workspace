@@ -186,7 +186,7 @@ const ProfilePage: React.FC = () => {
       </Card>
 
       {/* Password Card */}
-      <Card size="small" title="修改密码">
+      <Card size="small" title="修改个人密码">
         <Form form={pwdForm} layout="vertical">
           <Form.Item name="oldPassword" label="旧密码" rules={[{ required: true, message: '请输入旧密码' }]}>
             <Input.Password placeholder="输入当前密码" prefix={React.createElement(LockOutlined)} />
@@ -205,7 +205,7 @@ const ProfilePage: React.FC = () => {
             ]}>
             <Input.Password placeholder="再次输入新密码" prefix={React.createElement(LockOutlined)} />
           </Form.Item>
-          <Button type="primary" loading={pwdLoading} onClick={handleChangePassword}>修改密码</Button>
+          <Button type="primary" loading={pwdLoading} onClick={handleChangePassword}>修改个人密码</Button>
         </Form>
       </Card>
 
