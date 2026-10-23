@@ -314,6 +314,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **发布一条订单弹两次通知（2026-10-24，网页 v1127）。**
+  - 主进程和网页都监听了 `order:urgent`，两边各弹一次 Windows 通知；
+  - Electron 端改为主进程唯一发通知，网页只在浏览器里兜底；
+  - 接单中开关过滤仍由主进程统一处理。
+
 - **20261043 已备好但不强制更新：空闲/开机逐台铺开（2026-10-24，服务端队列）。**
   - 安装包已发布，`agent.latest_version` 仍锁在 `1.0.0`，旧客户端不会自己下载；
   - 目标版本放 `agent.queued_version`，服务端每分钟把在线机器入队；
