@@ -89,22 +89,15 @@ const ProfilePage: React.FC = () => {
   const handleChangeAppPassword = async () => {
     try {
       const values = await appPwdForm.validateFields();
-      const api = (window as any).electronAPI;
-      if (!api?.setAppPassword) {
-        message.error('请使用客户端打开个人设置');
-        return;
-      }
       setAppPwdLoading(true);
-      const res = await api.setAppPassword(values.oldPassword, values.newPassword);
-      if (res?.success) {
-        message.success('客户端管理员密码已修改');
-        appPwdForm.resetFields();
-      } else {
-        message.error(res?.message || '修改失败');
-      }
+      // 统一存服务端，全店电脑同步；本机再拉一次哈希，立即可用。
+      await authApi.setClientAdminPassword(values.oldPassword, values.newPassword);
+      try { await (window as any).electronAPI?.refreshClientAdminPassword?.(); } catch {}
+      message.success('客户端管理员密码已修改，全店生效');
+      appPwdForm.resetFields();
     } catch (err: any) {
       if (err?.errorFields) return;
-      message.error('修改失败');
+      message.error(err?.response?.data?.message || '修改失败');
     } finally {
       setAppPwdLoading(false);
     }

@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -337,9 +338,29 @@ export class AuthService {
   }
 
   /**
-   * 忘记密码：通过「用户名 + 身份证号」核验身份后，允许设置新密码。
-   * 身份证号优先取 User.idNumber（非陪玩角色注册时填），陪玩角色可能只存在 Companion.idNumber。
+   * 客户端管理员密码（退出 / 锁屏）统一由服务端下发，一台电脑改完全店生效。
+   * 存 SHA-256，不下发明文。
    */
+  private clientAdminHash(password: string): string {
+    return createHash('sha256').update(String(password || '')).digest('hex');
+  }
+
+  async getClientAdminPasswordHash(): Promise<string> {
+    const row = await this.prisma.systemConfig.findUnique({ where: { key: 'client.admin_password_hash' } }).catch(() => null);
+    const value = typeof row?.value === 'string' ? row.value : '';
+    return value || this.clientAdminHash('123456');
+  }
+
+  async setClientAdminPassword(oldPassword: string, newPassword: string): Promise<void> {
+    if (!newPassword || newPassword.length < 4) throw new BadRequestException('新密码至少 4 位');
+    const current = await this.getClientAdminPasswordHash();
+    if (current !== this.clientAdminHash(oldPassword)) throw new BadRequestException('旧管理员密码错误');
+    await this.prisma.systemConfig.upsert({
+      where: { key: 'client.admin_password_hash' },
+      create: { key: 'client.admin_password_hash', value: JSON.stringify(this.clientAdminHash(newPassword)) },
+      update: { value: JSON.stringify(this.clientAdminHash(newPassword)) },
+    });
+  }
   async resetPasswordByIdNumber(username: string, idNumber: string, newPassword: string): Promise<void> {
     if (!username?.trim() || !idNumber?.trim() || !newPassword?.trim()) {
       throw new BadRequestException('用户名、身份证号和新密码均不能为空');

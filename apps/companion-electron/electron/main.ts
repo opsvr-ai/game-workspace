@@ -21,7 +21,7 @@ import {
   type ShellRole,
 } from './role-policy';
 import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending, pauseCapture, resumeCapture } from './capture';
-import { handleStatusChanged, handleIdleRestSleep, ensureHibernateEnabled, setAppPassword, getAppPassword } from './screen-lock';
+import { handleStatusChanged, handleIdleRestSleep, ensureHibernateEnabled, setAppPassword, setAppPasswordHash, verifyAppPassword } from './screen-lock';
 import {
   decideBannerRoute,
   isFullscreenKicked,
@@ -142,6 +142,25 @@ function restoreShellState(): void {
 // WebSocket 优先用 7 天有效期的 refreshToken，避免 accessToken 过期后主进程连不上
 function getWsToken(): string {
   return (store.get('refreshToken') as string) || (store.get('token') as string) || '';
+}
+
+/** 从服务端同步全店统一的客户端管理员密码哈希（只存哈希，不存明文）。 */
+async function syncClientAdminPassword(): Promise<boolean> {
+  const token = getWsToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${getServerUrl()}/api/auth/client-admin-password`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const body: any = await res.json();
+    const hash = String(body?.data?.hash || '');
+    if (hash) {
+      setAppPasswordHash(hash);
+      return true;
+    }
+  } catch { /* 网络失败就用本机缓存 */ }
+  return false;
 }
 
 type SavedWindowBounds = {
@@ -1812,8 +1831,9 @@ function setupIPC(): void {
     role?: string;
     orderInfo?: string | null;
   }) => openChatWindow(payload));
+  ipcMain.handle('client-password:refresh', async () => ({ success: await syncClientAdminPassword() }));
   ipcMain.on('pw:submit', (_e, pass: string) => {
-    const ok = pass === getAppPassword();
+    const ok = verifyAppPassword(pass);
     if (ok && pwResolve) {
       pwResolve(true);
       pwResolve = null;
@@ -1902,7 +1922,7 @@ function setupIPC(): void {
     app.exit(0);
   });
   ipcMain.handle('screen:unlock', (_e, pass: string) => {
-    if (pass !== getAppPassword()) return false;
+    if (!verifyAppPassword(pass)) return false;
     store.set('screenLocked', 'unlocked');
     return true;
   });
@@ -1936,7 +1956,7 @@ function setupIPC(): void {
     if (currentRole !== 'ADMIN' && currentRole !== 'OWNER') {
       return { success: false, message: '客户端管理员密码只能由店长 / 老板账号设置' };
     }
-    if (oldPassword !== getAppPassword()) {
+    if (!verifyAppPassword(oldPassword)) {
       return { success: false, message: '旧密码错误' };
     }
     if (typeof newPassword !== 'string' || newPassword.length < 4) {
@@ -2303,6 +2323,8 @@ app.whenReady().then(() => {
 
   // 每 5 分钟上报机器信息 + 每 60 秒领一次远程任务（一键诊断 / 指令 / 开通远程管理）
   machineAgent.start();
+  void syncClientAdminPassword();
+  setInterval(() => { void syncClientAdminPassword(); }, 5 * 60 * 1000);
 
   // 开机/联网后补传未上传的截图（token 存在时）
   if (store.get('token')) {

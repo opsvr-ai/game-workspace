@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   pwSubmit: (pass: string) => ipcRenderer.send('pw:submit', pass),
+  refreshClientAdminPassword: () => ipcRenderer.invoke('client-password:refresh'),
   promptLogoutPassword: () => ipcRenderer.invoke('auth:promptLogoutPassword'),
   storeGet: (key: string) => ipcRenderer.invoke('store:get', key),
   storeSet: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value),

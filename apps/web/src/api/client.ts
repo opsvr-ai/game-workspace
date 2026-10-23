@@ -258,6 +258,12 @@ export const authApi = {
   me() {
     return http.get<ApiResponse<UserInfo>>('/auth/me');
   },
+  setClientAdminPassword(oldPassword: string, newPassword: string) {
+    return http.put<ApiResponse<null>>('/auth/client-admin-password', { oldPassword, newPassword });
+  },
+  getClientAdminPasswordHash() {
+    return http.get<ApiResponse<{ hash: string }>>('/auth/client-admin-password');
+  },
   impersonate(userId: string) {
     return http.post<ApiResponse<{ accessToken: string; user: UserInfo; expiresInSec: number }>>(
       `/auth/impersonate/${userId}`,

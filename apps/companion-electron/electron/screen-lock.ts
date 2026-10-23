@@ -1,4 +1,5 @@
 import { BrowserWindow, app, screen, Notification } from 'electron';
+import { createHash } from 'crypto';
 import { store } from './store';
 import { logger } from './logger';
 import { emitStatus } from './websocket';
@@ -9,13 +10,26 @@ let lockWindow: BrowserWindow | null = null;
 let idleTimer: NodeJS.Timeout | null = null;
 const IDLE_TIMEOUT = 3 * 60 * 1000;
 
-/** 应用密码（锁屏 / 退出登录校验用），未设置时默认 123456 */
-export function getAppPassword(): string {
-  return (store.get('appPassword') as string) || '123456';
+/** 应用密码（锁屏 / 退出登录校验用），统一由服务端下发 SHA-256，未设置时默认 123456 */
+export function hashAppPassword(password: string): string {
+  return createHash('sha256').update(String(password || '')).digest('hex');
 }
 
+export function getAppPasswordHash(): string {
+  return (store.get('appPasswordHash') as string) || hashAppPassword('123456');
+}
+
+export function verifyAppPassword(password: string): boolean {
+  return hashAppPassword(password) === getAppPasswordHash();
+}
+
+export function setAppPasswordHash(hash: string): void {
+  store.set('appPasswordHash', hash);
+}
+
+/** 兼容老 IPC：本地改密码时只存哈希，不再存明文。 */
 export function setAppPassword(password: string): void {
-  store.set('appPassword', password);
+  setAppPasswordHash(hashAppPassword(password));
 }
 
 function buildLockHTML(): string {
