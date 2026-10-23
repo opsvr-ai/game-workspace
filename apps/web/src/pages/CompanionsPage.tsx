@@ -524,7 +524,7 @@ const CompanionsPage: React.FC = () => {
 
   const openRedispatch = (customer: any) => {
     setRedispatchCustomer(customer);
-    redispatchForm.setFieldsValue({ amount: 35, duration: 1, gameName: '三角洲行动' });
+    redispatchForm.resetFields();
   };
 
   const submitRedispatch = async () => {
@@ -533,18 +533,13 @@ const CompanionsPage: React.FC = () => {
     if (!values) return;
     setRedispatching(true);
     try {
-      await customersApi.redispatch(redispatchCustomer.id, {
-        companionId: values.companionId,
-        amount: Number(values.amount),
-        duration: Number(values.duration),
-        gameName: values.gameName,
-      });
-      message.success('已重新当新单派给新陪玩');
+      await customersApi.transfer(redispatchCustomer.id, values.companionId);
+      message.success('客户已移交，新陪玩可在客户管理里查看全部资料');
       setRedispatchCustomer(null);
       if (formerCompanion?.companionId) void openFormerCustomers(formerCompanion);
       fetchCompanions();
     } catch (err: any) {
-      message.error(extractErrorMessage(err, '派单失败'));
+      message.error(extractErrorMessage(err, '移交失败'));
     } finally {
       setRedispatching(false);
     }
@@ -1373,7 +1368,7 @@ const CompanionsPage: React.FC = () => {
               width: 120,
               render: (_: unknown, row: any) => (
                 <Button type="link" size="small" onClick={() => openRedispatch(row)}>
-                  重新派新单
+                  移交客户
                 </Button>
               ),
             },
@@ -1382,16 +1377,16 @@ const CompanionsPage: React.FC = () => {
       </Modal>
 
       <Modal
-        title={`重新派新单 — ${redispatchCustomer?.customerCode || ''}`}
+        title={`移交客户 — ${redispatchCustomer?.customerCode || ''}`}
         open={!!redispatchCustomer}
         onOk={submitRedispatch}
         onCancel={() => setRedispatchCustomer(null)}
         confirmLoading={redispatching}
-        okText="确认派单"
+        okText="确认移交"
         cancelText="取消"
       >
         <Form form={redispatchForm} layout="vertical" style={{ marginTop: 12 }}>
-          <Form.Item name="companionId" label="派给哪个陪玩" rules={[{ required: true, message: '请选择陪玩' }]}>
+          <Form.Item name="companionId" label="移交给哪个陪玩" rules={[{ required: true, message: '请选择陪玩' }]}>
             <Select
               placeholder="选择在职陪玩"
               options={companions
@@ -1399,17 +1394,9 @@ const CompanionsPage: React.FC = () => {
                 .map((c) => ({ label: c.username, value: c.companionId as string }))}
             />
           </Form.Item>
-          <Form.Item name="gameName" label="游戏" rules={[{ required: true, message: '请填写游戏' }]}>
-            <Input />
-          </Form.Item>
-          <Space>
-            <Form.Item name="amount" label="金额（元）" rules={[{ required: true, message: '请填写金额' }]}>
-              <InputNumber min={1} style={{ width: 160 }} />
-            </Form.Item>
-            <Form.Item name="duration" label="时长（小时）" rules={[{ required: true, message: '请填写时长' }]}>
-              <InputNumber min={0.5} step={0.5} style={{ width: 160 }} />
-            </Form.Item>
-          </Space>
+          <Typography.Text type="secondary">
+            只移交客户资料和全部历史，让新陪玩在客户管理里查看；不新开订单，也不产生 KPI。实际开始服务后才计 KPI。
+          </Typography.Text>
         </Form>
       </Modal>
 

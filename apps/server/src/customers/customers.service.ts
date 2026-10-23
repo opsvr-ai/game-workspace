@@ -1576,10 +1576,13 @@ export class CustomersService {
    * 离职陪玩的客户重新当新单派给在职陪玩：
    * 客户归属改到新主陪，同时新开一张 NEW 单（KPI 归新主陪）。
    */
-  async dispatchNewOrder(
+  /**
+   * 离职陪玩的客户只做「移交查看」：归属给新陪玩，让他能在客户管理里看到完整资料和历史。
+   * **不新开订单、不产生新 KPI** —— 只有真正开始服务后才另算。
+   */
+  async transferCustomer(
     customerId: string,
     targetCompanionId: string,
-    body: { amount?: number; duration?: number; gameName?: string },
     user: AuthenticatedUser,
   ) {
     const customer = await this.findOne(customerId, user);
@@ -1599,51 +1602,14 @@ export class CustomersService {
       throw new BadRequestException('目标陪玩已离职或不存在');
     }
     if (user.role !== 'OWNER' && target.studioId !== customer.studioId) {
-      throw new ForbiddenException('只能派给同工作室的陪玩');
+      throw new ForbiddenException('只能移交给同工作室的陪玩');
     }
-    const duration = Math.max(0.5, Number(body?.duration) || 1);
-    const amount = Math.max(1, Number(body?.amount) || 0);
-    if (!amount) throw new BadRequestException('请填写金额');
-    const latest = await this.prisma.order.findFirst({
-      where: { customerId },
-      orderBy: { createdAt: 'desc' },
-      select: { gameName: true },
-    });
-    const gameName = String(body?.gameName || latest?.gameName || '三角洲行动');
-    const orderCode = 'R' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
-    const result = await this.prisma.$transaction(async (tx) => {
-      await tx.customer.update({
-        where: { id: customerId },
-        data: { companionId: targetCompanionId, isLegacy: false },
-      });
-      const order = await tx.order.create({
-        data: {
-          orderCode,
-          type: 'NEW',
-          studioId: customer.studioId,
-          csUserId: user.id,
-          companionId: targetCompanionId,
-          customerId,
-          dispatchType: 'DIRECT',
-          source: 'OFFLINE',
-          status: 'GRABBED',
-          amount,
-          gameName,
-          serviceType: 'PLAY_WITH',
-          duration,
-          grabbedAt: new Date(),
-          customFields: {
-            redispatchedFromCompanion: customer.companionId || null,
-            redispatchedBy: user.id,
-            redispatchedAt: new Date().toISOString(),
-          },
-        },
-      });
-      return { order, target };
+    await this.prisma.customer.update({
+      where: { id: customerId },
+      data: { companionId: targetCompanionId },
     });
     return {
-      orderId: result.order.id,
-      orderCode: result.order.orderCode,
+      customerId,
       companionId: targetCompanionId,
       companionName: target.user?.displayName || target.user?.username || '',
     };

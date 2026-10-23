@@ -142,22 +142,22 @@ export class CustomersController {
     return { code: 200, message: 'ok', data };
   }
 
-  @Post('customers/:id/redispatch')
+  @Post('customers/:id/transfer')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
-  async redispatch(
+  async transferCustomer(
     @Param('id') id: string,
-    @Body() body: { companionId: string; amount: number; duration?: number; gameName?: string },
+    @Body() body: { companionId: string },
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.customersService.dispatchNewOrder(id, body?.companionId, body || {}, req.user);
+    const data = await this.customersService.transferCustomer(id, body?.companionId, req.user);
     this.wsGateway.notifyCompanionNotice(data.companionId, {
-      title: '📥 离职同事的客户重新派给你',
-      desc: `客户订单已重新派给你（单号 ${data.orderCode}），可以开始首单`,
-      icon: '📥',
-      kind: 'order',
-      hrefKey: 'orders',
+      title: '📋 离职同事的客户已移交给你',
+      desc: '客户资料和全部历史已转到你的客户管理，点进去查看即可；只有实际开始服务才计 KPI',
+      icon: '📋',
+      kind: 'customer',
+      hrefKey: 'customers',
     });
-    return { code: 200, message: '已重新派新单', data };
+    return { code: 200, message: '客户已移交给新陪玩', data };
   }
 
   @Put('customers/:id')
