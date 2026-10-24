@@ -16,6 +16,7 @@ import { contentCheckApi } from '../../api/contentCheck';
 import CollectorPluginHint from '../../components/CollectorPluginHint';
 import PasteImageBox from '../../components/PasteImageBox';
 import { getImagesFromClipboard, getImageFileFromClipboard } from '../../utils/clipboardImage';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { TABLE_STYLE } from '../../constants/datasetColumns';
 import { evaluateNote } from '../../utils/noteBenchmark';
@@ -33,7 +34,7 @@ const TRAFFIC_LEVELS = ['优', '中', '差'];
 const YES_NO = ['是', '否'];
 const PLATFORMS = ['抖音', '小红书', '视频号', '快手', '咸鱼', 'B站'];
 const ACCOUNT_ROLES = ['情绪娱乐号', '技术上分号', '避坑干货号'];
-const TRACKING_EXTRA_KEYS = ['ipAddress', 'parentAccountId', 'keywords', 'riskDate', 'riskEffective', 'riskScreenshotUrl', 'riskNotes'];
+const TRACKING_EXTRA_KEYS = ['ipAddress', 'ipCity', 'parentAccountId', 'keywords', 'riskDate', 'riskEffective', 'riskScreenshotUrl', 'riskNotes'];
 
 interface ColumnDef { key: string; label: string; custom: boolean }
 
@@ -98,6 +99,7 @@ const TrafficAccountPage: React.FC = () => {
   const [banAnalysisOpen, setBanAnalysisOpen] = useState(false);
   const [form] = Form.useForm();
   const authUser = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
   const canEditGuide = authUser?.role === 'OWNER' || authUser?.role === 'ADMIN' || authUser?.role === 'CS';
   // 归属调整：「归属客服」那一列改给谁。只有店长 / 老板能改，别人看不到这个下拉。
   const canReassignOwner = authUser?.role === 'OWNER' || authUser?.role === 'ADMIN';
@@ -919,6 +921,7 @@ const TrafficAccountPage: React.FC = () => {
         extra={
           <Space>
             <Button icon={<ReloadOutlined />} onClick={fetchItems} loading={loading}>刷新</Button>
+            <Button onClick={() => navigate('/admin/traffic-overview')}>账号总览</Button>
             <Button icon={<FileTextOutlined />} onClick={openGuide}>打法指南</Button>
             <Button icon={<SettingOutlined />} onClick={() => setColModalOpen(true)}>列设置</Button>
             <Button onClick={() => setBanAnalysisOpen(true)}>封号分析</Button>
@@ -992,6 +995,7 @@ const TrafficAccountPage: React.FC = () => {
               </Col>
             )}
             <Col span={8}><Form.Item name="ipAddress" label="IP"><Input placeholder="手动填写当前 IP" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="ipCity" label="IP归属城市" tooltip="例如 广州；总览地图按这个城市打点"><Input placeholder="例如 广州 / 杭州" /></Form.Item></Col>
             <Col span={8}><Form.Item name="keywords" label="关键词"><Input placeholder="例如 三角洲 / 上分" /></Form.Item></Col>
             <Col span={8}><Form.Item name="accountRole" label="人设"><Select options={ACCOUNT_ROLES.map((v) => ({ value: v, label: v }))} placeholder="情绪娱乐/技术上分/避坑干货" allowClear /></Form.Item></Col>
             <Col span={8}><Form.Item name="nickname" label="昵称" rules={[{ required: true, message: '请输入昵称' }]}><Input placeholder="昵称" /></Form.Item></Col>

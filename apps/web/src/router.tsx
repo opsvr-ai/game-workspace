@@ -98,6 +98,7 @@ const CompanionPoolPage = lazy(() => import('./pages/OrderPoolPage'));
 const ClientManagementPage = lazy(() => import('./pages/admin/ClientManagementPage'));
 const PayrollPage = lazy(() => import('./pages/admin/PayrollPage'));
 const TrafficAccountPage = lazy(() => import('./pages/admin/TrafficAccountPage'));
+const TrafficAccountOverviewPage = lazy(() => import('./pages/admin/TrafficAccountOverviewPage'));
 const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));
 const StudiosPage = lazy(() => import('./pages/owner/StudiosPage'));
 const BridgePage = lazy(() => import('./pages/BridgePage'));
@@ -441,6 +442,10 @@ export const router = createBrowserRouter([
       {
         path: 'admin/traffic-accounts',
         element: page(<TrafficAccountPage />),
+      },
+      {
+        path: 'admin/traffic-overview',
+        element: page(<TrafficAccountOverviewPage />),
       },
       {
         path: 'admin/review',

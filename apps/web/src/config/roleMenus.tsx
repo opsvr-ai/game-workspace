@@ -191,6 +191,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/owner/bridges', label: '工作室桥接' },
         { key: '/owner/authorizations', label: '客户端授权' },
         { key: '/admin/traffic-accounts', label: '工作室账号' },
+        { key: '/admin/traffic-overview', label: '账号总览' },
         { key: '/content-check', label: 'AI运营辅助' },
         { key: '/admin/client-management', label: '客户端与设备' },
       ],
@@ -267,6 +268,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       children: [
         { key: '/owner/bridges', label: '工作室桥接' },
         { key: '/admin/traffic-accounts', label: '工作室账号' },
+        { key: '/admin/traffic-overview', label: '账号总览' },
         { key: '/content-check', label: 'AI运营辅助' },
         { key: '/admin/client-management', label: '客户端与设备' },
       ],
