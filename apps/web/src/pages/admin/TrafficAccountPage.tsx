@@ -272,6 +272,8 @@ const TrafficAccountPage: React.FC = () => {
     const extraValues: Record<string, any> = { ...(record.extra || {}) };
     if (extraValues.purchaseDate) extraValues.purchaseDate = dayjs(extraValues.purchaseDate);
     if (!extraValues.ipCity && record.wifiRegion) extraValues.ipCity = record.wifiRegion;
+    // 老的自由风格（例如「在校女大」）不在官方清单里：编辑时直接归到「未细分」，别继续显示不存在的小类。
+    if (record.accountStyle) extraValues.accountStyle = normalizeTrafficStyle(record.accountStyle);
     // 老数据只有细分风格、大类空着：打开编辑时按风格补一个建议大类，保存时才落库。
     if (!record.accountRole && record.accountStyle) {
       const inferred = inferTrafficRole(record.accountRole, record.accountStyle);

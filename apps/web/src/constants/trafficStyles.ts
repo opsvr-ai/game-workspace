@@ -24,10 +24,23 @@ export function inferTrafficRole(role?: string | null, style?: string | null): s
 }
 
 /** 细分风格没填时不要拿大类硬当风格，否则会出现「情绪娱乐号 → 情绪娱乐号」这种重复卡片。 */
+/** 老数据里常见的叫法，统一归到官方细分风格；清单外的自定义词一律归「未细分」。 */
+const STYLE_ALIASES: Record<string, string> = {
+  少萝性感: '少萝',
+  纯欲甜妹: '甜妹',
+  纯欲性感: '御姐',
+  性感: '御姐',
+  清纯女大: '真实照',
+  在校女大: '真实照',
+  清新自然: '真实照',
+  cosplay: 'COS',
+};
+
 export function normalizeTrafficStyle(style?: string | null): string {
   const s = String(style || '').trim();
   if (!s) return '未细分';
   // 老数据里有人把大类写进了风格字段（例如风格=情绪娱乐号），不要显示成「大类 → 同名大类」。
   if ((TRAFFIC_ACCOUNT_ROLES as readonly string[]).includes(s)) return '未细分';
-  return s;
+  if (STYLE_ALIASES[s]) return STYLE_ALIASES[s];
+  return ALL_TRAFFIC_STYLES.includes(s) ? s : '未细分';
 }
