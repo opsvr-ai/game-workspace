@@ -97,6 +97,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
   const [platform, setPlatform] = useState<string | undefined>();
   const [city, setCity] = useState<string | undefined>();
   const [mapReady, setMapReady] = useState(false);
+  const [treeScale, setTreeScale] = useState(1);
   const [mapError, setMapError] = useState('');
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -367,6 +368,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
         right: '10%',
         symbolSize: 9,
         initialTreeDepth: 4,
+        roam: true,
         expandAndCollapse: true,
         animationDuration: 300,
         edgeShape: 'polyline',
@@ -543,10 +545,22 @@ const TrafficAccountOverviewPage: React.FC = () => {
         size="small"
         title="账号树状图（平台 → 关键词 → 风格 → 编号）"
         style={{ marginBottom: 12 }}
-        extra={<Text type="secondary" style={{ fontSize: 12 }}>点节点可展开/收起，可鼠标滚轮缩放</Text>}
+        extra={
+          <Space size={4}>
+            <Button size="small" onClick={() => setTreeScale((s) => Math.max(0.5, Number((s - 0.2).toFixed(1))))}>−</Button>
+            <Text type="secondary" style={{ fontSize: 12, minWidth: 38, textAlign: 'center' }}>{Math.round(treeScale * 100)}%</Text>
+            <Button size="small" onClick={() => setTreeScale((s) => Math.min(2.5, Number((s + 0.2).toFixed(1))))}>＋</Button>
+            <Button size="small" onClick={() => setTreeScale(1)}>重置</Button>
+          </Space>
+        }
       >
         {treeGraphData.length ? (
-          <div ref={treeChartRef} style={{ width: '100%', height: 920 }} />
+          <div style={{ width: '100%', height: 920, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 8 }}>
+            <div
+              ref={treeChartRef}
+              style={{ width: '100%', height: 920, transform: `scale(${treeScale})`, transformOrigin: 'top left', transition: 'transform .15s' }}
+            />
+          </div>
         ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有可展示的账号" />}
       </Card>
 
