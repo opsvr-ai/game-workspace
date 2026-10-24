@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Card, Col, Empty, Input, Row, Select, Space, Statistic, Table, Tag, Typography, Progress, Tree } from 'antd';
+import { Button, Card, Col, Empty, Input, Row, Select, Space, Statistic, Table, Tag, Typography, Progress } from 'antd';
 import type { TreeDataNode } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -97,10 +97,11 @@ const TrafficAccountOverviewPage: React.FC = () => {
   const [platform, setPlatform] = useState<string | undefined>();
   const [city, setCity] = useState<string | undefined>();
   const [mapReady, setMapReady] = useState(false);
-  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
   const [mapError, setMapError] = useState('');
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
+  const treeChartRef = useRef<HTMLDivElement>(null);
+  const treeChartInstance = useRef<echarts.ECharts | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -328,24 +329,58 @@ const TrafficAccountOverviewPage: React.FC = () => {
     });
   }, [filtered]);
 
-  const treeKeys = useMemo(() => {
-    const keys: string[] = [];
-    const walk = (nodes: TreeDataNode[]) => {
-      nodes.forEach((n) => {
-        if (n.children?.length) {
-          keys.push(String(n.key));
-          walk(n.children);
-        }
-      });
-    };
-    walk(treeData);
-    return keys;
+  const treeGraphData = useMemo(() => {
+    const toGraph = (nodes: TreeDataNode[]): any[] => nodes.map((n) => ({
+      name: String(n.title),
+      ...(n.children?.length ? { children: toGraph(n.children) } : {}),
+    }));
+    return toGraph(treeData);
   }, [treeData]);
 
   useEffect(() => {
-    // 默认展开到「风格」层，账号编号也直接露出来；平台/关键词/风格都能点开收起。
-    setExpandedKeys(treeKeys.filter((k) => !k.startsWith('account-')));
-  }, [treeKeys]);
+    if (!treeChartRef.current) return;
+    const chart = echarts.init(treeChartRef.current);
+    treeChartInstance.current = chart;
+    chart.setOption({
+      tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+      series: [{
+        type: 'tree',
+        data: treeGraphData,
+        orient: 'TB',
+        top: '4%',
+        left: '4%',
+        bottom: '4%',
+        right: '10%',
+        symbolSize: 9,
+        initialTreeDepth: 3,
+        expandAndCollapse: true,
+        animationDuration: 300,
+        edgeShape: 'polyline',
+        lineStyle: { color: '#b9cdf2', width: 1.5 },
+        label: {
+          position: 'top',
+          align: 'center',
+          verticalAlign: 'middle',
+          fontSize: 11,
+          color: '#31527d',
+          backgroundColor: 'rgba(255,255,255,.82)',
+          padding: [2, 4],
+          borderRadius: 4,
+        },
+        leaves: {
+          label: { position: 'bottom', align: 'center', verticalAlign: 'middle', fontSize: 10 },
+        },
+        emphasis: { focus: 'descendant' },
+      }],
+    });
+    const onResize = () => chart.resize();
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      chart.dispose();
+      treeChartInstance.current = null;
+    };
+  }, [treeGraphData]);
 
   useEffect(() => {
     if (!mapReady || !chartInstance.current) return;
@@ -494,17 +529,10 @@ const TrafficAccountOverviewPage: React.FC = () => {
         size="small"
         title="账号树状图（平台 → 关键词 → 风格 → 编号）"
         style={{ marginBottom: 12 }}
-        extra={<Space><Button size="small" onClick={() => setExpandedKeys(treeKeys)}>展开全部</Button><Button size="small" onClick={() => setExpandedKeys([])}>收起全部</Button></Space>}
+        extra={<Text type="secondary" style={{ fontSize: 12 }}>点节点可展开/收起，可鼠标滚轮缩放</Text>}
       >
-        {treeData.length ? (
-          <Tree
-            treeData={treeData}
-            expandedKeys={expandedKeys}
-            onExpand={(keys) => setExpandedKeys(keys)}
-            showLine
-            blockNode
-            selectable={false}
-          />
+        {treeGraphData.length ? (
+          <div ref={treeChartRef} style={{ width: '100%', height: 760 }} />
         ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有可展示的账号" />}
       </Card>
 
