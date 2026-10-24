@@ -80,9 +80,8 @@ export function useShellBranding(user: UserInfo | null) {
           });
           if (!decision.remember) return;
           localStorage.setItem('webBuildId', id);
-          if (!decision.reload) return;
-          localStorage.setItem('webBuildReloadAt', String(Date.now()));
-          window.location.reload();
+          // 不再在这里自动 reload：发版时页面正在用，突然整页刷新会把刚点的单/刚填的内容冲掉。
+          // 新版本提示统一交给 AppLayout 的右下角按钮；用户在方便时自己点。
         })
         .catch(() => {});
     };
