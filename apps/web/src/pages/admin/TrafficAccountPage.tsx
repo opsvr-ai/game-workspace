@@ -19,7 +19,7 @@ import { getImagesFromClipboard, getImageFileFromClipboard } from '../../utils/c
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { TABLE_STYLE } from '../../constants/datasetColumns';
-import { TRAFFIC_STYLE_PRESETS, ALL_TRAFFIC_STYLES } from '../../constants/trafficStyles';
+import { TRAFFIC_STYLE_PRESETS, ALL_TRAFFIC_STYLES, inferTrafficRole, normalizeTrafficStyle } from '../../constants/trafficStyles';
 import { evaluateNote } from '../../utils/noteBenchmark';
 import { NOTE_TEMPLATES } from '../../utils/noteTemplates';
 import dayjs from 'dayjs';
@@ -272,6 +272,11 @@ const TrafficAccountPage: React.FC = () => {
     const extraValues: Record<string, any> = { ...(record.extra || {}) };
     if (extraValues.purchaseDate) extraValues.purchaseDate = dayjs(extraValues.purchaseDate);
     if (!extraValues.ipCity && record.wifiRegion) extraValues.ipCity = record.wifiRegion;
+    // 老数据只有细分风格、大类空着：打开编辑时按风格补一个建议大类，保存时才落库。
+    if (!record.accountRole && record.accountStyle) {
+      const inferred = inferTrafficRole(record.accountRole, record.accountStyle);
+      if (inferred !== '未分类') extraValues.accountRole = inferred;
+    }
     if (extraValues.riskDate) extraValues.riskDate = dayjs(extraValues.riskDate);
     const oldRiskNotes = Array.isArray(extraValues.riskNotes) ? extraValues.riskNotes : [];
     if (!oldRiskNotes.length && (extraValues.riskDate || record.riskNote)) {
@@ -720,6 +725,10 @@ const TrafficAccountPage: React.FC = () => {
     if (col.key === 'type') return <Tag color={TYPE_COLORS[v] || 'default'} style={{ fontSize: 9, lineHeight: '16px', padding: '0 4px' }}>{v}</Tag>;
     if (col.key === 'trafficLevel') return v ? <Tag color={v === '优' ? 'green' : v === '中' ? 'gold' : 'red'}>{v}</Tag> : '-';
     if (col.key === 'riskPopped') return v === '是' ? <Tag color="red">是</Tag> : v === '否' ? <Tag color="green">否</Tag> : '-';
+    if (col.key === 'accountRole') {
+      const role = inferTrafficRole(r.accountRole, r.accountStyle);
+      return <Space size={4} wrap><Tag color="blue">{role}</Tag><Text type="secondary">{normalizeTrafficStyle(r.accountStyle)}</Text></Space>;
+    }
     if (col.key === 'banned') return v === '是' ? <Tag color="red">是</Tag> : v === '否' ? <Tag color="green">否</Tag> : '-';
     if (col.key === 'accountId') return v ? <Text copyable style={{ whiteSpace: 'nowrap' }}>{v}</Text> : '-';
     if (col.key === 'phone') return v ? <Text style={{ whiteSpace: 'nowrap' }}>{v}</Text> : '-';

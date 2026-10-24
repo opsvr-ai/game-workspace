@@ -5,7 +5,7 @@ import { ArrowLeftOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/i
 import { useNavigate } from 'react-router-dom';
 import * as echarts from 'echarts';
 import { trafficAccountApi, TrafficAccountItem } from '../../api/trafficAccount';
-import { TRAFFIC_ACCOUNT_ROLES } from '../../constants/trafficStyles';
+import { TRAFFIC_ACCOUNT_ROLES, inferTrafficRole, normalizeTrafficStyle } from '../../constants/trafficStyles';
 import PageHeader from '../../components/PageHeader';
 import { BRAND, TEXT } from '../../styles/tokens';
 
@@ -59,7 +59,11 @@ const STYLE_META: Record<string, { emoji: string; color: string }> = {
 };
 
 function styleOf(item: TrafficAccountItem): string {
-  return (item.accountStyle || item.accountRole || '未填写').trim() || '未填写';
+  return normalizeTrafficStyle(item.accountStyle);
+}
+
+function roleOf(item: TrafficAccountItem): string {
+  return inferTrafficRole(item.accountRole, item.accountStyle);
 }
 
 function styleMeta(style: string): { emoji: string; color: string } {
@@ -138,7 +142,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
   }, []);
 
   const filtered = useMemo(() => items.filter((it) => {
-    if (role && it.accountRole !== role) return false;
+    if (role && roleOf(it) !== role) return false;
     if (style && styleOf(it) !== style) return false;
     if (platform && it.type !== platform) return false;
     if (city && cityOf(it) !== city) return false;
@@ -172,7 +176,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
   const styleGroups = useMemo(() => {
     const types = [...TRAFFIC_ACCOUNT_ROLES, '未分类'];
     return types.map((type) => {
-      const list = filtered.filter((it) => (it.accountRole || '未分类') === type);
+      const list = filtered.filter((it) => roleOf(it) === type);
       const styles = new Map<string, TrafficAccountItem[]>();
       for (const it of list) {
         const s = styleOf(it);
@@ -244,7 +248,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
     }, true);
   }, [mapReady, cityStats]);
 
-  const roleOptions = [...new Set(items.map((i) => i.accountRole).filter(Boolean))] as string[];
+  const roleOptions = [...new Set(items.map((i) => roleOf(i)).filter(Boolean))] as string[];
   const styleOptions = [...new Set(items.map((i) => styleOf(i)).filter(Boolean))] as string[];
   const platformOptions = [...new Set(items.map((i) => i.type).filter(Boolean))] as string[];
   const riskReasonOptions = [...new Set(items.flatMap((i) => [
@@ -362,7 +366,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
               pagination={{ pageSize: 8 }}
               columns={[
                 { title: '账号', key: 'name', render: (_: unknown, r) => <Space direction="vertical" size={0}><Text strong>{r.nickname}</Text><Text type="secondary" style={{ fontSize: 11 }}>{r.code || r.accountId || '-'}</Text></Space> },
-                { title: '人设', dataIndex: 'accountRole', width: 100, render: (v: string) => v || '-' },
+                { title: '人设', key: 'role', width: 110, render: (_: unknown, r) => roleOf(r) },
                 { title: '风格', key: 'style', width: 90, render: (_: unknown, r) => { const s = styleOf(r); const m = styleMeta(s); return <Tag color={m.color}>{m.emoji} {s}</Tag>; } },
                 { title: '城市', key: 'city', width: 100, render: (_: unknown, r) => cityOf(r) },
                 { title: '风险', key: 'risk', width: 100, render: (_: unknown, r) => r.riskPopped === '是' ? <Tag color="orange">有风险</Tag> : '-' },
