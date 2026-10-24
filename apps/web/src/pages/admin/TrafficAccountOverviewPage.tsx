@@ -302,10 +302,24 @@ const TrafficAccountOverviewPage: React.FC = () => {
           const accountNodes: TreeDataNode[] = accounts.map((it) => {
             seq += 1;
             const code = it.code || it.accountId || String(seq);
+            const riskText = it.riskPopped === '是' || riskNotesOf(it).length
+              ? (riskNotesOf(it).map((n) => n.note).filter(Boolean).join('、') || it.riskNote || '有风险')
+              : '无';
+            const details: TreeDataNode[] = [
+              { key: `detail-${it.id}-code`, isLeaf: true, title: `矩阵手机编号：${it.code || '-'}` },
+              { key: `detail-${it.id}-traffic`, isLeaf: true, title: `流量：${it.trafficLevel || '-'}` },
+              { key: `detail-${it.id}-owner`, isLeaf: true, title: `归属客服：${it.user?.displayName || it.user?.username || '-'}` },
+              { key: `detail-${it.id}-city`, isLeaf: true, title: `IP归属城市：${cityOf(it)}` },
+              { key: `detail-${it.id}-accountId`, isLeaf: true, title: `ID：${it.accountId || '-'}` },
+              { key: `detail-${it.id}-phone`, isLeaf: true, title: `注册手机号：${it.phone || '-'}` },
+              { key: `detail-${it.id}-followers`, isLeaf: true, title: `粉丝数：${it.followers ?? '-'}` },
+              { key: `detail-${it.id}-risk`, isLeaf: true, title: `风险：${riskText}` },
+              { key: `detail-${it.id}-ban`, isLeaf: true, title: `封禁：${it.banned === '是' ? (it.banNote || '是') : '否'}` },
+            ];
             return {
               key: `account-${it.id}`,
-              isLeaf: true,
               title: `编号 ${code} · ${it.nickname || '未命名'}`,
+              children: details,
             };
           });
           return {
@@ -352,7 +366,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
         bottom: '4%',
         right: '10%',
         symbolSize: 9,
-        initialTreeDepth: 3,
+        initialTreeDepth: 4,
         expandAndCollapse: true,
         animationDuration: 300,
         edgeShape: 'polyline',
@@ -532,7 +546,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
         extra={<Text type="secondary" style={{ fontSize: 12 }}>点节点可展开/收起，可鼠标滚轮缩放</Text>}
       >
         {treeGraphData.length ? (
-          <div ref={treeChartRef} style={{ width: '100%', height: 760 }} />
+          <div ref={treeChartRef} style={{ width: '100%', height: 920 }} />
         ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有可展示的账号" />}
       </Card>
 
