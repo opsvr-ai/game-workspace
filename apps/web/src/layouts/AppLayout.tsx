@@ -45,6 +45,7 @@ const { Text } = Typography;
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const [isCompact, setIsCompact] = React.useState(() => typeof window !== 'undefined' && window.innerWidth <= 1080);
+  const [pendingWebVersion, setPendingWebVersion] = React.useState('');
   const [messagePanelCollapsed, setMessagePanelCollapsed] = React.useState(true);
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
   // 门店品牌 / 客户端版本 / 前端构建 / 提成底薪 / 分账比例：状态与拉取都在 hooks/useShellBranding。
@@ -78,8 +79,14 @@ const AppLayout: React.FC = () => {
           return;
         }
         if (prev !== version && !isAnyBusy()) {
-          localStorage.setItem(key, version);
-          window.location.reload();
+          // 可见时不再强行 reload（老板 2026-10-25：动不动加载一下很晃眼）；
+          // 只挂一个小按钮，等人自己点。页面在后台时直接换版，看不见闪烁。
+          if (document.visibilityState === 'hidden') {
+            localStorage.setItem(key, version);
+            window.location.reload();
+            return;
+          }
+          setPendingWebVersion(version);
         }
       } catch {
         /* 断网 / 登录页异常不打扰 */
@@ -530,6 +537,20 @@ const AppLayout: React.FC = () => {
           </Content>
         </Layout>
       </Layout>
+
+      {pendingWebVersion && (
+        <Button
+          type="primary"
+          size="small"
+          style={{ position: 'fixed', right: 18, bottom: 18, zIndex: 3000, boxShadow: '0 4px 14px rgba(22,119,255,.35)' }}
+          onClick={() => {
+            localStorage.setItem('chunlv.webFrontendVersion', pendingWebVersion);
+            window.location.reload();
+          }}
+        >
+          新版本已就绪，点此刷新
+        </Button>
+      )}
 
       <SalaryDetailModal open={salaryOpen} onClose={() => setSalaryOpen(false)} salary={mySalary} />
 
