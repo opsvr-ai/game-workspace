@@ -3,6 +3,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { scheduleReleaseCompanionIfIdle } from '../common/companion-presence';
+import { getServiceTiming } from '../common/service-timing';
 
 /**
  * 服务时长到点提醒：由服务端定时检查进行中的会话，到达约定时长后推送给主陪客户端
@@ -30,8 +31,7 @@ export class ServiceDurationReminderService implements OnModuleInit {
   private static readonly REPEAT_MS = 30 * 60 * 1000;
   /** 填写 2h 就 2h 后再多给 10 分钟，再提醒结束 */
   private static readonly REMIND_GRACE_MS = 10 * 60 * 1000;
-  /** 提醒后 10 分钟仍不处理：强制结束，避免无限挂着不计业绩 */
-  private static readonly AUTO_END_MS = 20 * 60 * 1000;
+  /** 提醒后达到店长设置的分钟数仍不处理：强制结束，避免无限挂着不计业绩 */
 
   async tick() {
     const now = Date.now();
@@ -46,7 +46,7 @@ export class ServiceDurationReminderService implements OnModuleInit {
         duration: true,
         startedAt: true,
         durationRemindedAt: true,
-        parentOrder: { select: { id: true, gameName: true } },
+        parentOrder: { select: { id: true, gameName: true, studioId: true } },
       },
       take: 500,
     });
@@ -57,9 +57,10 @@ export class ServiceDurationReminderService implements OnModuleInit {
       const dueAt = new Date(s.startedAt).getTime() + durationH * 3600 * 1000 + ServiceDurationReminderService.REMIND_GRACE_MS;
       if (now < dueAt) continue;
       const lastAt = s.durationRemindedAt ? new Date(s.durationRemindedAt).getTime() : 0;
-      // 提醒后 10 分钟仍没处理 → 强制结束，计入业绩后回空闲。
-      if (lastAt && now - lastAt >= ServiceDurationReminderService.AUTO_END_MS) {
-        await this.autoEnd(s.id);
+      const timing = await getServiceTiming(this.prisma, s.parentOrder.studioId);
+      // 提醒后达到店长设置的分钟数仍没处理 → 强制结束，3 分钟缓冲后回空闲。
+      if (lastAt && now - lastAt >= timing.autoEndMs) {
+        await this.autoEnd(s.id, timing.bufferMs);
         continue;
       }
       // 提醒过一次、还没到下一次间隔 → 跳过（不然每 30 秒 tick 一次会刷屏）
@@ -92,7 +93,7 @@ export class ServiceDurationReminderService implements OnModuleInit {
   }
 
   /** 到点提醒后 10 分钟仍不处理：强制结束这一单，按实际时长计入业绩，陪玩回空闲。 */
-  private async autoEnd(sessionId: string): Promise<void> {
+  private async autoEnd(sessionId: string, bufferMs = 3 * 60 * 1000): Promise<void> {
     const s = await this.prisma.orderSession.findUnique({
       where: { id: sessionId },
       select: {
@@ -127,11 +128,11 @@ export class ServiceDurationReminderService implements OnModuleInit {
     }).catch(() => {});
     for (const id of [s.companionId, s.coCompanionId].filter(Boolean) as string[]) {
       // 自动结束同样给 3 分钟缓冲：先保持 BUSY、不杀游戏，3 分钟后没有新服务才回空闲。
-      scheduleReleaseCompanionIfIdle(this.prisma, id, sessionId);
+      scheduleReleaseCompanionIfIdle(this.prisma, id, sessionId, bufferMs);
       this.wsGateway.pushToCompanion(id, 'service:auto_ended', {
         sessionId,
         orderId: s.parentOrderId,
-        message: '服务到点提醒后 20 分钟仍未处理，已自动结束并计入业绩；3 分钟后切回空闲',
+        message: '服务到点提醒后仍未处理，已自动结束并计入业绩；缓冲结束后切回空闲',
       });
     }
   }

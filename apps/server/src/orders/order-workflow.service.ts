@@ -13,6 +13,7 @@ import { PoolScope } from '@chunlv/shared';
 import { visibleToOwnOffline } from '../common/order-outcome';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { switchCompanionStatus } from '../common/companion-status-switch';
+import { getServiceTiming } from '../common/service-timing';
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CLAIMED, OrderStatus.CANCELLED],
@@ -49,11 +50,11 @@ export class OrderWorkflowService {
   }
 
   /** 结束服务后延迟 3 分钟再放空闲：给陪玩切模式/回游戏留缓冲，避免空闲黑名单立刻杀游戏。 */
-  private scheduleCompanionAvailable(companionId?: string | null): void {
+  private scheduleCompanionAvailable(companionId?: string | null, delayMs = 3 * 60 * 1000): void {
     if (!companionId) return;
     const timer = setTimeout(() => {
       void this.refreshCompanionAvailable(companionId).catch(() => {});
-    }, 3 * 60 * 1000);
+    }, delayMs);
     timer.unref?.();
   }
 
@@ -308,8 +309,9 @@ export class OrderWorkflowService {
     }
 
     const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
-    this.scheduleCompanionAvailable(order.companionId);
-    this.scheduleCompanionAvailable(order.coCompanionId);
+    const timing = await getServiceTiming(this.prisma, order.studioId);
+    this.scheduleCompanionAvailable(order.companionId, timing.bufferMs);
+    this.scheduleCompanionAvailable(order.coCompanionId, timing.bufferMs);
     if (updated) this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }

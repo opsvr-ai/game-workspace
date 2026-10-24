@@ -109,6 +109,8 @@ export const CONFIG_KEYS = [
   'pool.scheduled_disappear_minutes',
   'pool.bridge_return_jueju_cents',
   'service.stale_session_hours',
+  'service.auto_end_after_reminder_minutes',
+  'service.end_buffer_minutes',
   'anomaly.revenue_drop_percent',
   'anomaly.hours_drop_percent',
   'anomaly.spend_drop_percent',
@@ -613,6 +615,22 @@ const CONFIG_DEFINITIONS = {
     scope: 'SYSTEM',
     default: 24,
     description: '服务中会话自动清理小时数（服务器级兜底）',
+  },
+  'service.auto_end_after_reminder_minutes': {
+    type: 'integer',
+    scope: 'STUDIO',
+    default: 20,
+    min: 1,
+    max: 180,
+    description: '到点提醒后多少分钟仍未处理就自动结束',
+  },
+  'service.end_buffer_minutes': {
+    type: 'integer',
+    scope: 'STUDIO',
+    default: 3,
+    min: 0,
+    max: 30,
+    description: '结束服务后保持接单中、留多久给陪玩切模式',
   },
 
   // ── 异常预警 / 报账 / 营业日 ──

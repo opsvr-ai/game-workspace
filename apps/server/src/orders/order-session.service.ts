@@ -5,6 +5,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
 import { logger } from '../common/logger';
 import { scheduleReleaseCompanionIfIdle } from '../common/companion-presence';
+import { getServiceTiming } from '../common/service-timing';
 import { switchCompanionStatus } from '../common/companion-status-switch';
 import { computeEntertainmentFee, loadEntertainmentRule, manualTodayBoost } from '../common/entertainment-fee';
 import { companionOrderRevenue } from '../common/order-revenue';
@@ -934,9 +935,13 @@ export class OrderSessionService {
     coCompanionId?: string | null;
     parentOrderId?: string | null;
   }): Promise<void> {
-    // 结束服务后先保持 BUSY 3 分钟，给陪玩切模式/回游戏留时间，避免空闲黑名单立刻杀游戏。
+    // 结束服务后先保持 BUSY，具体缓冲分钟数由店长后台配置。
+    const studioId = s.parentOrderId
+      ? (await this.prisma.order.findUnique({ where: { id: s.parentOrderId }, select: { studioId: true } }).catch(() => null))?.studioId
+      : null;
+    const timing = await getServiceTiming(this.prisma, studioId);
     for (const companionId of [s.companionId, s.coCompanionId].filter(Boolean) as string[]) {
-      scheduleReleaseCompanionIfIdle(this.prisma, companionId, s.id);
+      scheduleReleaseCompanionIfIdle(this.prisma, companionId, s.id, timing.bufferMs);
     }
   }
 }

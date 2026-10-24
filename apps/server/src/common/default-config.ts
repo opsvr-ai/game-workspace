@@ -204,6 +204,8 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   // 绝密单的线上返款（分/小时）：设置页「派单与提成 → 绝密线上返款」写的就是它。
   'pool.bridge_return_jueju_cents': 1500,
   'service.stale_session_hours': 24,
+  'service.auto_end_after_reminder_minutes': 20,
+  'service.end_buffer_minutes': 3,
   'anomaly.revenue_drop_percent': 50,
   'anomaly.hours_drop_percent': 50,
   'anomaly.spend_drop_percent': 50,
