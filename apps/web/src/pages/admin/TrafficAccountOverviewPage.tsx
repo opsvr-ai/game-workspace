@@ -41,6 +41,8 @@ const STYLE_META: Record<string, { emoji: string; color: string }> = {
   御姐: { emoji: '💃', color: '#9254de' },
   少御: { emoji: '🌷', color: '#eb2f96' },
   少萝: { emoji: '🎀', color: '#ff9c6e' },
+  COS: { emoji: '🎭', color: '#722ed1' },
+  真实照: { emoji: '📷', color: '#13c2c2' },
   邻家: { emoji: '🌿', color: '#52c41a' },
   高冷: { emoji: '❄️', color: '#69b1ff' },
   搞笑女: { emoji: '😄', color: '#faad14' },
