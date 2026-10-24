@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Button, Space, Table, Typography, Tag, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert, Card, Upload, Checkbox,
+  Button, Space, Table, Typography, Tag, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert, Card, Upload, Checkbox, AutoComplete,
 } from 'antd';
 import { message } from '../../utils/feedback';
 import { extractErrorMessage } from '../../utils/error-handler';
@@ -35,6 +35,33 @@ const YES_NO = ['是', '否'];
 const PLATFORMS = ['抖音', '小红书', '视频号', '快手', '咸鱼', 'B站'];
 const ACCOUNT_ROLES = ['情绪娱乐号', '技术上分号', '避坑干货号'];
 const STYLE_PRESETS = ['甜妹', '御姐', '邻家', '高冷', '情绪娱乐', '技术大神', '避坑干货'];
+/** 城市候选：省/直辖市 + 常见地级市；输入「山」能带出山东、山西。 */
+const CITY_OPTIONS = [
+  '北京', '上海', '天津', '重庆',
+  '山东', '山西', '广东', '广西', '河北', '河南', '湖北', '湖南', '江苏', '浙江', '安徽', '福建', '江西',
+  '四川', '贵州', '云南', '陕西', '甘肃', '青海', '辽宁', '吉林', '黑龙江', '内蒙古', '新疆', '西藏', '宁夏', '海南',
+  '广州', '深圳', '杭州', '成都', '武汉', '南京', '苏州', '西安', '长沙', '郑州', '青岛', '厦门', '福州', '济南',
+  '合肥', '昆明', '南宁', '南昌', '沈阳', '大连', '哈尔滨', '长春', '石家庄', '太原', '贵阳', '海口', '兰州',
+  '乌鲁木齐', '呼和浩特', '银川', '西宁', '拉萨', '三亚', '东莞', '佛山', '宁波', '无锡', '常州', '温州', '嘉兴',
+  '金华', '泉州', '烟台', '潍坊', '临沂', '洛阳', '襄阳', '宜昌', '株洲', '惠州', '中山', '珠海', '汕头', '桂林',
+  '柳州', '遵义', '绵阳', '德阳', '宜宾', '赣州', '九江', '芜湖', '唐山', '保定', '廊坊', '邯郸', '徐州', '扬州',
+  '南通', '盐城', '泰州', '镇江', '湖州', '绍兴', '台州', '丽水', '衢州', '舟山', '莆田', '漳州', '龙岩', '三明',
+  '济宁', '泰安', '德州', '聊城', '滨州', '菏泽', '枣庄', '日照', '威海', '淄博', '开封', '新乡', '许昌', '南阳',
+  '周口', '商丘', '驻马店', '信阳', '平顶山', '焦作', '安阳', '濮阳', '漯河', '三门峡', '鹤壁', '黄石', '十堰',
+  '荆州', '荆门', '孝感', '黄冈', '咸宁', '随州', '恩施', '岳阳', '常德', '衡阳', '郴州', '永州', '邵阳', '怀化',
+  '娄底', '张家界', '益阳', '湘潭', '大庆', '齐齐哈尔', '牡丹江', '佳木斯', '鞍山', '抚顺', '本溪', '丹东',
+  '锦州', '营口', '阜新', '辽阳', '盘锦', '铁岭', '朝阳', '葫芦岛', '吉林市', '四平', '通化', '白山', '松原',
+  '白城', '延边', '包头', '鄂尔多斯', '赤峰', '通辽', '呼伦贝尔', '巴彦淖尔', '乌兰察布', '江门', '肇庆', '茂名',
+  '湛江', '梅州', '汕尾', '河源', '阳江', '清远', '潮州', '揭阳', '云浮', '北海', '防城港', '钦州', '贵港',
+  '玉林', '百色', '贺州', '河池', '来宾', '崇左', '泸州', '南充', '内江', '乐山', '自贡', '攀枝花', '广元',
+  '遂宁', '眉山', '广安', '达州', '雅安', '巴中', '资阳', '六盘水', '安顺', '毕节', '铜仁', '黔西南', '黔东南',
+  '黔南', '曲靖', '玉溪', '保山', '昭通', '丽江', '普洱', '临沧', '楚雄', '红河', '文山', '西双版纳', '大理',
+  '德宏', '怒江', '迪庆', '咸阳', '宝鸡', '渭南', '延安', '汉中', '榆林', '安康', '商洛', '铜川', '天水',
+  '嘉峪关', '武威', '张掖', '平凉', '酒泉', '庆阳', '定西', '陇南', '临夏', '甘南', '西宁', '海东', '海北',
+  '海南州', '黄南', '果洛', '玉树', '海西', '银川', '石嘴山', '吴忠', '固原', '中卫', '克拉玛依', '吐鲁番',
+  '哈密', '昌吉', '博尔塔拉', '巴音郭楞', '阿克苏', '克孜勒苏', '喀什', '和田', '伊犁', '塔城', '阿勒泰',
+  '台北', '高雄', '台中', '香港', '澳门',
+];
 const TRACKING_EXTRA_KEYS = ['ipAddress', 'ipCity', 'parentAccountId', 'keywords', 'riskDate', 'riskEffective', 'riskScreenshotUrl', 'riskNotes'];
 
 interface ColumnDef { key: string; label: string; custom: boolean }
@@ -997,7 +1024,16 @@ const TrafficAccountPage: React.FC = () => {
               </Col>
             )}
             <Col span={8}><Form.Item name="ipAddress" label="IP"><Input placeholder="手动填写当前 IP" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="ipCity" label="IP归属城市" tooltip="例如 广州；总览地图按这个城市打点"><Input placeholder="例如 广州 / 杭州" /></Form.Item></Col>
+            <Col span={8}>
+              <Form.Item name="ipCity" label="IP归属城市" tooltip="输入城市关键字，例如输入「山」可带出山东、山西">
+                <AutoComplete
+                  options={CITY_OPTIONS.map((v) => ({ value: v }))}
+                  filterOption={(input, option) => String(option?.value || '').includes(input)}
+                  placeholder="输入城市，例如 山 → 山东 / 山西"
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
             <Col span={8}><Form.Item name="keywords" label="关键词"><Input placeholder="例如 三角洲 / 上分" /></Form.Item></Col>
             <Col span={8}><Form.Item name="accountRole" label="人设"><Select options={ACCOUNT_ROLES.map((v) => ({ value: v, label: v }))} placeholder="情绪娱乐/技术上分/避坑干货" allowClear /></Form.Item></Col>
             <Col span={8}><Form.Item name="accountStyle" label="账号风格"><Input placeholder="甜妹 / 御姐 / 自定义" /></Form.Item></Col>
