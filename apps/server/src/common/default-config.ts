@@ -155,6 +155,7 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
 - 刚发 0-6 小时多只在「最新」，等系统收录至少 24 小时再判断。
 - 进综合池不是永久排名，同行大量发会掉排名，所以要持续产新笔记抢位置。
 - 别用自己账号搜自己笔记反复点，会干扰后台数据、产生无效浏览。`,
+  'traffic.risk_reasons': ['一次笔记违规', '同设备多账号', '频繁切号', '触发平台风控', '硬广/站外导流', '互赞互评'],
   'capture.interval_min_minutes': 12,
   'capture.interval_max_minutes': 18,
   'capture.first_delay_min_minutes': 1,

@@ -150,6 +150,7 @@ const TrafficAccountPage: React.FC = () => {
   const [noteForm] = Form.useForm();
   const noteFileInputRef = useRef<HTMLInputElement>(null);
   const [noteBenchmarks, setNoteBenchmarks] = useState<any>(null);
+  const [riskReasonOptions, setRiskReasonOptions] = useState<string[]>([]);
   const [liveNoteValues, setLiveNoteValues] = useState<any>({});
   // 账号计划表：对标笔记 + 内容排版生成器
   const [planOpen, setPlanOpen] = useState(false);
@@ -165,11 +166,13 @@ const TrafficAccountPage: React.FC = () => {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const { data } = await configApi.get(['traffic.account_columns', 'traffic.note_benchmarks', 'traffic.play_guide']);
+      const { data } = await configApi.get(['traffic.account_columns', 'traffic.note_benchmarks', 'traffic.play_guide', 'traffic.risk_reasons']);
       const c = data?.data?.['traffic.account_columns'];
       setColumns(Array.isArray(c) && c.length ? c : []);
       setNoteBenchmarks(data?.data?.['traffic.note_benchmarks'] ?? null);
       setPlayGuide(data?.data?.['traffic.play_guide'] ?? '');
+      const reasons = data?.data?.['traffic.risk_reasons'];
+      setRiskReasonOptions(Array.isArray(reasons) ? reasons.filter((x: any) => typeof x === 'string' && x.trim()) : []);
     } catch {}
   }, []);
 
@@ -1091,7 +1094,13 @@ const TrafficAccountPage: React.FC = () => {
                         </Col>
                         <Col span={8}>
                           <Form.Item {...rest} name={[name, 'note']} label="备注">
-                            <Input placeholder="风险原因 / 备注" />
+                            <Select
+                              allowClear
+                              showSearch
+                              optionFilterProp="label"
+                              placeholder={riskReasonOptions.length ? '选择风险原因（店长在设置里维护）' : '店长还没配置风险原因选项'}
+                              options={riskReasonOptions.map((v) => ({ value: v, label: v }))}
+                            />
                           </Form.Item>
                         </Col>
                         <Col span={7}>

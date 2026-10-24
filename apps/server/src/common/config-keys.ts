@@ -74,6 +74,7 @@ export const CONFIG_KEYS = [
   'ai.doubao_vision_model',
   'traffic.note_benchmarks',
   'traffic.play_guide',
+  'traffic.risk_reasons',
   'capture.interval_min_minutes',
   'capture.interval_max_minutes',
   'capture.first_delay_min_minutes',
@@ -542,6 +543,12 @@ const CONFIG_DEFINITIONS = {
     scope: 'STUDIO',
     default: DEFAULT_CONFIGS['traffic.play_guide'],
     description: '小红书图文矩阵玩法（长文案）',
+  },
+  'traffic.risk_reasons': {
+    type: 'string[]',
+    scope: 'STUDIO',
+    default: DEFAULT_CONFIGS['traffic.risk_reasons'],
+    description: '账号风险原因下拉选项',
   },
 
   // ── 截图（会话监拍）──

@@ -75,8 +75,8 @@ function makeController(prisma: any = makePrisma()) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('配置中心 · 键表与定义', () => {
-  it('120 个键全部有类型化定义（键表 / 定义表 / DEFAULT_CONFIGS 三方一一对应）', () => {
-    expect(CONFIG_KEYS.length).toBe(120);
+  it('121 个键全部有类型化定义（键表 / 定义表 / DEFAULT_CONFIGS 三方一一对应）', () => {
+    expect(CONFIG_KEYS.length).toBe(121);
     expect(new Set(CONFIG_KEYS).size).toBe(CONFIG_KEYS.length);
     // 双向零漂移：DEFAULT_CONFIGS 有但没定义 = missing；定义了但 DEFAULT_CONFIGS 没有 = extra
     expect(configDefinitionDrift()).toEqual({ missingDefinitions: [], extraDefinitions: [] });

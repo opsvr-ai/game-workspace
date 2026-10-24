@@ -199,6 +199,7 @@ const StudioSettings: React.FC = () => {
                   'options.contact_results': config?.['options.contact_results'] ?? [],
                   'options.finish_results': config?.['options.finish_results'] ?? [],
                   'options.fail_reasons': config?.['options.fail_reasons'] ?? [],
+                  'traffic.risk_reasons': config?.['traffic.risk_reasons'] ?? [],
                 }, '下拉选项');
                 setSavingOptions(false);
               }}
@@ -222,6 +223,11 @@ const StudioSettings: React.FC = () => {
           label="未完成原因选项"
           tags={config?.['options.fail_reasons'] ?? []}
           onChange={(tags) => update('options.fail_reasons', tags)}
+        />
+        <TagListEditor
+          label="账号风险原因选项"
+          tags={config?.['traffic.risk_reasons'] ?? []}
+          onChange={(tags) => update('traffic.risk_reasons', tags)}
         />
       </Card>
 
