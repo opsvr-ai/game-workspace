@@ -82,8 +82,8 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
     expect(pushed).toHaveLength(0);
   });
 
-  it('提醒后 10 分钟仍没处理：自动结束并计入业绩', async () => {
-    const { svc, pushed, updated } = setup([row({ durationRemindedAt: new Date(Date.now() - 11 * MIN) })]);
+  it('提醒后 20 分钟仍没处理：自动结束并计入业绩', async () => {
+    const { svc, pushed, updated } = setup([row({ durationRemindedAt: new Date(Date.now() - 21 * MIN) })]);
     await svc.tick();
     expect(pushed).toHaveLength(1);
     expect(pushed[0].event).toBe('service:auto_ended');

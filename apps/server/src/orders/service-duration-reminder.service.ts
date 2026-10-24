@@ -2,6 +2,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
+import { scheduleReleaseCompanionIfIdle } from '../common/companion-presence';
 
 /**
  * 服务时长到点提醒：由服务端定时检查进行中的会话，到达约定时长后推送给主陪客户端
@@ -30,7 +31,7 @@ export class ServiceDurationReminderService implements OnModuleInit {
   /** 填写 2h 就 2h 后再多给 10 分钟，再提醒结束 */
   private static readonly REMIND_GRACE_MS = 10 * 60 * 1000;
   /** 提醒后 10 分钟仍不处理：强制结束，避免无限挂着不计业绩 */
-  private static readonly AUTO_END_MS = 10 * 60 * 1000;
+  private static readonly AUTO_END_MS = 20 * 60 * 1000;
 
   async tick() {
     const now = Date.now();
@@ -125,14 +126,12 @@ export class ServiceDurationReminderService implements OnModuleInit {
       data: { status: 'DONE' },
     }).catch(() => {});
     for (const id of [s.companionId, s.coCompanionId].filter(Boolean) as string[]) {
-      // 不要在这里 release 成 AVAILABLE：客户端空闲模式会立刻按黑名单杀三角洲，
-      // 正在打的人就会被「自动结束」顺带踢出游戏。
-      // 只结束计费/订单，陪玩状态保持 BUSY，等他自己打完后手动切回空闲，
-      // 或由看门狗按离线逻辑处理。
+      // 自动结束同样给 3 分钟缓冲：先保持 BUSY、不杀游戏，3 分钟后没有新服务才回空闲。
+      scheduleReleaseCompanionIfIdle(this.prisma, id, sessionId);
       this.wsGateway.pushToCompanion(id, 'service:auto_ended', {
         sessionId,
         orderId: s.parentOrderId,
-        message: '服务到点提醒后 10 分钟仍未处理，已自动结束并计入业绩；游戏不会退出，打完后请手动切回空闲',
+        message: '服务到点提醒后 20 分钟仍未处理，已自动结束并计入业绩；3 分钟后切回空闲',
       });
     }
   }

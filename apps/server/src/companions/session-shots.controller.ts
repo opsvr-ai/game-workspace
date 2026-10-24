@@ -31,7 +31,7 @@ import { CustomerBaselineService } from './customer-baseline.service';
 import { yuanToCents } from '../common/money';
 import { resolveDepositDeduct } from '../common/deposit-deduct';
 import { resolveConfigsRaw } from '../common/studio-config';
-import { releaseCompanionIfIdle } from '../common/companion-presence';
+import { releaseCompanionIfIdle, scheduleReleaseCompanionIfIdle } from '../common/companion-presence';
 
 const SHOTS_DIR = join(process.cwd(), '..', '..', 'uploads', 'session-shots');
 
@@ -271,8 +271,8 @@ export class SessionShotsController {
     // 结束服务后恢复陪玩状态为空闲，避免依赖前端「完成订单」这一步。
     // 用「没有别的进行中会话才放回空闲」的判断，主陪和副陪都要复位：
     // 以前只改主陪，副陪会一直挂在「接单中」，收不到后面的急单。
-    await releaseCompanionIfIdle(this.prisma, session.companionId, id);
-    await releaseCompanionIfIdle(this.prisma, session.coCompanionId, id);
+    scheduleReleaseCompanionIfIdle(this.prisma, session.companionId, id);
+    scheduleReleaseCompanionIfIdle(this.prisma, session.coCompanionId, id);
 
     // 存单扣款（老板 2026-10-04：「有时候你统计的并不准，以陪玩自己输入的为准吧」）：
     // 陪玩在「结束服务」里填了金额就以他填的为准，没填才退回「实际时长 × 单价」；

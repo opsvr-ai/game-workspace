@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
 import { logger } from '../common/logger';
-import { releaseCompanionIfIdle } from '../common/companion-presence';
+import { scheduleReleaseCompanionIfIdle } from '../common/companion-presence';
 import { switchCompanionStatus } from '../common/companion-status-switch';
 import { computeEntertainmentFee, loadEntertainmentRule, manualTodayBoost } from '../common/entertainment-fee';
 import { companionOrderRevenue } from '../common/order-revenue';
@@ -934,27 +934,9 @@ export class OrderSessionService {
     coCompanionId?: string | null;
     parentOrderId?: string | null;
   }): Promise<void> {
-    const ids = [s.companionId, s.coCompanionId].filter(Boolean) as string[];
-    if (!ids.length) return;
-    const studioId = s.parentOrderId
-      ? (
-          await this.prisma.order
-            .findUnique({ where: { id: s.parentOrderId }, select: { studioId: true } })
-            .catch(() => null)
-        )?.studioId
-      : null;
-    for (const companionId of ids) {
-      const released = await releaseCompanionIfIdle(this.prisma, companionId, s.id);
-      if (released && studioId) {
-        try {
-          this.wsGateway.broadcastToStudio(studioId, 'status:broadcast', {
-            companionId,
-            status: 'AVAILABLE',
-          });
-        } catch {
-          /* 广播失败不影响结束服务本身 */
-        }
-      }
+    // 结束服务后先保持 BUSY 3 分钟，给陪玩切模式/回游戏留时间，避免空闲黑名单立刻杀游戏。
+    for (const companionId of [s.companionId, s.coCompanionId].filter(Boolean) as string[]) {
+      scheduleReleaseCompanionIfIdle(this.prisma, companionId, s.id);
     }
   }
 }

@@ -45,3 +45,20 @@ export async function releaseCompanionIfIdle(
   await switchCompanionStatus(prisma, companionId, 'AVAILABLE');
   return true;
 }
+
+/**
+ * 服务结束后的 3 分钟缓冲：先保持 BUSY，不触发客户端空闲黑名单杀游戏；
+ * 3 分钟内没有新服务才放回 AVAILABLE。老板 2026-10-25：点完结束服务要留时间切模式。
+ */
+export function scheduleReleaseCompanionIfIdle(
+  prisma: PrismaService,
+  companionId?: string | null,
+  excludeSessionId?: string,
+  delayMs = 3 * 60 * 1000,
+): void {
+  if (!companionId) return;
+  const timer = setTimeout(() => {
+    void releaseCompanionIfIdle(prisma, companionId, excludeSessionId).catch(() => {});
+  }, delayMs);
+  timer.unref?.();
+}

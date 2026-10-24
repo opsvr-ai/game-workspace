@@ -48,6 +48,15 @@ export class OrderWorkflowService {
     await this.wsGateway.refreshCompanionBlacklist(companionId);
   }
 
+  /** 结束服务后延迟 3 分钟再放空闲：给陪玩切模式/回游戏留缓冲，避免空闲黑名单立刻杀游戏。 */
+  private scheduleCompanionAvailable(companionId?: string | null): void {
+    if (!companionId) return;
+    const timer = setTimeout(() => {
+      void this.refreshCompanionAvailable(companionId).catch(() => {});
+    }, 3 * 60 * 1000);
+    timer.unref?.();
+  }
+
   async grab(orderId: string, companionId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
@@ -299,8 +308,8 @@ export class OrderWorkflowService {
     }
 
     const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (order.companionId) await this.refreshCompanionAvailable(order.companionId);
-    if (order.coCompanionId) await this.refreshCompanionAvailable(order.coCompanionId);
+    this.scheduleCompanionAvailable(order.companionId);
+    this.scheduleCompanionAvailable(order.coCompanionId);
     if (updated) this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
