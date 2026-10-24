@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Card, Col, Empty, Input, Row, Select, Space, Statistic, Table, Tag, Typography, Progress } from 'antd';
+import { Button, Card, Col, Empty, Input, Row, Select, Space, Statistic, Table, Tag, Typography, Progress, Tree } from 'antd';
+import type { TreeDataNode } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import * as echarts from 'echarts';
@@ -96,6 +97,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
   const [platform, setPlatform] = useState<string | undefined>();
   const [city, setCity] = useState<string | undefined>();
   const [mapReady, setMapReady] = useState(false);
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
   const [mapError, setMapError] = useState('');
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -267,6 +269,84 @@ const TrafficAccountOverviewPage: React.FC = () => {
     小红书: '📕', 抖音: '🎵', 视频号: '📹', 快手: '⚡', 咸鱼: '🐟', B站: '📺',
   };
 
+  const keywordList = (item: TrafficAccountItem): string[] => {
+    const raw = String(item.extra?.keywords || '').trim();
+    const words = raw.split(/[\/,，、;；|]+/).map((s) => s.trim()).filter(Boolean);
+    return words.length ? [...new Set(words)] : ['未填关键词'];
+  };
+
+  /** 从平台 → 关键词 → 细分风格 → 编号/账号，做一棵可展开的树。 */
+  const treeData = useMemo<TreeDataNode[]>(() => {
+    const byPlatform = new Map<string, Map<string, Map<string, TrafficAccountItem[]>>>();
+    for (const it of filtered) {
+      const platform = it.type || '未填写平台';
+      const keywords = keywordList(it);
+      const style = styleOf(it);
+      if (!byPlatform.has(platform)) byPlatform.set(platform, new Map());
+      const byKeyword = byPlatform.get(platform)!;
+      for (const keyword of keywords) {
+        if (!byKeyword.has(keyword)) byKeyword.set(keyword, new Map());
+        const byStyle = byKeyword.get(keyword)!;
+        if (!byStyle.has(style)) byStyle.set(style, []);
+        byStyle.get(style)!.push(it);
+      }
+    }
+
+    let seq = 0;
+    return [...byPlatform.entries()].sort((a, b) => a[0].localeCompare(b[0], 'zh')).map(([platform, byKeyword]) => {
+      const platformCount = filtered.filter((i) => (i.type || '未填写平台') === platform).length;
+      const keywordNodes: TreeDataNode[] = [...byKeyword.entries()].map(([keyword, byStyle]) => {
+        const styleNodes: TreeDataNode[] = [...byStyle.entries()].map(([style, accounts]) => {
+          const meta = styleMeta(style);
+          const accountNodes: TreeDataNode[] = accounts.map((it) => {
+            seq += 1;
+            const code = it.code || it.accountId || String(seq);
+            return {
+              key: `account-${it.id}`,
+              isLeaf: true,
+              title: `编号 ${code} · ${it.nickname || '未命名'}`,
+            };
+          });
+          return {
+            key: `style-${platform}-${keyword}-${style}`,
+            title: `${meta.emoji} ${style}（${accounts.length}）`,
+            children: accountNodes,
+          };
+        });
+        const keywordCount = [...byStyle.values()].reduce((s, arr) => s + arr.length, 0);
+        return {
+          key: `keyword-${platform}-${keyword}`,
+          title: `# ${keyword}（${keywordCount}）`,
+          children: styleNodes,
+        };
+      });
+      return {
+        key: `platform-${platform}`,
+        title: `${platformIcon[platform] || '📱'} ${platform}（${platformCount}）`,
+        children: keywordNodes,
+      };
+    });
+  }, [filtered]);
+
+  const treeKeys = useMemo(() => {
+    const keys: string[] = [];
+    const walk = (nodes: TreeDataNode[]) => {
+      nodes.forEach((n) => {
+        if (n.children?.length) {
+          keys.push(String(n.key));
+          walk(n.children);
+        }
+      });
+    };
+    walk(treeData);
+    return keys;
+  }, [treeData]);
+
+  useEffect(() => {
+    // 默认展开到「风格」层，账号编号也直接露出来；平台/关键词/风格都能点开收起。
+    setExpandedKeys(treeKeys.filter((k) => !k.startsWith('account-')));
+  }, [treeKeys]);
+
   useEffect(() => {
     if (!mapReady || !chartInstance.current) return;
     const points = [...cityStats.entries()]
@@ -409,6 +489,24 @@ const TrafficAccountOverviewPage: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      <Card
+        size="small"
+        title="账号树状图（平台 → 关键词 → 风格 → 编号）"
+        style={{ marginBottom: 12 }}
+        extra={<Space><Button size="small" onClick={() => setExpandedKeys(treeKeys)}>展开全部</Button><Button size="small" onClick={() => setExpandedKeys([])}>收起全部</Button></Space>}
+      >
+        {treeData.length ? (
+          <Tree
+            treeData={treeData}
+            expandedKeys={expandedKeys}
+            onExpand={(keys) => setExpandedKeys(keys)}
+            showLine
+            blockNode
+            selectable={false}
+          />
+        ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有可展示的账号" />}
+      </Card>
 
       <Row gutter={12} style={{ marginBottom: 12 }}>
         <Col span={8}>
