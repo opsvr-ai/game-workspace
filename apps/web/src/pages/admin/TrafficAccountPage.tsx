@@ -241,6 +241,7 @@ const TrafficAccountPage: React.FC = () => {
     form.resetFields();
     const extraValues: Record<string, any> = { ...(record.extra || {}) };
     if (extraValues.purchaseDate) extraValues.purchaseDate = dayjs(extraValues.purchaseDate);
+    if (!extraValues.ipCity && record.wifiRegion) extraValues.ipCity = record.wifiRegion;
     if (extraValues.riskDate) extraValues.riskDate = dayjs(extraValues.riskDate);
     const oldRiskNotes = Array.isArray(extraValues.riskNotes) ? extraValues.riskNotes : [];
     if (!oldRiskNotes.length && (extraValues.riskDate || record.riskNote)) {
@@ -752,7 +753,7 @@ const TrafficAccountPage: React.FC = () => {
     { title: '账号', width: 110, keys: ['type', 'code'] },
     { title: '流量 / 人设 / 关键词', width: 142, keys: ['trafficLevel', '__role', '__keywords'] },
     { title: '昵称 / ID', width: 132, keys: ['nickname', 'accountId'] },
-    { title: '网络', width: 134, keys: ['wifi', 'wifiNote', 'wifiRegion', '__ip'] },
+    { title: '网络', width: 134, keys: ['wifi', 'wifiNote', '__ip'] },
     { title: '时间', width: 110, keys: ['purchaseDate', 'registerDate', 'banDate'] },
     { title: '风险 / 封禁', width: 134, keys: ['riskPopped', 'riskNote', 'banned', 'banNote'] },
     { title: '账号资料', width: 130, keys: ['phone', 'realName', 'promotionContact'] },
@@ -1012,7 +1013,6 @@ const TrafficAccountPage: React.FC = () => {
             <Col span={8}><Form.Item name="accountId" label="ID"><Input placeholder="账号ID / 主页链接" /></Form.Item></Col>
             <Col span={8}><Form.Item name="wifi" label="WiFi"><Input placeholder="WiFi名称" /></Form.Item></Col>
             <Col span={8}><Form.Item name="wifiNote" label="WiFi备注"><Input placeholder="备注" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="wifiRegion" label="WiFi地区"><Input placeholder="例如 杭州" /></Form.Item></Col>
             <Col span={8}><Form.Item name="purchaseDate" label="购买时间"><DatePicker style={{ width: '100%' }} placeholder="选择购买时间" /></Form.Item></Col>
             <Col span={8}><Form.Item name="riskPopped" label="是否弹过风险"><Select options={YES_NO.map((v) => ({ value: v, label: v }))} allowClear /></Form.Item></Col>
             <Col span={24}>
