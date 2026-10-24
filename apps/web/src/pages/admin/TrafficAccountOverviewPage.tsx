@@ -370,7 +370,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
         initialTreeDepth: 4,
         roam: true,
         expandAndCollapse: true,
-        animationDuration: 300,
+        animationDuration: 0,
         edgeShape: 'polyline',
         lineStyle: { color: '#b9cdf2', width: 1.5 },
         label: {
@@ -409,6 +409,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
       }));
     chartInstance.current.setOption({
       backgroundColor: 'transparent',
+      animation: false,
       tooltip: {
         trigger: 'item',
         formatter: (p: any) => {
@@ -425,12 +426,10 @@ const TrafficAccountOverviewPage: React.FC = () => {
       },
       series: [{
         name: '账号IP',
-        type: 'effectScatter',
+        type: 'scatter',
         coordinateSystem: 'geo',
         data: points,
         symbolSize: (v: any) => Math.min(42, 14 + Number(v[2] || 0) * 6),
-        showEffectOn: 'render',
-        rippleEffect: { brushType: 'stroke', scale: 2.6 },
         label: {
           show: true,
           position: 'right',

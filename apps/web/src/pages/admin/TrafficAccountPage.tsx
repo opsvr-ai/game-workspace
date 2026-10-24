@@ -16,6 +16,7 @@ import { contentCheckApi } from '../../api/contentCheck';
 import CollectorPluginHint from '../../components/CollectorPluginHint';
 import PasteImageBox from '../../components/PasteImageBox';
 import { getImagesFromClipboard, getImageFileFromClipboard } from '../../utils/clipboardImage';
+import { setBusy, clearBusy } from '../../utils/busyGuard';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { TABLE_STYLE } from '../../constants/datasetColumns';
@@ -192,6 +193,14 @@ const TrafficAccountPage: React.FC = () => {
     fetchConfig();
     fetchItems();
   }, [fetchConfig, fetchItems]);
+
+  // 编辑账号时登记「正在写」：网页自动换版 / 客户端主进程刷新都会先让路，
+  // 避免刚填完风险、截图、城市就被整页刷掉。
+  useEffect(() => {
+    if (!modalOpen) return;
+    setBusy('traffic-account-edit', true);
+    return () => clearBusy('traffic-account-edit');
+  }, [modalOpen]);
 
   /**
    * 可选的归属人：该工作室的客服（含已离职的 —— 离职的只展示、不可选，
