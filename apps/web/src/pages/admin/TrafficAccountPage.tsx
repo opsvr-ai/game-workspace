@@ -1050,14 +1050,16 @@ const TrafficAccountPage: React.FC = () => {
             </Col>
             <Col span={8}><Form.Item name="keywords" label="关键词"><Input placeholder="例如 三角洲 / 上分" /></Form.Item></Col>
             <Col span={8}><Form.Item name="accountRole" label="人设"><Select options={ACCOUNT_ROLES.map((v) => ({ value: v, label: v }))} placeholder="情绪娱乐/技术上分/避坑干货" allowClear /></Form.Item></Col>
-            <Col span={8}><Form.Item name="accountStyle" label="账号风格"><Input placeholder="甜妹 / 御姐 / 自定义" /></Form.Item></Col>
-            <Col span={24}>
-              <Space wrap size={4} style={{ marginBottom: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>{watchedRole ? `${watchedRole}下的细分风格：` : '先选人设，或直接点细分风格：'}</Text>
-                {stylePresets.map((s) => (
-                  <Tag key={s} style={{ cursor: 'pointer' }} onClick={() => form.setFieldValue('accountStyle', s)}>{s}</Tag>
-                ))}
-              </Space>
+            <Col span={8}>
+              <Form.Item name="accountStyle" label="账号风格">
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder={watchedRole ? `选择${watchedRole}下的风格` : '先选人设，再选风格'}
+                  options={stylePresets.map((s) => ({ value: s, label: s }))}
+                />
+              </Form.Item>
             </Col>
             <Col span={8}><Form.Item name="nickname" label="昵称" rules={[{ required: true, message: '请输入昵称' }]}><Input placeholder="昵称" /></Form.Item></Col>
             <Col span={8}><Form.Item name="accountId" label="ID"><Input placeholder="账号ID / 主页链接" /></Form.Item></Col>
