@@ -1,12 +1,13 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Button, Space, Table, Typography, Tag, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert, Card,
+  Button, Space, Table, Typography, Tag, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert, Card, Upload,
 } from 'antd';
 import { message } from '../../utils/feedback';
+import { extractErrorMessage } from '../../utils/error-handler';
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, FolderOpenOutlined, SettingOutlined, FileTextOutlined, ThunderboltOutlined,
-  LeftOutlined, RightOutlined, CameraOutlined, CopyOutlined,
+  LeftOutlined, RightOutlined, CameraOutlined, CopyOutlined, UploadOutlined,
 } from '@ant-design/icons';
 import { trafficAccountApi, TrafficAccountItem, TrafficNoteItem } from '../../api/trafficAccount';
 import { employeesApi } from '../../api/employees';
@@ -22,6 +23,7 @@ import { NOTE_TEMPLATES } from '../../utils/noteTemplates';
 import dayjs from 'dayjs';
 import { BRAND, TEXT, BG, SEMANTIC } from '../../styles/tokens';
 import PageHeader from '../../components/PageHeader';
+import http from '../../api/client';
 
 const { Text, Title } = Typography;
 const TYPE_COLORS: Record<string, string> = {
@@ -31,7 +33,7 @@ const TRAFFIC_LEVELS = ['优', '中', '差'];
 const YES_NO = ['是', '否'];
 const PLATFORMS = ['抖音', '小红书', '视频号', '快手', '咸鱼', 'B站'];
 const ACCOUNT_ROLES = ['情绪娱乐号', '技术上分号', '避坑干货号'];
-const TRACKING_EXTRA_KEYS = ['ipAddress', 'parentAccountId', 'keywords'];
+const TRACKING_EXTRA_KEYS = ['ipAddress', 'parentAccountId', 'keywords', 'riskDate', 'riskEffective', 'riskScreenshotUrl'];
 
 interface ColumnDef { key: string; label: string; custom: boolean }
 
@@ -236,6 +238,7 @@ const TrafficAccountPage: React.FC = () => {
     form.resetFields();
     const extraValues: Record<string, any> = { ...(record.extra || {}) };
     if (extraValues.purchaseDate) extraValues.purchaseDate = dayjs(extraValues.purchaseDate);
+    if (extraValues.riskDate) extraValues.riskDate = dayjs(extraValues.riskDate);
     form.setFieldsValue({
       ...record,
       registerDate: record.registerDate ? dayjs(record.registerDate) : null,
@@ -243,6 +246,25 @@ const TrafficAccountPage: React.FC = () => {
       ...extraValues,
     });
     setModalOpen(true);
+  };
+
+  const [riskUploading, setRiskUploading] = useState(false);
+
+  const uploadRiskScreenshot = async (file: File) => {
+    setRiskUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data }: any = await http.post('/upload/screenshot', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = data?.data?.url;
+      if (!url) throw new Error('上传失败');
+      form.setFieldValue('riskScreenshotUrl', url);
+      message.success('风险截图已上传');
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '截图上传失败'));
+    } finally {
+      setRiskUploading(false);
+    }
   };
 
   const openReplace = async (record: TrafficAccountItem) => {
@@ -279,7 +301,7 @@ const TrafficAccountPage: React.FC = () => {
     for (const [k, v] of Object.entries(nextValues)) {
       const col = columns.find((c) => c.key === k);
       if (col?.custom || TRACKING_EXTRA_KEYS.includes(k)) {
-        extra[k] = k === 'purchaseDate' && v ? dayjs(v as any).format('YYYY-MM-DD') : v;
+        extra[k] = k === 'purchaseDate' && v ? dayjs(v as any).format('YYYY-MM-DD') : (k === 'riskDate' && v ? dayjs(v as any).format('YYYY-MM-DD') : v);
       }
       else if (k === 'registerDate' || k === 'banDate') base[k] = v ? dayjs(v as any).format('YYYY-MM-DD') : null;
       else base[k] = v;
@@ -958,7 +980,27 @@ const TrafficAccountPage: React.FC = () => {
             <Col span={8}><Form.Item name="wifiRegion" label="WiFi地区"><Input placeholder="例如 杭州" /></Form.Item></Col>
             <Col span={8}><Form.Item name="purchaseDate" label="购买时间"><DatePicker style={{ width: '100%' }} placeholder="选择购买时间" /></Form.Item></Col>
             <Col span={8}><Form.Item name="riskPopped" label="是否弹过风险"><Select options={YES_NO.map((v) => ({ value: v, label: v }))} allowClear /></Form.Item></Col>
-            <Col span={8}><Form.Item name="riskNote" label="风险备注"><Input placeholder="风险说明" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="riskDate" label="风险日期"><DatePicker style={{ width: '100%' }} placeholder="选择风险发生日期" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="riskEffective" label="生效"><Select allowClear placeholder="没写 / 永久" options={[{ value: '没写', label: '没写' }, { value: '永久', label: '永久' }]} /></Form.Item></Col>
+            <Col span={24}><Form.Item name="riskNote" label="风险原因"><Input.TextArea rows={2} placeholder="例如：频繁切号 / 同设备多账号 / 触发平台风控" /></Form.Item></Col>
+            <Col span={24}>
+              <Form.Item label="风险账号截图（可直接 Ctrl+V 粘贴）">
+                <PasteImageBox onFile={uploadRiskScreenshot}>
+                  <Upload showUploadList={false} accept="image/*" beforeUpload={(file) => { void uploadRiskScreenshot(file); return false; }}>
+                    <Button icon={<UploadOutlined />} loading={riskUploading}>
+                      {form.getFieldValue('riskScreenshotUrl') ? '重新上传风险截图' : '上传风险截图'}
+                    </Button>
+                  </Upload>
+                </PasteImageBox>
+                <Form.Item name="riskScreenshotUrl" hidden><Input /></Form.Item>
+                <Form.Item noStyle shouldUpdate>
+                  {() => {
+                    const url = form.getFieldValue('riskScreenshotUrl');
+                    return url ? <a href={url} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>查看已上传截图</a> : null;
+                  }}
+                </Form.Item>
+              </Form.Item>
+            </Col>
             <Col span={8}><Form.Item name="banned" label="是否封禁过"><Select options={YES_NO.map((v) => ({ value: v, label: v }))} allowClear /></Form.Item></Col>
             <Col span={8}><Form.Item name="banNote" label="封禁备注"><Input placeholder="封禁说明" /></Form.Item></Col>
             <Col span={8}><Form.Item name="phone" label="注册手机号"><Input placeholder="手机号" /></Form.Item></Col>
