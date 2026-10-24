@@ -9,6 +9,7 @@ import { financeApi } from '../api/finance';
 import { DispatchType } from '@chunlv/shared';
 import http from '../api/client';
 import PasteImageBox from './PasteImageBox';
+import { getImageFileFromClipboard } from '../utils/clipboardImage';
 import { TransferNote, transferList } from './OrderTransferNote';
 import { orderTypeConfig, dispatchTypeConfig, deltaMissionDefaultPrice } from '../constants/orders';
 import { clearDraft, loadDraft, saveDraft } from '../utils/draft';
@@ -219,6 +220,16 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
     return false;
   };
 
+  const handleQrPaste = (e: React.ClipboardEvent) => {
+    if (roomCodeOnly) return;
+    const file = getImageFileFromClipboard(e);
+    if (!file) return;
+    // 焦点经常还在客户微信/昵称输入框里；PasteImageBox 会避开文字输入框，
+    // 所以在订单表单这一层统一接图片：不管焦点在哪，粘到图片就传客户二维码。
+    e.preventDefault();
+    void uploadCustomerWechatQr(file);
+  };
+
   const handleOk = async () => {
     try {
       const v = await form.validateFields();
@@ -333,6 +344,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         layout="vertical"
         style={{ marginTop: 8 }}
         size="small"
+        onPaste={handleQrPaste}
         // 填一下存一下（写 localStorage，顺手把「我在写」登记到 busyGuard）
         onValuesChange={(_, all) => {
           if (!draftKey || skipDraftSaveRef.current) return;

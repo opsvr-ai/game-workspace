@@ -321,6 +321,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **发布订单客户二维码无法 Ctrl+V 粘贴（2026-10-24，网页 v1133）。**
+  - 焦点在客户微信/昵称等输入框时，PasteImageBox 按设计避开文字输入框；
+  - 订单表单层新增图片粘贴兜底：只要剪贴板是图片，不管焦点在哪都上传为客户二维码；
+  - 文字粘贴不受影响。
+
 - **开始首单后没有结束服务按钮（2026-10-24，服务端）。**
   - 根因：会话创建成功但 `startedAt` 为空，客户页只认“已开始”的 ACTIVE 会话；
   - 单陪 `addSession` 的自动开始不再要求 `companionId` 与 actor 完全相等（前面已经校验过订单归属）；
