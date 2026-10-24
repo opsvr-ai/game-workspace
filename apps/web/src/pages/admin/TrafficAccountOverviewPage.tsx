@@ -197,11 +197,26 @@ const TrafficAccountOverviewPage: React.FC = () => {
     }).filter((g) => (TRAFFIC_ACCOUNT_ROLES as readonly string[]).includes(g.type) || g.total > 0);
   }, [filtered]);
 
-  const banStats = useMemo(() => {
+  const riskReasonStats = useMemo(() => {
+    const map = new Map<string, TrafficAccountItem[]>();
+    for (const it of filtered) {
+      const reasons = new Set<string>();
+      for (const n of riskNotesOf(it)) if (n?.note) reasons.add(String(n.note));
+      if (it.riskNote) reasons.add(String(it.riskNote));
+      if (!reasons.size && it.riskPopped === '是') reasons.add('未填写原因');
+      for (const reason of reasons) {
+        const key = reason.split(/[；;。]/)[0].slice(0, 30);
+        map.set(key, [...(map.get(key) || []), it]);
+      }
+    }
+    return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
+  }, [filtered]);
+
+  const banReasonStats = useMemo(() => {
     const map = new Map<string, TrafficAccountItem[]>();
     for (const it of filtered) {
       if (it.banned !== '是' && !it.banNote) continue;
-      const reason = String(it.banNote || '未填写原因').split(/[；;。]/)[0].slice(0, 24);
+      const reason = String(it.banNote || '未填写原因').split(/[；;。]/)[0].slice(0, 30);
       map.set(reason, [...(map.get(reason) || []), it]);
     }
     return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
@@ -440,17 +455,33 @@ const TrafficAccountOverviewPage: React.FC = () => {
       </Row>
 
       <Row gutter={12}>
-        <Col span={12}>
-          <Card size="small" title="封号/风险原因">
-            {banStats.length ? banStats.map(([reason, list]) => (
-              <div key={reason} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                <Text ellipsis style={{ maxWidth: '75%' }}>{reason}</Text>
-                <Space size={4} wrap>{list.map((it) => <Tag key={it.id}>{it.nickname}</Tag>)}</Space>
+        <Col span={8}>
+          <Card size="small" title="风险原因">
+            {riskReasonStats.length ? riskReasonStats.map(([reason, list]) => (
+              <div key={reason} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <Text ellipsis style={{ maxWidth: '75%' }}>{reason}</Text>
+                  <Tag color="orange">{list.length} 个</Tag>
+                </div>
+                <Space size={4} wrap style={{ marginTop: 3 }}>{list.map((it) => <Tag key={it.id}>{it.nickname}</Tag>)}</Space>
               </div>
-            )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+            )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有填写风险原因" />}
           </Card>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
+          <Card size="small" title="封号原因">
+            {banReasonStats.length ? banReasonStats.map(([reason, list]) => (
+              <div key={reason} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <Text ellipsis style={{ maxWidth: '75%' }}>{reason}</Text>
+                  <Tag color="red">{list.length} 个</Tag>
+                </div>
+                <Space size={4} wrap style={{ marginTop: 3 }}>{list.map((it) => <Tag key={it.id}>{it.nickname}</Tag>)}</Space>
+              </div>
+            )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有封号记录" />}
+          </Card>
+        </Col>
+        <Col span={8}>
           <Card size="small" title="账号明细">
             <Table
               rowKey="id"
