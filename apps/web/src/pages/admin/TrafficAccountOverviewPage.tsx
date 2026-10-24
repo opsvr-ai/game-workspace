@@ -5,7 +5,7 @@ import { ArrowLeftOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/i
 import { useNavigate } from 'react-router-dom';
 import * as echarts from 'echarts';
 import { trafficAccountApi, TrafficAccountItem } from '../../api/trafficAccount';
-import { TRAFFIC_ACCOUNT_ROLES, inferTrafficRole, normalizeTrafficStyle } from '../../constants/trafficStyles';
+import { TRAFFIC_ACCOUNT_ROLES, TRAFFIC_STYLE_PRESETS, inferTrafficRole, normalizeTrafficStyle } from '../../constants/trafficStyles';
 import PageHeader from '../../components/PageHeader';
 import { BRAND, TEXT } from '../../styles/tokens';
 
@@ -182,10 +182,17 @@ const TrafficAccountOverviewPage: React.FC = () => {
         const s = styleOf(it);
         styles.set(s, [...(styles.get(s) || []), it]);
       }
+      // 3 个大类都固定展示官方细分风格，哪怕当前是 0 个：
+      // 「技术上分号」也要有甜妹/御姐/少萝/COS/真实照 这几张小卡，不能只显示未细分。
+      const presets = TRAFFIC_STYLE_PRESETS[type] || [];
+      const ordered = [
+        ...presets.map((s) => [s, styles.get(s) || []] as [string, TrafficAccountItem[]]),
+        ...[...styles.entries()].filter(([s]) => !presets.includes(s)),
+      ];
       return {
         type,
         total: list.length,
-        styles: [...styles.entries()].sort((a, b) => b[1].length - a[1].length),
+        styles: ordered,
       };
     }).filter((g) => g.total > 0);
   }, [filtered]);
