@@ -194,7 +194,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
         total: list.length,
         styles: ordered,
       };
-    }).filter((g) => g.total > 0);
+    }).filter((g) => (TRAFFIC_ACCOUNT_ROLES as readonly string[]).includes(g.type) || g.total > 0);
   }, [filtered]);
 
   const banStats = useMemo(() => {
