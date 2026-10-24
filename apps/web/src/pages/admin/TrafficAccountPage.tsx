@@ -34,6 +34,7 @@ const TRAFFIC_LEVELS = ['优', '中', '差'];
 const YES_NO = ['是', '否'];
 const PLATFORMS = ['抖音', '小红书', '视频号', '快手', '咸鱼', 'B站'];
 const ACCOUNT_ROLES = ['情绪娱乐号', '技术上分号', '避坑干货号'];
+const STYLE_PRESETS = ['甜妹', '御姐', '邻家', '高冷', '情绪娱乐', '技术大神', '避坑干货'];
 const TRACKING_EXTRA_KEYS = ['ipAddress', 'ipCity', 'parentAccountId', 'keywords', 'riskDate', 'riskEffective', 'riskScreenshotUrl', 'riskNotes'];
 
 interface ColumnDef { key: string; label: string; custom: boolean }
@@ -998,6 +999,15 @@ const TrafficAccountPage: React.FC = () => {
             <Col span={8}><Form.Item name="ipCity" label="IP归属城市" tooltip="例如 广州；总览地图按这个城市打点"><Input placeholder="例如 广州 / 杭州" /></Form.Item></Col>
             <Col span={8}><Form.Item name="keywords" label="关键词"><Input placeholder="例如 三角洲 / 上分" /></Form.Item></Col>
             <Col span={8}><Form.Item name="accountRole" label="人设"><Select options={ACCOUNT_ROLES.map((v) => ({ value: v, label: v }))} placeholder="情绪娱乐/技术上分/避坑干货" allowClear /></Form.Item></Col>
+            <Col span={8}><Form.Item name="accountStyle" label="账号风格"><Input placeholder="甜妹 / 御姐 / 自定义" /></Form.Item></Col>
+            <Col span={24}>
+              <Space wrap size={4} style={{ marginBottom: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>快速选择风格：</Text>
+                {STYLE_PRESETS.map((s) => (
+                  <Tag key={s} style={{ cursor: 'pointer' }} onClick={() => form.setFieldValue('accountStyle', s)}>{s}</Tag>
+                ))}
+              </Space>
+            </Col>
             <Col span={8}><Form.Item name="nickname" label="昵称" rules={[{ required: true, message: '请输入昵称' }]}><Input placeholder="昵称" /></Form.Item></Col>
             <Col span={8}><Form.Item name="accountId" label="ID"><Input placeholder="账号ID / 主页链接" /></Form.Item></Col>
             <Col span={8}><Form.Item name="wifi" label="WiFi"><Input placeholder="WiFi名称" /></Form.Item></Col>

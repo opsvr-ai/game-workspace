@@ -34,6 +34,28 @@ const CITY_COORD: Record<string, [number, number]> = {
 
 const HOT_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京', '苏州', '重庆', '西安', '长沙'];
 
+/** 风格卡片：有 emoji 当小图，没配过的风格用首字 + 稳定颜色。 */
+const STYLE_META: Record<string, { emoji: string; color: string }> = {
+  甜妹: { emoji: '🌸', color: '#ff85c0' },
+  御姐: { emoji: '💃', color: '#9254de' },
+  邻家: { emoji: '🌿', color: '#52c41a' },
+  高冷: { emoji: '❄️', color: '#69b1ff' },
+  情绪娱乐: { emoji: '🎧', color: '#ff7a45' },
+  情绪娱乐号: { emoji: '🎧', color: '#ff7a45' },
+  技术大神: { emoji: '🎮', color: '#13c2c2' },
+  技术上分号: { emoji: '🎮', color: '#13c2c2' },
+  避坑干货: { emoji: '🛡️', color: '#faad14' },
+  避坑干货号: { emoji: '🛡️', color: '#faad14' },
+};
+
+function styleOf(item: TrafficAccountItem): string {
+  return (item.accountStyle || item.accountRole || '未填写').trim() || '未填写';
+}
+
+function styleMeta(style: string): { emoji: string; color: string } {
+  return STYLE_META[style] || { emoji: style.slice(0, 1) || '🙂', color: '#8c8c8c' };
+}
+
 function cityOf(item: TrafficAccountItem): string {
   const extra = item.extra || {};
   const raw = String(extra.ipCity || extra.city || item.wifiRegion || extra.ipAddress || '').trim();
@@ -54,6 +76,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [role, setRole] = useState<string | undefined>();
+  const [style, setStyle] = useState<string | undefined>();
   const [risk, setRisk] = useState<string | undefined>();
   const [riskReason, setRiskReason] = useState<string | undefined>();
   const [platform, setPlatform] = useState<string | undefined>();
@@ -106,6 +129,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
 
   const filtered = useMemo(() => items.filter((it) => {
     if (role && it.accountRole !== role) return false;
+    if (style && styleOf(it) !== style) return false;
     if (platform && it.type !== platform) return false;
     if (city && cityOf(it) !== city) return false;
     if (risk === '风险' && it.riskPopped !== '是' && !riskNotesOf(it).length) return false;
@@ -120,7 +144,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
       if (!text.includes(search.toLowerCase())) return false;
     }
     return true;
-  }), [items, role, risk, riskReason, platform, city, search]);
+  }), [items, role, style, risk, riskReason, platform, city, search]);
 
   const cityStats = useMemo(() => {
     const map = new Map<string, TrafficAccountItem[]>();
@@ -131,10 +155,13 @@ const TrafficAccountOverviewPage: React.FC = () => {
     return map;
   }, [filtered]);
 
-  const roleStats = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const it of filtered) map.set(it.accountRole || '未填写', (map.get(it.accountRole || '未填写') || 0) + 1);
-    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  const styleStats = useMemo(() => {
+    const map = new Map<string, TrafficAccountItem[]>();
+    for (const it of filtered) {
+      const s = styleOf(it);
+      map.set(s, [...(map.get(s) || []), it]);
+    }
+    return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [filtered]);
 
   const banStats = useMemo(() => {
@@ -196,6 +223,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
   }, [mapReady, cityStats]);
 
   const roleOptions = [...new Set(items.map((i) => i.accountRole).filter(Boolean))] as string[];
+  const styleOptions = [...new Set(items.map((i) => styleOf(i)).filter(Boolean))] as string[];
   const platformOptions = [...new Set(items.map((i) => i.type).filter(Boolean))] as string[];
   const riskReasonOptions = [...new Set(items.flatMap((i) => [
     i.riskNote,
@@ -214,6 +242,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
         <Space wrap>
           <Input allowClear prefix={<SearchOutlined />} placeholder="搜昵称 / 编号 / 城市 / 风险" value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 260 }} />
           <Select allowClear placeholder="人设" value={role} onChange={setRole} options={roleOptions.map((v) => ({ value: v, label: v }))} style={{ width: 160 }} />
+          <Select allowClear placeholder="账号风格" value={style} onChange={setStyle} options={styleOptions.map((v) => ({ value: v, label: v }))} style={{ width: 150 }} />
           <Select allowClear placeholder="风险/封禁" value={risk} onChange={setRisk} options={[{ value: '风险', label: '有风险' }, { value: '封禁', label: '已封禁' }, { value: '有风险记录', label: '有风险记录' }]} style={{ width: 150 }} />
           <Select allowClear showSearch placeholder="风险原因" value={riskReason} onChange={setRiskReason} options={riskReasonOptions.map((v) => ({ value: v, label: v }))} style={{ width: 180 }} />
           <Select allowClear placeholder="平台" value={platform} onChange={setPlatform} options={platformOptions.map((v) => ({ value: v, label: v }))} style={{ width: 130 }} />
@@ -244,8 +273,39 @@ const TrafficAccountOverviewPage: React.FC = () => {
           </Card>
         </Col>
         <Col span={9}>
-          <Card size="small" title="人设结构">
-            {roleStats.length ? roleStats.map(([r, n]) => <div key={r} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><Tag>{r}</Tag><Text strong>{n}</Text></div>) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+          <Card size="small" title="风格结构（一眼看几个甜妹 / 御姐）">
+            {styleStats.length ? (
+              <Row gutter={[8, 8]}>
+                {styleStats.map(([s, list]) => {
+                  const meta = styleMeta(s);
+                  return (
+                    <Col span={12} key={s}>
+                      <div
+                        onClick={() => setStyle(style === s ? undefined : s)}
+                        style={{
+                          cursor: 'pointer',
+                          border: `1px solid ${style === s ? meta.color : '#eee'}`,
+                          borderRadius: 10,
+                          padding: '8px 10px',
+                          background: `linear-gradient(135deg, ${meta.color}18, #fff)`,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 26, lineHeight: 1 }}>{meta.emoji}</span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, color: TEXT.primary }}>{s}</div>
+                            <div style={{ fontSize: 11, color: TEXT.tertiary }}>{list.length} 个</div>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 6, fontSize: 11, color: TEXT.secondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {list.map((it) => it.nickname || it.code || '未命名').join('、')}
+                        </div>
+                      </div>
+                    </Col>
+                  );
+                })}
+              </Row>
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
           </Card>
           <Card size="small" title="热门城市缺口" style={{ marginTop: 12 }}>
             {unusedHot.length ? unusedHot.map((c) => <Tag key={c} color="gold" style={{ marginBottom: 6 }}>{c}</Tag>) : <Text type="secondary">热门城市都有账号</Text>}
@@ -275,6 +335,7 @@ const TrafficAccountOverviewPage: React.FC = () => {
               columns={[
                 { title: '账号', key: 'name', render: (_: unknown, r) => <Space direction="vertical" size={0}><Text strong>{r.nickname}</Text><Text type="secondary" style={{ fontSize: 11 }}>{r.code || r.accountId || '-'}</Text></Space> },
                 { title: '人设', dataIndex: 'accountRole', width: 100, render: (v: string) => v || '-' },
+                { title: '风格', key: 'style', width: 90, render: (_: unknown, r) => { const s = styleOf(r); const m = styleMeta(s); return <Tag color={m.color}>{m.emoji} {s}</Tag>; } },
                 { title: '城市', key: 'city', width: 100, render: (_: unknown, r) => cityOf(r) },
                 { title: '风险', key: 'risk', width: 100, render: (_: unknown, r) => r.riskPopped === '是' ? <Tag color="orange">有风险</Tag> : '-' },
                 { title: '状态', dataIndex: 'status', width: 80, render: (v: string) => <Tag color={v === 'ACTIVE' ? 'green' : 'default'}>{v === 'ACTIVE' ? '正常' : '弃用'}</Tag> },
