@@ -263,6 +263,28 @@ const TrafficAccountPage: React.FC = () => {
 
   const [riskUploadingKey, setRiskUploadingKey] = useState<number | null>(null);
 
+  const pasteRiskScreenshot = async (rowIndex: number) => {
+    try {
+      const clipboard = (navigator as any)?.clipboard;
+      if (!clipboard?.read) {
+        message.warning('当前环境不能直接读剪贴板，请点截图框后按 Ctrl+V');
+        return;
+      }
+      const items = await clipboard.read();
+      for (const item of items || []) {
+        const type = (item.types || []).find((t: string) => String(t).startsWith('image/'));
+        if (!type) continue;
+        const blob = await item.getType(type);
+        const file = new File([blob], `risk-${Date.now()}.png`, { type });
+        await uploadRiskScreenshot(file, rowIndex);
+        return;
+      }
+      message.warning('剪贴板里没有图片，先复制/截图再点「粘贴」');
+    } catch {
+      message.warning('浏览器没允许直接读剪贴板：点一下截图框，再按 Ctrl+V 也可以');
+    }
+  };
+
   const uploadRiskScreenshot = async (file: File, rowIndex?: number) => {
     setRiskUploadingKey(typeof rowIndex === 'number' ? rowIndex : null);
     try {
@@ -1038,10 +1060,13 @@ const TrafficAccountPage: React.FC = () => {
                             <PasteImageBox onFile={(file) => uploadRiskScreenshot(file, name)} showHint={false} borderless style={{ padding: 0 }}>
                               <Upload showUploadList={false} accept="image/*" beforeUpload={(file) => { void uploadRiskScreenshot(file, name); return false; }}>
                                 <Button size="small" icon={<UploadOutlined />} loading={riskUploadingKey === name}>
-                                  {form.getFieldValue(['riskNotes', name, 'screenshotUrl']) ? '换截图' : '上传/粘贴'}
+                                  {form.getFieldValue(['riskNotes', name, 'screenshotUrl']) ? '换截图' : '上传'}
                                 </Button>
                               </Upload>
                             </PasteImageBox>
+                            <Button size="small" style={{ marginLeft: 4 }} onClick={() => void pasteRiskScreenshot(name)}>
+                              粘贴
+                            </Button>
                             <Form.Item {...rest} name={[name, 'screenshotUrl']} hidden><Input /></Form.Item>
                             <Form.Item noStyle shouldUpdate>
                               {() => {
