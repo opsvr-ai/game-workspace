@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Button, Space, Table, Typography, Tag, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert, Card, Upload,
+  Button, Space, Table, Typography, Tag, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert, Card, Upload, Checkbox,
 } from 'antd';
 import { message } from '../../utils/feedback';
 import { extractErrorMessage } from '../../utils/error-handler';
@@ -33,7 +33,7 @@ const TRAFFIC_LEVELS = ['优', '中', '差'];
 const YES_NO = ['是', '否'];
 const PLATFORMS = ['抖音', '小红书', '视频号', '快手', '咸鱼', 'B站'];
 const ACCOUNT_ROLES = ['情绪娱乐号', '技术上分号', '避坑干货号'];
-const TRACKING_EXTRA_KEYS = ['ipAddress', 'parentAccountId', 'keywords', 'riskDate', 'riskEffective', 'riskScreenshotUrl'];
+const TRACKING_EXTRA_KEYS = ['ipAddress', 'parentAccountId', 'keywords', 'riskDate', 'riskEffective', 'riskScreenshotUrl', 'riskNotes'];
 
 interface ColumnDef { key: string; label: string; custom: boolean }
 
@@ -239,6 +239,18 @@ const TrafficAccountPage: React.FC = () => {
     const extraValues: Record<string, any> = { ...(record.extra || {}) };
     if (extraValues.purchaseDate) extraValues.purchaseDate = dayjs(extraValues.purchaseDate);
     if (extraValues.riskDate) extraValues.riskDate = dayjs(extraValues.riskDate);
+    const oldRiskNotes = Array.isArray(extraValues.riskNotes) ? extraValues.riskNotes : [];
+    if (!oldRiskNotes.length && (extraValues.riskDate || record.riskNote)) {
+      oldRiskNotes.push({
+        date: extraValues.riskDate || null,
+        permanent: extraValues.riskEffective === '永久',
+        note: record.riskNote || '',
+      });
+    }
+    extraValues.riskNotes = oldRiskNotes.map((n: any) => ({
+      ...n,
+      date: n?.date ? dayjs(n.date) : null,
+    }));
     form.setFieldsValue({
       ...record,
       registerDate: record.registerDate ? dayjs(record.registerDate) : null,
@@ -300,12 +312,23 @@ const TrafficAccountPage: React.FC = () => {
     const base: any = {};
     for (const [k, v] of Object.entries(nextValues)) {
       const col = columns.find((c) => c.key === k);
-      if (col?.custom || TRACKING_EXTRA_KEYS.includes(k)) {
+      if (k === 'riskNotes') {
+        extra[k] = (Array.isArray(v) ? v : [])
+          .map((n: any) => ({
+            date: n?.date ? dayjs(n.date).format('YYYY-MM-DD') : null,
+            permanent: n?.permanent === true,
+            note: String(n?.note || '').trim(),
+          }))
+          .filter((n: any) => n.date || n.permanent || n.note);
+      } else if (col?.custom || TRACKING_EXTRA_KEYS.includes(k)) {
         extra[k] = k === 'purchaseDate' && v ? dayjs(v as any).format('YYYY-MM-DD') : (k === 'riskDate' && v ? dayjs(v as any).format('YYYY-MM-DD') : v);
       }
       else if (k === 'registerDate' || k === 'banDate') base[k] = v ? dayjs(v as any).format('YYYY-MM-DD') : null;
       else base[k] = v;
     }
+    // 表格「风险」列仍显示最新一条原因，兼容旧数据/旧视图。
+    const noteRows = (extra.riskNotes || []) as any[];
+    if (noteRows.length) base.riskNote = noteRows[noteRows.length - 1].note || base.riskNote;
     const payload = { ...base, extra };
     setSubmitting(true);
     try {
@@ -980,9 +1003,44 @@ const TrafficAccountPage: React.FC = () => {
             <Col span={8}><Form.Item name="wifiRegion" label="WiFi地区"><Input placeholder="例如 杭州" /></Form.Item></Col>
             <Col span={8}><Form.Item name="purchaseDate" label="购买时间"><DatePicker style={{ width: '100%' }} placeholder="选择购买时间" /></Form.Item></Col>
             <Col span={8}><Form.Item name="riskPopped" label="是否弹过风险"><Select options={YES_NO.map((v) => ({ value: v, label: v }))} allowClear /></Form.Item></Col>
-            <Col span={8}><Form.Item name="riskDate" label="风险日期"><DatePicker style={{ width: '100%' }} placeholder="选择风险发生日期" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="riskEffective" label="生效"><Select allowClear placeholder="没写 / 永久" options={[{ value: '没写', label: '没写' }, { value: '永久', label: '永久' }]} /></Form.Item></Col>
-            <Col span={24}><Form.Item name="riskNote" label="风险原因"><Input.TextArea rows={2} placeholder="例如：频繁切号 / 同设备多账号 / 触发平台风控" /></Form.Item></Col>
+            <Col span={24}>
+              <Form.List name="riskNotes" initialValue={[{ date: null, permanent: false, note: '' }]}>
+                {(fields, { add, remove }) => (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text strong>风险记录（日期 / 永久 / 备注）</Text>
+                      <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => add({ date: null, permanent: false, note: '' })}>
+                        添加风险记录
+                      </Button>
+                    </div>
+                    {fields.map(({ key, name, ...rest }) => (
+                      <Row gutter={8} key={key} align="top">
+                        <Col span={5}>
+                          <Form.Item {...rest} name={[name, 'date']} label="日期">
+                            <DatePicker style={{ width: '100%' }} placeholder="选择日期" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={4}>
+                          <Form.Item {...rest} name={[name, 'permanent']} label="永久" valuePropName="checked">
+                            <Checkbox>永久</Checkbox>
+                          </Form.Item>
+                        </Col>
+                        <Col span={13}>
+                          <Form.Item {...rest} name={[name, 'note']} label="备注">
+                            <Input placeholder="风险原因 / 备注" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={2}>
+                          <Form.Item label=" ">
+                            <Button danger size="small" icon={<DeleteOutlined />} onClick={() => remove(name)} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    ))}
+                  </>
+                )}
+              </Form.List>
+            </Col>
             <Col span={24}>
               <Form.Item label="风险账号截图（可直接 Ctrl+V 粘贴）">
                 <PasteImageBox onFile={uploadRiskScreenshot}>
