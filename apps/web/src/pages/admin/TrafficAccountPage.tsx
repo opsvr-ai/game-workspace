@@ -19,6 +19,7 @@ import { getImagesFromClipboard, getImageFileFromClipboard } from '../../utils/c
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { TABLE_STYLE } from '../../constants/datasetColumns';
+import { TRAFFIC_STYLE_PRESETS, ALL_TRAFFIC_STYLES } from '../../constants/trafficStyles';
 import { evaluateNote } from '../../utils/noteBenchmark';
 import { NOTE_TEMPLATES } from '../../utils/noteTemplates';
 import dayjs from 'dayjs';
@@ -34,7 +35,7 @@ const TRAFFIC_LEVELS = ['优', '中', '差'];
 const YES_NO = ['是', '否'];
 const PLATFORMS = ['抖音', '小红书', '视频号', '快手', '咸鱼', 'B站'];
 const ACCOUNT_ROLES = ['情绪娱乐号', '技术上分号', '避坑干货号'];
-const STYLE_PRESETS = ['甜妹', '御姐', '邻家', '高冷', '情绪娱乐', '技术大神', '避坑干货'];
+const STYLE_PRESETS = ALL_TRAFFIC_STYLES;
 /** 城市候选：省/直辖市 + 常见地级市；输入「山」能带出山东、山西。 */
 const CITY_OPTIONS = [
   '北京', '上海', '天津', '重庆',
@@ -126,6 +127,8 @@ const TrafficAccountPage: React.FC = () => {
   const [templateOpen, setTemplateOpen] = useState(false);
   const [banAnalysisOpen, setBanAnalysisOpen] = useState(false);
   const [form] = Form.useForm();
+  const watchedRole = Form.useWatch('accountRole', form);
+  const stylePresets = TRAFFIC_STYLE_PRESETS[watchedRole] || STYLE_PRESETS;
   const authUser = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const canEditGuide = authUser?.role === 'OWNER' || authUser?.role === 'ADMIN' || authUser?.role === 'CS';
@@ -1039,8 +1042,8 @@ const TrafficAccountPage: React.FC = () => {
             <Col span={8}><Form.Item name="accountStyle" label="账号风格"><Input placeholder="甜妹 / 御姐 / 自定义" /></Form.Item></Col>
             <Col span={24}>
               <Space wrap size={4} style={{ marginBottom: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>快速选择风格：</Text>
-                {STYLE_PRESETS.map((s) => (
+                <Text type="secondary" style={{ fontSize: 12 }}>{watchedRole ? `${watchedRole}下的细分风格：` : '先选人设，或直接点细分风格：'}</Text>
+                {stylePresets.map((s) => (
                   <Tag key={s} style={{ cursor: 'pointer' }} onClick={() => form.setFieldValue('accountStyle', s)}>{s}</Tag>
                 ))}
               </Space>

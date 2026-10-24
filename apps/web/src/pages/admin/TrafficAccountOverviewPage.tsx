@@ -5,6 +5,7 @@ import { ArrowLeftOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/i
 import { useNavigate } from 'react-router-dom';
 import * as echarts from 'echarts';
 import { trafficAccountApi, TrafficAccountItem } from '../../api/trafficAccount';
+import { TRAFFIC_ACCOUNT_ROLES } from '../../constants/trafficStyles';
 import PageHeader from '../../components/PageHeader';
 import { BRAND, TEXT } from '../../styles/tokens';
 
@@ -38,14 +39,21 @@ const HOT_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都', 
 const STYLE_META: Record<string, { emoji: string; color: string }> = {
   甜妹: { emoji: '🌸', color: '#ff85c0' },
   御姐: { emoji: '💃', color: '#9254de' },
+  少御: { emoji: '🌷', color: '#eb2f96' },
+  少萝: { emoji: '🎀', color: '#ff9c6e' },
   邻家: { emoji: '🌿', color: '#52c41a' },
   高冷: { emoji: '❄️', color: '#69b1ff' },
-  情绪娱乐: { emoji: '🎧', color: '#ff7a45' },
-  情绪娱乐号: { emoji: '🎧', color: '#ff7a45' },
+  搞笑女: { emoji: '😄', color: '#faad14' },
   技术大神: { emoji: '🎮', color: '#13c2c2' },
-  技术上分号: { emoji: '🎮', color: '#13c2c2' },
-  避坑干货: { emoji: '🛡️', color: '#faad14' },
-  避坑干货号: { emoji: '🛡️', color: '#faad14' },
+  CSO: { emoji: '🎯', color: '#2f54eb' },
+  教学: { emoji: '📚', color: '#1677ff' },
+  硬核: { emoji: '🔥', color: '#fa541c' },
+  上分陪练: { emoji: '🏆', color: '#fa8c16' },
+  避坑: { emoji: '🛡️', color: '#faad14' },
+  干货: { emoji: '📌', color: '#52c41a' },
+  测评: { emoji: '🔍', color: '#13c2c2' },
+  攻略: { emoji: '🗺️', color: '#2f54eb' },
+  科普: { emoji: '💡', color: '#faad14' },
 };
 
 function styleOf(item: TrafficAccountItem): string {
@@ -155,13 +163,25 @@ const TrafficAccountOverviewPage: React.FC = () => {
     return map;
   }, [filtered]);
 
-  const styleStats = useMemo(() => {
-    const map = new Map<string, TrafficAccountItem[]>();
-    for (const it of filtered) {
-      const s = styleOf(it);
-      map.set(s, [...(map.get(s) || []), it]);
-    }
-    return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
+  /**
+   * 先按 3 个大类分组，再在大类下统计细分风格：
+   * 这样「情绪娱乐号 → 甜妹 5 / 御姐 3 / 少御 2」一眼能对上层级。
+   */
+  const styleGroups = useMemo(() => {
+    const types = [...TRAFFIC_ACCOUNT_ROLES, '未分类'];
+    return types.map((type) => {
+      const list = filtered.filter((it) => (it.accountRole || '未分类') === type);
+      const styles = new Map<string, TrafficAccountItem[]>();
+      for (const it of list) {
+        const s = styleOf(it);
+        styles.set(s, [...(styles.get(s) || []), it]);
+      }
+      return {
+        type,
+        total: list.length,
+        styles: [...styles.entries()].sort((a, b) => b[1].length - a[1].length),
+      };
+    }).filter((g) => g.total > 0);
   }, [filtered]);
 
   const banStats = useMemo(() => {
@@ -273,39 +293,45 @@ const TrafficAccountOverviewPage: React.FC = () => {
           </Card>
         </Col>
         <Col span={9}>
-          <Card size="small" title="风格结构（一眼看几个甜妹 / 御姐）">
-            {styleStats.length ? (
-              <Row gutter={[8, 8]}>
-                {styleStats.map(([s, list]) => {
-                  const meta = styleMeta(s);
-                  return (
-                    <Col span={12} key={s}>
-                      <div
-                        onClick={() => setStyle(style === s ? undefined : s)}
-                        style={{
-                          cursor: 'pointer',
-                          border: `1px solid ${style === s ? meta.color : '#eee'}`,
-                          borderRadius: 10,
-                          padding: '8px 10px',
-                          background: `linear-gradient(135deg, ${meta.color}18, #fff)`,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 26, lineHeight: 1 }}>{meta.emoji}</span>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 700, color: TEXT.primary }}>{s}</div>
-                            <div style={{ fontSize: 11, color: TEXT.tertiary }}>{list.length} 个</div>
+          <Card size="small" title="大类 → 细分风格（一眼看几个甜妹 / 御姐 / 少御）">
+            {styleGroups.length ? styleGroups.map((group) => (
+              <div key={group.type} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text strong>{group.type}</Text>
+                  <Tag color="blue">{group.total} 个</Tag>
+                </div>
+                <Row gutter={[8, 8]}>
+                  {group.styles.map(([s, list]) => {
+                    const meta = styleMeta(s);
+                    return (
+                      <Col span={12} key={s}>
+                        <div
+                          onClick={() => setStyle(style === s ? undefined : s)}
+                          style={{
+                            cursor: 'pointer',
+                            border: `1px solid ${style === s ? meta.color : '#eee'}`,
+                            borderRadius: 10,
+                            padding: '7px 9px',
+                            background: `linear-gradient(135deg, ${meta.color}18, #fff)`,
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <span style={{ fontSize: 22, lineHeight: 1 }}>{meta.emoji}</span>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, color: TEXT.primary }}>{s}</div>
+                              <div style={{ fontSize: 11, color: TEXT.tertiary }}>{list.length} 个</div>
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 4, fontSize: 11, color: TEXT.secondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {list.map((it) => it.nickname || it.code || '未命名').join('、')}
                           </div>
                         </div>
-                        <div style={{ marginTop: 6, fontSize: 11, color: TEXT.secondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {list.map((it) => it.nickname || it.code || '未命名').join('、')}
-                        </div>
-                      </div>
-                    </Col>
-                  );
-                })}
-              </Row>
-            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+                      </Col>
+                    );
+                  })}
+                </Row>
+              </div>
+            )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
           </Card>
           <Card size="small" title="热门城市缺口" style={{ marginTop: 12 }}>
             {unusedHot.length ? unusedHot.map((c) => <Tag key={c} color="gold" style={{ marginBottom: 6 }}>{c}</Tag>) : <Text type="secondary">热门城市都有账号</Text>}
