@@ -245,6 +245,7 @@ const TrafficAccountPage: React.FC = () => {
         date: extraValues.riskDate || null,
         permanent: extraValues.riskEffective === '永久',
         note: record.riskNote || '',
+        screenshotUrl: extraValues.riskScreenshotUrl || '',
       });
     }
     extraValues.riskNotes = oldRiskNotes.map((n: any) => ({
@@ -260,22 +261,23 @@ const TrafficAccountPage: React.FC = () => {
     setModalOpen(true);
   };
 
-  const [riskUploading, setRiskUploading] = useState(false);
+  const [riskUploadingKey, setRiskUploadingKey] = useState<number | null>(null);
 
-  const uploadRiskScreenshot = async (file: File) => {
-    setRiskUploading(true);
+  const uploadRiskScreenshot = async (file: File, rowIndex?: number) => {
+    setRiskUploadingKey(typeof rowIndex === 'number' ? rowIndex : null);
     try {
       const fd = new FormData();
       fd.append('file', file);
       const { data }: any = await http.post('/upload/screenshot', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       const url = data?.data?.url;
       if (!url) throw new Error('上传失败');
-      form.setFieldValue('riskScreenshotUrl', url);
+      if (typeof rowIndex === 'number') form.setFieldValue(['riskNotes', rowIndex, 'screenshotUrl'], url);
+      else form.setFieldValue('riskScreenshotUrl', url);
       message.success('风险截图已上传');
     } catch (err: any) {
       message.error(extractErrorMessage(err, '截图上传失败'));
     } finally {
-      setRiskUploading(false);
+      setRiskUploadingKey(null);
     }
   };
 
@@ -318,8 +320,9 @@ const TrafficAccountPage: React.FC = () => {
             date: n?.date ? dayjs(n.date).format('YYYY-MM-DD') : null,
             permanent: n?.permanent === true,
             note: String(n?.note || '').trim(),
+            screenshotUrl: String(n?.screenshotUrl || '').trim(),
           }))
-          .filter((n: any) => n.date || n.permanent || n.note);
+          .filter((n: any) => n.date || n.permanent || n.note || n.screenshotUrl);
       } else if (col?.custom || TRACKING_EXTRA_KEYS.includes(k)) {
         extra[k] = k === 'purchaseDate' && v ? dayjs(v as any).format('YYYY-MM-DD') : (k === 'riskDate' && v ? dayjs(v as any).format('YYYY-MM-DD') : v);
       }
@@ -1004,30 +1007,48 @@ const TrafficAccountPage: React.FC = () => {
             <Col span={8}><Form.Item name="purchaseDate" label="购买时间"><DatePicker style={{ width: '100%' }} placeholder="选择购买时间" /></Form.Item></Col>
             <Col span={8}><Form.Item name="riskPopped" label="是否弹过风险"><Select options={YES_NO.map((v) => ({ value: v, label: v }))} allowClear /></Form.Item></Col>
             <Col span={24}>
-              <Form.List name="riskNotes" initialValue={[{ date: null, permanent: false, note: '' }]}>
+              <Form.List name="riskNotes" initialValue={[{ date: null, permanent: false, note: '', screenshotUrl: '' }]}>
                 {(fields, { add, remove }) => (
                   <>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <Text strong>风险记录（日期 / 永久 / 备注）</Text>
-                      <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => add({ date: null, permanent: false, note: '' })}>
+                      <Text strong>风险记录（日期 / 永久 / 备注 / 截图）</Text>
+                      <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => add({ date: null, permanent: false, note: '', screenshotUrl: '' })}>
                         添加风险记录
                       </Button>
                     </div>
                     {fields.map(({ key, name, ...rest }) => (
                       <Row gutter={8} key={key} align="top">
-                        <Col span={5}>
+                        <Col span={4}>
                           <Form.Item {...rest} name={[name, 'date']} label="日期">
                             <DatePicker style={{ width: '100%' }} placeholder="选择日期" />
                           </Form.Item>
                         </Col>
-                        <Col span={4}>
+                        <Col span={3}>
                           <Form.Item {...rest} name={[name, 'permanent']} label="永久" valuePropName="checked">
                             <Checkbox>永久</Checkbox>
                           </Form.Item>
                         </Col>
-                        <Col span={13}>
+                        <Col span={8}>
                           <Form.Item {...rest} name={[name, 'note']} label="备注">
                             <Input placeholder="风险原因 / 备注" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={7}>
+                          <Form.Item label="截图">
+                            <PasteImageBox onFile={(file) => uploadRiskScreenshot(file, name)} showHint={false} borderless style={{ padding: 0 }}>
+                              <Upload showUploadList={false} accept="image/*" beforeUpload={(file) => { void uploadRiskScreenshot(file, name); return false; }}>
+                                <Button size="small" icon={<UploadOutlined />} loading={riskUploadingKey === name}>
+                                  {form.getFieldValue(['riskNotes', name, 'screenshotUrl']) ? '换截图' : '上传/粘贴'}
+                                </Button>
+                              </Upload>
+                            </PasteImageBox>
+                            <Form.Item {...rest} name={[name, 'screenshotUrl']} hidden><Input /></Form.Item>
+                            <Form.Item noStyle shouldUpdate>
+                              {() => {
+                                const url = form.getFieldValue(['riskNotes', name, 'screenshotUrl']);
+                                return url ? <a href={url} target="_blank" rel="noreferrer" style={{ marginLeft: 6 }}>查看</a> : null;
+                              }}
+                            </Form.Item>
                           </Form.Item>
                         </Col>
                         <Col span={2}>
@@ -1040,24 +1061,6 @@ const TrafficAccountPage: React.FC = () => {
                   </>
                 )}
               </Form.List>
-            </Col>
-            <Col span={24}>
-              <Form.Item label="风险账号截图（可直接 Ctrl+V 粘贴）">
-                <PasteImageBox onFile={uploadRiskScreenshot}>
-                  <Upload showUploadList={false} accept="image/*" beforeUpload={(file) => { void uploadRiskScreenshot(file); return false; }}>
-                    <Button icon={<UploadOutlined />} loading={riskUploading}>
-                      {form.getFieldValue('riskScreenshotUrl') ? '重新上传风险截图' : '上传风险截图'}
-                    </Button>
-                  </Upload>
-                </PasteImageBox>
-                <Form.Item name="riskScreenshotUrl" hidden><Input /></Form.Item>
-                <Form.Item noStyle shouldUpdate>
-                  {() => {
-                    const url = form.getFieldValue('riskScreenshotUrl');
-                    return url ? <a href={url} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>查看已上传截图</a> : null;
-                  }}
-                </Form.Item>
-              </Form.Item>
             </Col>
             <Col span={8}><Form.Item name="banned" label="是否封禁过"><Select options={YES_NO.map((v) => ({ value: v, label: v }))} allowClear /></Form.Item></Col>
             <Col span={8}><Form.Item name="banNote" label="封禁备注"><Input placeholder="封禁说明" /></Form.Item></Col>
