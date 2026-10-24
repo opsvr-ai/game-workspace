@@ -341,14 +341,22 @@ export class OrderSessionService {
     // 单陪开段直接开始计时，别留「创建了但 startedAt 为空」的半截会话：
     // 1337 首段就是只创建没开始，3 分钟后被清理，1 小时提醒也永远不会触发。
     // 双陪 / 换主陪要等搭档接受或对方启动，不能在这里抢跑。
-    const actorMatches = !dto.actorCompanionId || dto.companionId === dto.actorCompanionId;
     const canAutoStart =
       dto.autoStart === true &&
       !session.coCompanionId &&
-      actorMatches &&
       !!dto.claimedMode &&
       Number(dto.claimedPrice) > 0 &&
       Number(dto.duration) > 0;
+    if (!canAutoStart) {
+      logger.warn('addSession created but not auto-started', {
+        sessionId: session.id,
+        autoStart: dto.autoStart,
+        hasCo: !!session.coCompanionId,
+        hasMode: !!dto.claimedMode,
+        price: dto.claimedPrice,
+        duration: dto.duration,
+      });
+    }
     if (canAutoStart) {
       await this.startSession(session.id, dto.companionId, {
         claimedMode: dto.claimedMode,
