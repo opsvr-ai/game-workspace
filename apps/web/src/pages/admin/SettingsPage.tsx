@@ -12,6 +12,7 @@ import CaptureSettings from '../settings/CaptureSettings';
 import DispatchCommissionSettings from '../settings/DispatchCommissionSettings';
 import GameBreakEvenSettings from '../settings/GameBreakEvenSettings';
 import DispatchTimingSettings from '../settings/DispatchTimingSettings';
+import ServiceKillSettings from '../settings/ServiceKillSettings';
 import VoiceSettings from '../settings/VoiceSettings';
 import ExcellenceSettings from '../settings/ExcellenceSettings';
 import AiSettings from '../settings/AiSettings';
@@ -119,6 +120,13 @@ const GROUPS: SettingGroup[] = [
         hint: '截图间隔、黑屏判定',
         keywords: '截图 间隔 黑屏 阈值 采集 证据',
         render: () => <CaptureSettings />,
+      },
+      {
+        key: 'service-kill',
+        label: '弹窗提醒 / 杀进程',
+        hint: '提醒后杀进程、黑名单缓冲',
+        keywords: '弹窗 提醒 杀进程 黑名单 缓冲 结束服务 掉游戏',
+        render: () => <ServiceKillSettings />,
       },
       {
         key: 'voice',

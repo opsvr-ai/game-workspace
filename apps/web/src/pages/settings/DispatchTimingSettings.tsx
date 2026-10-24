@@ -3,7 +3,7 @@ import { Button, Card, Form, InputNumber, Typography } from 'antd';
 import { message } from '../../utils/feedback';
 import { configApi } from '../../api/config';
 
-const KEYS = ['pool.priority_delay_seconds', 'pool.bridge_delay_seconds', 'pool.middle_delay_seconds', 'pool.low_delay_seconds', 'pool.online_delay_seconds', 'pool.immediate_disappear_minutes', 'pool.scheduled_disappear_minutes', 'pool.online_first_release_minutes', 'pool.offline_first_bridge_minutes', 'service.auto_end_after_reminder_minutes', 'service.end_buffer_minutes'];
+const KEYS = ['pool.priority_delay_seconds', 'pool.bridge_delay_seconds', 'pool.middle_delay_seconds', 'pool.low_delay_seconds', 'pool.online_delay_seconds', 'pool.immediate_disappear_minutes', 'pool.scheduled_disappear_minutes', 'pool.online_first_release_minutes', 'pool.offline_first_bridge_minutes'];
 
 const DispatchTimingSettings: React.FC = () => {
   const [form] = Form.useForm();
@@ -52,24 +52,6 @@ const DispatchTimingSettings: React.FC = () => {
         >
           <InputNumber min={0} suffix="分钟" />
         </Form.Item>
-        <Typography.Title level={5} style={{ marginTop: 20 }}>服务计时</Typography.Title>
-        <Form.Item
-          name="service.auto_end_after_reminder_minutes"
-          label="到点提醒后多少分钟自动结束"
-          tooltip="到点先提醒；过了这里设置的分钟数仍没点结束/续单/复购，服务端自动结束这一段"
-        >
-          <InputNumber min={1} max={180} suffix="分钟" />
-        </Form.Item>
-        <Form.Item
-          name="service.end_buffer_minutes"
-          label="点结束服务后的缓冲时间"
-          tooltip="结束服务后先保持接单中，不立刻触发空闲黑名单；给陪玩切换模式/回游戏的时间"
-        >
-          <InputNumber min={0} max={30} suffix="分钟" />
-        </Form.Item>
-        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          默认：到点提醒后 20 分钟自动结束；点结束服务后缓冲 3 分钟再回空闲。
-        </Typography.Text>
         <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           「线下→线上流转」的单：本店线下陪玩先抢这么多分钟，没人接才轮到桥接工作室 / 线上俱乐部
           （过了这个时间两边同时看得到，桥接没人接线上马上能接）。
