@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Card, Col, Empty, Input, Row, Select, Space, Statistic, Table, Tag, Typography } from 'antd';
+import { Button, Card, Col, Empty, Input, Row, Select, Space, Statistic, Table, Tag, Typography, Progress } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import * as echarts from 'echarts';
@@ -209,6 +209,49 @@ const TrafficAccountOverviewPage: React.FC = () => {
 
   const unusedHot = HOT_CITIES.filter((c) => !cityStats.has(c));
 
+  const platformStats = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of filtered) map.set(it.type || '未填写', (map.get(it.type || '未填写') || 0) + 1);
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
+
+  const statusStats = useMemo(() => [
+    { label: '正常', value: filtered.filter((i) => i.status === 'ACTIVE').length, color: '#52c41a' },
+    { label: '已弃用', value: filtered.filter((i) => i.status !== 'ACTIVE').length, color: '#8c8c8c' },
+  ], [filtered]);
+
+  const riskStats = useMemo(() => {
+    const banned = filtered.filter((i) => i.banned === '是').length;
+    const hasRisk = filtered.filter((i) => i.banned !== '是' && (i.riskPopped === '是' || riskNotesOf(i).length)).length;
+    return [
+      { label: '无风险', value: filtered.length - banned - hasRisk, color: '#52c41a' },
+      { label: '有风险', value: hasRisk, color: '#faad14' },
+      { label: '已封禁', value: banned, color: '#ff4d4f' },
+    ];
+  }, [filtered]);
+
+  const followerStats = useMemo(() => {
+    const buckets = [
+      { label: '0 粉', test: (n: number) => n <= 0, color: '#d9d9d9' },
+      { label: '1 - 1千', test: (n: number) => n > 0 && n < 1000, color: '#69b1ff' },
+      { label: '1千 - 1万', test: (n: number) => n >= 1000 && n < 10000, color: '#1677ff' },
+      { label: '1万+', test: (n: number) => n >= 10000, color: '#722ed1' },
+    ];
+    return buckets.map((b) => ({ ...b, value: filtered.filter((i) => b.test(Number(i.followers) || 0)).length }));
+  }, [filtered]);
+
+  const levelStats = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of filtered) map.set(it.trafficLevel || '未填写', (map.get(it.trafficLevel || '未填写') || 0) + 1);
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
+
+  const pct = (n: number) => filtered.length ? Math.round((n / filtered.length) * 100) : 0;
+
+  const platformIcon: Record<string, string> = {
+    小红书: '📕', 抖音: '🎵', 视频号: '📹', 快手: '⚡', 咸鱼: '🐟', B站: '📺',
+  };
+
   useEffect(() => {
     if (!mapReady || !chartInstance.current) return;
     const points = [...cityStats.entries()]
@@ -348,6 +391,50 @@ const TrafficAccountOverviewPage: React.FC = () => {
           </Card>
           <Card size="small" title="热门城市缺口" style={{ marginTop: 12 }}>
             {unusedHot.length ? unusedHot.map((c) => <Tag key={c} color="gold" style={{ marginBottom: 6 }}>{c}</Tag>) : <Text type="secondary">热门城市都有账号</Text>}
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={12} style={{ marginBottom: 12 }}>
+        <Col span={8}>
+          <Card size="small" title="平台分布">
+            {platformStats.length ? platformStats.map(([p, n]) => (
+              <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 18 }}>{platformIcon[p] || '📱'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <Text>{p}</Text><Text strong>{n} 个</Text>
+                  </div>
+                  <Progress percent={pct(n)} showInfo={false} size="small" strokeColor={BRAND.primary} />
+                </div>
+              </div>
+            )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small" title="账号状态 / 风险">
+            {[...statusStats, ...riskStats].map((row) => (
+              <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ width: 54, fontSize: 12 }}>{row.label}</div>
+                <Progress percent={pct(row.value)} size="small" strokeColor={row.color} style={{ flex: 1, margin: 0 }} />
+                <Text strong style={{ width: 40, textAlign: 'right' }}>{row.value}</Text>
+              </div>
+            ))}
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small" title="粉丝规模 / 账号等级">
+            {followerStats.map((row) => (
+              <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <div style={{ width: 64, fontSize: 12 }}>{row.label}</div>
+                <Progress percent={pct(row.value)} size="small" strokeColor={row.color} style={{ flex: 1, margin: 0 }} />
+                <Text strong style={{ width: 34, textAlign: 'right' }}>{row.value}</Text>
+              </div>
+            ))}
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>账号等级：</Text>
+              {levelStats.map(([l, n]) => <Tag key={l} style={{ marginBottom: 4 }}>{l} {n}</Tag>)}
+            </div>
           </Card>
         </Col>
       </Row>
