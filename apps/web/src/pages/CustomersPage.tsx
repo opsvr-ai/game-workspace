@@ -175,6 +175,41 @@ const CustomersPage: React.FC = () => {
   const [endedSessionIds, setEndedSessionIds] = useState<Set<string>>(new Set());
   const sessionIsMine = (s: any) => !endedSessionIds.has(s?.id)
     && (!myCompanionId || s?.companionId === myCompanionId || s?.coCompanionId === myCompanionId);
+
+  // 开始成功后先把本地 ACTIVE 会话塞进客户列表：计时/结束按钮立刻出现，不等整页刷新。
+  const applyOptimisticStart = (data: { orderId: string; sessionId: string; customerId?: string; startedAt: string }) => {
+    setCustomers((prev) => prev.map((c: any) => {
+      const hit = (data.customerId && c.id === data.customerId)
+        || (c.orders || []).some((o: any) => o.id === data.orderId);
+      if (!hit) return c;
+      const order = (c.orders || []).find((o: any) => o.id === data.orderId) || {
+        id: data.orderId,
+        status: 'CONFIRMED',
+        sessions: [],
+      };
+      const session = {
+        id: data.sessionId,
+        status: 'ACTIVE',
+        startedAt: data.startedAt,
+        companionId: user?.companionId || null,
+        coCompanionId: null,
+        duration: 1,
+        amount: 0,
+        coAmount: null,
+        claimedPrice: null,
+        paidByDeposit: false,
+        pausedAt: null,
+        totalPausedSec: 0,
+      };
+      return {
+        ...c,
+        orders: [
+          { ...order, status: 'CONFIRMED', sessions: [session, ...(order.sessions || []).filter((s: any) => s.id !== data.sessionId)] },
+          ...(c.orders || []).filter((o: any) => o.id !== data.orderId),
+        ],
+      };
+    }));
+  };
   const isCs = role === 'CS';
   const isAdmin = role === 'ADMIN' || role === 'OWNER';
   const canManage = isCs || isAdmin;
@@ -1412,6 +1447,7 @@ const CustomersPage: React.FC = () => {
           initialValues={startServiceOrder?.initialValues}
           depositBalance={startServiceOrder?.depositBalance ?? 0}
           onClose={() => setStartServiceOrder(null)}
+          onStarted={applyOptimisticStart}
           onDone={() => {
             setStartServiceOrder(null);
             fetchCustomers();

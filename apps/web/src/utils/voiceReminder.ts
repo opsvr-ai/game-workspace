@@ -1,8 +1,7 @@
+import http from '../api/client';
+
 /**
- * 到点语音提醒：用系统自带 Web Speech 发音，按预设做音高 / 语速变化。
- *
- * 不依赖客户端发版（Electron 壳里跑的就是本网页）；先给老板试听，确认后再考虑
- * 换成真正的云端声线模型。所有设置存本机，每台电脑各选各的。
+ * 到点语音提醒：默认文案播 Edge 神经语音 MP3；自定义文案由服务端实时生成。
  */
 export type VoiceGender = 'male' | 'female';
 
@@ -109,7 +108,24 @@ export function speakVoiceReminder(text: string, presetId?: string, volume?: num
       return speakWithBrowserVoice(content, preset, vol);
     }
   }
-  return speakWithBrowserVoice(content, preset, vol);
+  // 店长自定义文案：让服务端用 Edge TTS 现场生成自然语音，避免退回机器味系统音。
+  void http.get('/companions/me/voice-reminder', {
+    params: { text: content, preset: preset.id },
+    responseType: 'blob',
+  }).then(({ data }: any) => {
+    try {
+      stopVoiceReminder();
+      const url = URL.createObjectURL(data);
+      const audio = new Audio(url);
+      audio.volume = vol;
+      naturalAudio = audio;
+      audio.onended = () => URL.revokeObjectURL(url);
+      void audio.play().catch(() => speakWithBrowserVoice(content, preset, vol));
+    } catch {
+      speakWithBrowserVoice(content, preset, vol);
+    }
+  }).catch(() => speakWithBrowserVoice(content, preset, vol));
+  return true;
 }
 
 function speakWithBrowserVoice(content: string, preset: VoicePreset, volume: number): boolean {

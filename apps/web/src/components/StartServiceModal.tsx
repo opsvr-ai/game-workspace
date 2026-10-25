@@ -27,9 +27,11 @@ interface Props {
   };
   onClose: () => void;
   onDone: () => void;
+  /** 开始成功后立刻回调，客户管理先用本地会话把计时/结束按钮显示出来，不等整页刷新。 */
+  onStarted?: (data: { orderId: string; sessionId: string; customerId?: string; startedAt: string }) => void;
 }
 
-const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, mode = 'first', depositBalance = 0, initialValues, onClose, onDone }) => {
+const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, mode = 'first', depositBalance = 0, initialValues, onClose, onDone, onStarted }) => {
   const user = useAuthStore((s) => s.user);
   const [mainId, setMainId] = useState<string | undefined>(undefined);
   const [dual, setDual] = useState(false);
@@ -101,6 +103,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
     }
     try {
       let sessionId: string | undefined;
+      let startedOrderId = orderId || '';
       if (customerId && !orderId) {
         // 陪玩自己录入的客户：先创建直接派单（会自动建会话），再开始会话 ——
         //   开始首单 = NEW，续单 = RENEW，复购 = REPURCHASE。
@@ -126,6 +129,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           setStarting(false);
           return;
         }
+        startedOrderId = newOrder.id;
         const sessionsRes: any = await ordersApi.getSessions(newOrder.id);
         sessionId = sessionsRes?.data?.data?.[0]?.id;
       } else {
@@ -181,6 +185,12 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
         if (!isHandoff) {
           (window as any).electronAPI?.sessionWatch?.(sessionId);
         }
+        onStarted?.({
+          orderId: startedOrderId,
+          sessionId,
+          customerId: customerId || undefined,
+          startedAt: new Date().toISOString(),
+        });
         message.success(isHandoff ? '已交给对方接单' : '服务已开始，工作记录已开启');
       }
       onDone();

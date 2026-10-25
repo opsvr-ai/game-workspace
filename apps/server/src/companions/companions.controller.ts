@@ -10,6 +10,7 @@ import {
   Body,
   Req,
   Query,
+  Res,
   UseGuards,
   UseInterceptors,
   UploadedFile,
@@ -27,6 +28,7 @@ import { logger } from '../common/logger';
 import { switchCompanionStatus } from '../common/companion-status-switch';
 import { ChatService } from '../chat/chat.service';
 import { ExcellenceService } from './excellence.service';
+import { VoiceTtsService } from './voice-tts.service';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 import { diskStorage } from 'multer';
@@ -43,6 +45,7 @@ export class CompanionsController {
     private readonly restingMonitor: RestingMonitorService,
     private readonly chatService: ChatService,
     private readonly excellence: ExcellenceService,
+    private readonly voiceTts: VoiceTtsService,
   ) {}
 
   // 老板(OWNER)可能没有 studioId，回退到第一个工作室，保证微信等数据能正确归属
@@ -181,6 +184,23 @@ export class CompanionsController {
   }
 
   /** 陪玩端偏好：接单中 / 娱乐中是否也接收新单弹窗（老板 2026-10-01：娱乐中默认开） */
+  @Get('companions/me/voice-reminder')
+  @Roles(UserRole.COMPANION)
+  async getVoiceReminder(
+    @Query('text') text: string,
+    @Query('preset') preset: string,
+    @Res() res: any,
+  ): Promise<void> {
+    const audio = await this.voiceTts.synthesize(String(text || ''), String(preset || 'female_tianmei'));
+    if (!audio) {
+      res.status(503).json({ code: 503, message: '语音生成失败', data: null });
+      return;
+    }
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(audio);
+  }
+
   @Get('companions/me/notify-prefs')
   @Roles(UserRole.COMPANION)
   async getNotifyPrefs(@Req() req: any): Promise<ApiResponse<unknown>> {

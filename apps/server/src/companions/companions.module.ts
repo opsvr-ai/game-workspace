@@ -13,6 +13,7 @@ import { CompositeService } from './composite.service';
 import { CustomerBaselineService } from './customer-baseline.service';
 import { ExcellenceService } from './excellence.service';
 import { CompanionStatusSweepService } from './companion-status-sweep.service';
+import { VoiceTtsService } from './voice-tts.service';
 import { ChatModule } from '../chat/chat.module';
 import { StudiosModule } from '../studios/studios.module';
 
@@ -31,6 +32,7 @@ import { StudiosModule } from '../studios/studios.module';
     CustomerBaselineService,
     ExcellenceService,
     CompanionStatusSweepService,
+    VoiceTtsService,
   ],
   exports: [CompanionsService, CompositeService, CustomerBaselineService, ExcellenceService],
 })

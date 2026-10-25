@@ -279,22 +279,31 @@ export class OrderSessionService {
     if (stillActive) {
       throw new BadRequestException('这张单已经有进行中的服务，请刷新页面，不要重复点开始');
     }
-    const session = await this.prisma.orderSession.create({
-      data: {
-        parentOrderId: orderId,
-        seq,
-        companionId: dto.companionId,
-        coCompanionId: dto.coCompanionId || order?.coCompanionId || last?.coCompanionId || null,
-        amount: dto.amount,
-        coAmount: dto.coAmount ?? last?.coAmount ?? (order?.coAmount ?? null),
-        duration: dto.duration || 1,
-        claimedMode: dto.claimedMode ?? null,
-        claimedPrice: dto.claimedPrice ?? null,
-        transferScreenshotUrl: dto.transferScreenshotUrl ?? null,
-        paidByDeposit: dto.useDeposit === true,
-        status: 'ACTIVE',
-      },
-    });
+    let session: any;
+    try {
+      session = await this.prisma.orderSession.create({
+        data: {
+          parentOrderId: orderId,
+          seq,
+          companionId: dto.companionId,
+          coCompanionId: dto.coCompanionId || order?.coCompanionId || last?.coCompanionId || null,
+          amount: dto.amount,
+          coAmount: dto.coAmount ?? last?.coAmount ?? (order?.coAmount ?? null),
+          duration: dto.duration || 1,
+          claimedMode: dto.claimedMode ?? null,
+          claimedPrice: dto.claimedPrice ?? null,
+          transferScreenshotUrl: dto.transferScreenshotUrl ?? null,
+          paidByDeposit: dto.useDeposit === true,
+          status: 'ACTIVE',
+        },
+      });
+    } catch (err: any) {
+      // 数据库唯一索引兜底：并发请求真的同时建段时，第二个会撞 P2002。
+      if (err?.code === 'P2002') {
+        throw new BadRequestException('这张单已经有进行中的服务，请刷新页面，不要重复点开始');
+      }
+      throw err;
+    }
 
     // 单价低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）：**只提醒、不拦单**，并告诉老板是谁在主陪+搭档一起填低价。
     // 主陪价和副陪单价都看（副陪那段总价 / 时长，填 0 也算），方法内部自己判断要不要推。
