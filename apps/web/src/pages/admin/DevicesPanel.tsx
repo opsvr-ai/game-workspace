@@ -147,6 +147,16 @@ interface DeviceRow extends MachineItem {
   /** 「手工登记的电脑」里对应的那台（远程开机要它的 MAC） */
   wakeId: string;
   wakeMac: string;
+  metrics?: {
+    cpuPercent?: number;
+    memPercent?: number;
+    memUsedMB?: number;
+    memTotalMB?: number;
+    gpu?: { utilPercent?: number | null; memUsedMB?: number | null; memTotalMB?: number | null } | null;
+    topProcesses?: Array<{ name: string; pid: number; memMB: number }>;
+    at?: string;
+  } | null;
+  metricsAlert?: string;
 }
 
 /** 看门狗构建号比较：只把「本机比云端旧」算待更新；本机比云端新（云端配置滞后）算最新。 */
@@ -611,6 +621,26 @@ const DevicesPanel: React.FC = () => {
           {r.mac ? <Text type='secondary' style={{ fontSize: 12 }}>{r.mac}</Text> : null}
         </Space>
       ),
+    },
+    {
+      title: '资源',
+      key: 'metrics',
+      width: 160,
+      render: (_: unknown, r: DeviceRow) => {
+        const m = r.metrics;
+        if (!m) return <Text type='secondary' style={{ fontSize: 12 }}>—</Text>;
+        const gpu = m.gpu?.utilPercent;
+        return (
+          <Space direction='vertical' size={0}>
+            <Text style={{ fontSize: 12 }}>CPU {m.cpuPercent ?? '—'}% · 内存 {m.memPercent ?? '—'}%</Text>
+            <Text type='secondary' style={{ fontSize: 12 }}>
+              {gpu != null ? `GPU ${gpu}% · ` : ''}
+              {m.memUsedMB != null && m.memTotalMB != null ? `${m.memUsedMB}/${m.memTotalMB} MB` : ''}
+            </Text>
+            {r.metricsAlert ? <Text type='danger' style={{ fontSize: 12 }}>{r.metricsAlert}</Text> : null}
+          </Space>
+        );
+      },
     },
     {
       title: '版本',

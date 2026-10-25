@@ -100,6 +100,17 @@ export class MachineService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** 资源高负载提示：只记录到台账，管理端设备页直接显示，不杀进程。 */
+  private metricsAlertOf(now: any, before: any): string {
+    const m = now && typeof now === 'object' ? now : before;
+    if (!m) return '';
+    const alerts: string[] = [];
+    if (Number(m.cpuPercent) >= 90) alerts.push(`CPU ${m.cpuPercent}%`);
+    if (Number(m.memPercent) >= 90) alerts.push(`内存 ${m.memPercent}%`);
+    if (Number(m.gpu?.utilPercent) >= 95) alerts.push(`GPU ${m.gpu.utilPercent}%`);
+    return alerts.join(' / ');
+  }
+
   // ── 台账 ────────────────────────────────────────────────────────────────
 
   /** 客户端上报自己是谁。同一个 machineId 覆盖更新，不新增行。 */
@@ -145,6 +156,11 @@ export class MachineService {
       os: fromScript && before?.os ? before.os : clean(payload?.os, 160) || before?.os || '',
       appVersion: fromScript && before?.appVersion ? before.appVersion : clean(payload?.appVersion, 60) || before?.appVersion || '',
       agentBuild: clean(payload?.agentBuild, 60) || before?.agentBuild || '',
+      // 整机资源快照（客户端每 60 秒上报）：CPU / 内存 / GPU / Top 进程。
+      metrics: payload?.metrics && typeof payload.metrics === 'object'
+        ? payload.metrics
+        : before?.metrics || null,
+      metricsAlert: this.metricsAlertOf(payload?.metrics, before?.metrics),
       remoteReady: payload?.remoteReady === undefined ? !!before?.remoteReady : !!payload?.remoteReady,
       remoteAccount: clean(payload?.remoteAccount, 60) || before?.remoteAccount || '',
       remotePassword: clean(payload?.remotePassword, 120) || before?.remotePassword || '',
@@ -401,6 +417,8 @@ export class MachineService {
         mac: m.mac || '',
         os: m.os || '',
         appVersion: m.appVersion || '',
+        metrics: m.metrics || null,
+        metricsAlert: m.metricsAlert || '',
         watchdogBuild: m.watchdogBuild || '',
         remoteReady: !!m.remoteReady,
         remoteAccount: m.remoteAccount || '',

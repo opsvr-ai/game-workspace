@@ -14,11 +14,11 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const { randomUUID } = require('crypto');
 
 const REPORT_TOKEN = 'c4f1a2e7d9b8435fa6e10c7d2b9f8e34';
-const REPORT_INTERVAL_MS = 5 * 60 * 1000;
+const REPORT_INTERVAL_MS = 60 * 1000;
 const POLL_INTERVAL_MS = 60 * 1000;
 const START_DELAY_MS = 20 * 1000;
 const MAX_OUTPUT_CHARS = 380000;
@@ -330,9 +330,74 @@ function createMachineAgent(options) {
     }
   }
 
+  let lastCpuSample = cpuTimes();
+  function cpuTimes() {
+    let idle = 0;
+    let total = 0;
+    for (const cpu of os.cpus() || []) {
+      const t = cpu.times || {};
+      idle += Number(t.idle || 0);
+      total += Number(t.user || 0) + Number(t.nice || 0) + Number(t.sys || 0) + Number(t.irq || 0) + Number(t.idle || 0);
+    }
+    return { idle, total };
+  }
+  function cpuPercent() {
+    const now = cpuTimes();
+    const idle = now.idle - lastCpuSample.idle;
+    const total = now.total - lastCpuSample.total;
+    lastCpuSample = now;
+    return total > 0 ? Math.max(0, Math.min(100, Math.round((1 - idle / total) * 100))) : 0;
+  }
+
+  function collectMetrics() {
+    return (async () => {
+      const totalMem = os.totalmem();
+      const freeMem = os.freemem();
+      const memPercent = totalMem > 0 ? Math.round(((totalMem - freeMem) / totalMem) * 100) : 0;
+      let topProcesses = [];
+      try {
+        const out = await new Promise((resolve) => {
+          execFile('powershell.exe', [
+            '-NoProfile', '-NonInteractive', '-Command',
+            "Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 5 Name,Id,CPU,WorkingSet64 | ConvertTo-Json -Compress",
+          ], { windowsHide: true, timeout: 5000 }, (err, stdout) => resolve(err ? '' : String(stdout || '')));
+        });
+        if (out) {
+          const rows = JSON.parse(out);
+          topProcesses = (Array.isArray(rows) ? rows : [rows]).map((r) => ({
+            name: String(r.Name || ''),
+            pid: Number(r.Id) || 0,
+            cpuSec: Number(r.CPU) || 0,
+            memMB: Math.round((Number(r.WorkingSet64) || 0) / 1024 / 1024),
+          }));
+        }
+      } catch { /* 进程列表拿不到不影响其它指标 */ }
+      let gpu = null;
+      try {
+        const out = await new Promise((resolve) => {
+          execFile('nvidia-smi', ['--query-gpu=utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits'], { windowsHide: true, timeout: 3000 }, (err, stdout) => resolve(err ? '' : String(stdout || '').trim()));
+        });
+        if (out) {
+          const [util, used, total] = out.split(/\r?\n/)[0].split(',').map((v) => Number(String(v).trim()));
+          gpu = { utilPercent: Number.isFinite(util) ? util : null, memUsedMB: Number.isFinite(used) ? used : null, memTotalMB: Number.isFinite(total) ? total : null };
+        }
+      } catch { /* 没 N 卡或没 nvidia-smi */ }
+      return {
+        at: nowIso(),
+        cpuPercent: cpuPercent(),
+        memPercent,
+        memUsedMB: Math.round((totalMem - freeMem) / 1024 / 1024),
+        memTotalMB: Math.round(totalMem / 1024 / 1024),
+        gpu,
+        topProcesses,
+      };
+    })();
+  }
+
   async function reportOnce(extra) {
     try {
-      await post('/api/agent/machine-report', buildReport(extra));
+      const metrics = await collectMetrics();
+      await post('/api/agent/machine-report', buildReport({ ...(extra || {}), metrics }));
       log('机器信息已上报');
     } catch (err) {
       log('机器信息上报失败: ' + ((err && err.message) || err));
