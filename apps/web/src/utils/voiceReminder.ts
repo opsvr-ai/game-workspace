@@ -22,12 +22,16 @@ export const VOICE_PRESETS: VoicePreset[] = [
   { id: 'female_shaoluo', label: '女声 · 少萝音', gender: 'female', pitch: 1.55, rate: 1.1, desc: '高、轻快' },
   { id: 'female_yujie', label: '女声 · 御姐音', gender: 'female', pitch: 0.82, rate: 0.94, desc: '低、稳' },
   { id: 'female_tianmei', label: '女声 · 甜妹音', gender: 'female', pitch: 1.3, rate: 1.02, desc: '偏甜' },
+  { id: 'female_dialect', label: '女声 · 东北小北', gender: 'female', pitch: 1.0, rate: 1.0, desc: '方言' },
 ];
 
 const PRESET_KEY = 'chunlv:voice-reminder-preset';
 const VOLUME_KEY = 'chunlv:voice-reminder-volume';
 const DEFAULT_PRESET = 'female_tianmei';
 const DEFAULT_VOLUME = 70;
+const DEFAULT_REMINDER_TEXT = '服务时间到了，请结束服务';
+
+let naturalAudio: HTMLAudioElement | null = null;
 
 export function getVoicePresetId(): string {
   try {
@@ -73,25 +77,52 @@ function pickChineseVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
 
 export function stopVoiceReminder(): void {
   try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+  try {
+    if (naturalAudio) {
+      naturalAudio.pause();
+      naturalAudio.currentTime = 0;
+    }
+  } catch { /* ignore */ }
 }
 
 /**
- * 播报一条提醒。返回是否真的交给了系统 TTS（false = 当前电脑没有可用语音）。
- * 失败不抛错：不能让语音失败影响到点提醒的其他逻辑。
+ * 播报一条提醒。
+ * 默认提醒文案用已生成的 Edge 神经语音 MP3（自然、无网络依赖）；
+ * 店长自定义文案没有对应音频时，才退回系统语音合成。
  */
 export function speakVoiceReminder(text: string, presetId?: string, volume?: number): boolean {
   const content = String(text || '').trim();
-  if (!content || typeof window === 'undefined' || !window.speechSynthesis) return false;
+  if (!content || typeof window === 'undefined') return false;
+  const preset = getVoicePreset(presetId);
+  const vol = Math.min(1, Math.max(0, (volume ?? getVoiceVolume()) / 100));
+  if (content === DEFAULT_REMINDER_TEXT) {
+    try {
+      stopVoiceReminder();
+      naturalAudio = new Audio(`/voice-reminder/${preset.id}.mp3`);
+      naturalAudio.volume = vol;
+      void naturalAudio.play().catch(() => {
+        // 音频加载失败时退回系统语音，不能让到点提醒完全没声
+        speakWithBrowserVoice(content, preset, vol);
+      });
+      return true;
+    } catch {
+      return speakWithBrowserVoice(content, preset, vol);
+    }
+  }
+  return speakWithBrowserVoice(content, preset, vol);
+}
+
+function speakWithBrowserVoice(content: string, preset: VoicePreset, volume: number): boolean {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return false;
   try {
     stopVoiceReminder();
-    const preset = getVoicePreset(presetId);
     const utter = new SpeechSynthesisUtterance(content);
     const voice = pickChineseVoice(preset.gender);
     if (voice) utter.voice = voice;
     utter.lang = voice?.lang || 'zh-CN';
     utter.pitch = preset.pitch;
     utter.rate = preset.rate;
-    utter.volume = Math.min(1, Math.max(0, (volume ?? getVoiceVolume()) / 100));
+    utter.volume = volume;
     window.speechSynthesis.speak(utter);
     return true;
   } catch {
