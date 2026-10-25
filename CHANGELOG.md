@@ -891,6 +891,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **客户端 v20261048：彻底取消 Windows 通知，只保留客户端右下角横幅。**
+  - 主进程直发的群广播 / 杀进程提示 / 普通 notify 全部改走 showBannerNow；
+  - 到点提醒兜底也不再 new Notification；
+  - 网页侧已统一走软件横幅，不再出现同一件事弹两遍。
+
 - **所有提醒只保留客户端右下角弹窗，取消 Windows Toast（2026-10-25，网页 v1171 + 客户端后续版）。**
   - 网页通知统一调用客户端置顶横幅入口；
   - 不再调用 `new Notification` 的 Windows Toast，避免同一件事弹两遍；

@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, Notification, shell, session, screen } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, shell, session, screen } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { execFile, execFileSync, spawn } from 'child_process';
@@ -672,13 +672,8 @@ function popupNotice(title: string, body: string, icon: string, hint?: string, s
   try {
     showBroadcastPopup({ title, body, icon, hint, seconds });
   } catch (err) {
-    // 弹窗失败也别让陪玩两头都看不到：退回系统通知。
-    logger.warn('Kill notice popup failed, fallback to system notification', {
-      error: (err as Error)?.message,
-    });
-    try {
-      new Notification({ title: SHELL_BRAND, body }).show();
-    } catch {}
+    // 老板 2026-10-25：彻底不要 Windows Toast；横幅失败就只记日志，不退回系统通知。
+    logger.warn('Kill notice popup failed', { error: (err as Error)?.message });
   }
 }
 
@@ -2037,9 +2032,7 @@ function setupIPC(): void {
         seconds: Number(payload?.seconds) > 0 ? Number(payload.seconds) : 20,
       });
     } catch {
-      try {
-        new Notification({ title: '⏰ 时间到了', body: String(payload?.body || '打完请点「结束服务」') }).show();
-      } catch {}
+      logger.warn('Duration reminder banner failed');
     }
   });
 
@@ -2100,15 +2093,7 @@ function setupIPC(): void {
       });
       return { ok: true };
     } catch (err: any) {
-      logger.warn('Broadcast popup failed, fallback to system notification', {
-        error: err?.message || err,
-      });
-      try {
-        new Notification({
-          title: String(payload?.title || '群聊广播'),
-          body: String(payload?.body || ''),
-        }).show();
-      } catch {}
+      logger.warn('Broadcast popup failed', { error: err?.message || err });
       return { ok: false };
     }
   });
