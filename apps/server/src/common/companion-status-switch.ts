@@ -39,6 +39,26 @@ export async function switchCompanionStatus(
   // 状态没变就当没这回事 —— 不然每调一次就把计时/计费重开一段。
   if (current === nextStatus) return false;
 
+  // 还有 ACTIVE 会话时绝不允许切成空闲/娱乐/休息：
+  // 否则客户端会立刻套用空闲黑名单，把正在服务的游戏杀掉。
+  // 结束服务正常走「先关会话、再切状态」；这里再兜一道，防止重复会话/并发回调。
+  if (nextStatus !== 'BUSY') {
+    const active =
+      typeof (prisma as any).orderSession?.findFirst === 'function'
+        ? await Promise.resolve(
+            (prisma as any).orderSession.findFirst({
+              where: {
+                status: 'ACTIVE',
+                startedAt: { not: null },
+                OR: [{ companionId }, { coCompanionId: companionId }],
+              },
+              select: { id: true },
+            }),
+          ).catch(() => null)
+        : null;
+    if (active) return false;
+  }
+
   // 先关掉上一段（还没结束的那条），再接上新的这一段。
   // 日志写不进去也不能挡住状态切换 —— 状态本身才是黑名单/抢单依赖的东西。
   try {

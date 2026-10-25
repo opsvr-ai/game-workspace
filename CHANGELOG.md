@@ -394,6 +394,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **点开始首单进入游戏马上被杀：重复 ACTIVE 会话下状态被切成空闲（2026-10-25，服务端）。**
+  - 童祥瑞订单 1694 同时存在一个 ACTIVE 段和一个已结束段；结束回调把状态放成 AVAILABLE；
+  - 客户端收到 AVAILABLE 黑名单，立刻杀三角洲；
+  - `switchCompanionStatus` 增加硬保护：还有任何 ACTIVE 会话时，绝不允许切出 BUSY；
+  - 重复/并发结束回调不会再误放空闲。
+
 - **点结束服务后几秒就杀三角洲，没等设置的 3 分钟缓冲（2026-10-25，服务端）。**
   - 状态巡检看到「BUSY 但没有 ACTIVE 会话」就当历史脏状态立刻放空闲，绕过了缓冲；
   - 巡检现在先查最后一段会话结束时间，未满 `service.end_buffer_minutes` 不释放；
