@@ -83,6 +83,16 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
 
     const price = claimPrice;
     setStarting(true);
+    // 老板 2026-10-25：点了开始首单、游戏刚启动时，客户端还拿着「空闲杀三角洲」的旧名单，
+    // 几秒内就被看门狗杀掉。先把本机状态切 BUSY（同时让服务端推空名单），再发开始的请求。
+    const api = (window as any).electronAPI;
+    let previousStatus = 'AVAILABLE';
+    let statusPaused = false;
+    if (!dual && api?.onStatusChanged) {
+      try { previousStatus = (await api.storeGet?.('lastStatus')) || 'AVAILABLE'; } catch { /* ignore */ }
+      api.onStatusChanged('BUSY');
+      statusPaused = true;
+    }
     try {
       let sessionId: string | undefined;
       if (customerId && !orderId) {
@@ -169,6 +179,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
       }
       onDone();
     } catch (e: any) {
+      if (statusPaused) api?.onStatusChanged?.(previousStatus);
       message.error(e?.response?.data?.message || '开始失败');
     }
     setStarting(false);
