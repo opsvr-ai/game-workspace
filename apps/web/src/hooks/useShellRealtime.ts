@@ -386,6 +386,21 @@ export function useShellRealtime({
         data?.message || '服务到点后仍未处理，已自动结束并计入业绩；游戏不会退出，打完后请切回空闲',
       );
     },
+    onEntertainmentForceIdle: (data: any) => {
+      // 服务端因娱乐余额不足把状态切成 AVAILABLE 时，必须同步客户端本地 lastStatus；
+      // 否则本地还停在 ENTERTAINMENT，黑名单继续按娱乐列表走，三角洲就不会被杀。
+      try {
+        (window as any).__showStatusBar?.('AVAILABLE');
+        (window as any).electronAPI?.onStatusChanged?.('AVAILABLE');
+        window.dispatchEvent(new Event('chunlv:entertainment-force-idle'));
+      } catch {}
+      showBannerNotification({
+        title: '娱乐余额不足，已切回空闲',
+        body: data?.message || '业绩/押金不够继续娱乐，已自动切回空闲；请先接单或休息。',
+        icon: '⏰',
+        seconds: 12,
+      });
+    },
     onOrderPoolUpdated: (data: any) => {
       // 同 onOrderNew：陪玩端的新广播单要等弹窗那一下再刷新，避免订单池先出现。
       const isNewPending =

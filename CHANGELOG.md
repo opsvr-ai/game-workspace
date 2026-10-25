@@ -388,6 +388,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **娱乐余额耗尽被强制切空闲，但客户端本地仍停在娱乐，导致空闲还能玩三角洲（2026-10-25，网页 v1174）。**
+  - 服务端发 `entertainment:forceIdle`，前端原来没有监听；
+  - 现在收到后同步 `lastStatus=AVAILABLE`、刷新状态条并提示；
+  - 主进程会收到 onStatusChanged(AVAILABLE)，重新按空闲黑名单杀进程；
+  - 张权这种「服务端 AVAILABLE / 客户端 currentMode=ENTERTAINMENT」的错位会收敛。
+
 - **陪玩状态墙不实时，人在接单还显示空闲/离线（2026-10-25，网页 v1173）。**
   - 看板原来只靠 60 秒轮询，状态事件到了也不刷新；
   - 接入 useLiveRefresh：status:broadcast / order:grabbed / order:new 等事件合并后立即 refetch；

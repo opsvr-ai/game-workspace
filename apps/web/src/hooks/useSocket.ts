@@ -47,6 +47,8 @@ interface UseSocketOptions {
   onSegmentFinished?: (data: any) => void;
   onServiceDurationReminder?: (data: any) => void;
   onServiceAutoEnded?: (data: any) => void;
+  /** 娱乐余额耗尽，服务端强制切回空闲；客户端必须同步本地状态，否则黑名单还停在娱乐列表。 */
+  onEntertainmentForceIdle?: (data: any) => void;
   onWalletReviewed?: (data: any) => void;
   onUserAuthorized?: (data: any) => void;
   onUserRejected?: (data: any) => void;
@@ -517,6 +519,7 @@ export function useSocket(opts: UseSocketOptions = {}) {
       ['order:grabbed', (data: any) => optsRef.current.onOrderGrabbed?.(data)],
       ['order:scheduled_reminder', (data: any) => optsRef.current.onScheduledReminder?.(data)],
       ['status:broadcast', (data: any) => optsRef.current.onStatusBroadcast?.(data)],
+      ['entertainment:forceIdle', (data: any) => optsRef.current.onEntertainmentForceIdle?.(data)],
       ['chat:notify', (data: any) => optsRef.current.onChatNotify?.(data)],
       ['chat:broadcast', (data: any) => optsRef.current.onChatBroadcast?.(data)],
       ['chat:new', (data: any) => optsRef.current.onChatNew?.(data)],
