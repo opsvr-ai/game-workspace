@@ -65,6 +65,10 @@ function compareVersionStrings(a: string, b: string): number {
 
 @Controller('agent')
 export class AgentController {
+  /** 叫号是异步的，autoQueue、pushUpdate、release 可能同时触发；没有锁会一次给同店多台发命令。 */
+  private pumpQueueRunning = false;
+  private pumpQueueAgain = false;
+
   constructor(
     private readonly agentService: AgentService,
     private readonly wsGateway: WsGateway,
@@ -108,6 +112,24 @@ export class AgentController {
    * 把「去更新」推给第一台能更新的机器；剩下的等下一次 release 继续叫。
    */
   private async pumpUpdateQueue(): Promise<void> {
+    if (this.pumpQueueRunning) {
+      this.pumpQueueAgain = true;
+      return;
+    }
+    this.pumpQueueRunning = true;
+    try {
+      await this.pumpUpdateQueueOnce();
+    } finally {
+      this.pumpQueueRunning = false;
+      if (this.pumpQueueAgain) {
+        this.pumpQueueAgain = false;
+        // 本轮结束后再补一次；不要在 finally 里无限同步递归。
+        setTimeout(() => void this.pumpUpdateQueue(), 0);
+      }
+    }
+  }
+
+  private async pumpUpdateQueueOnce(): Promise<void> {
     const skipped: UpdateWaiter[] = [];
     try {
       const { version, downloadUrl } = await this.agentService.getQueuedVersion();

@@ -388,6 +388,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **更新队列并发叫号导致同工作室多台同时下载（2026-10-25，服务端）。**
+  - autoQueue / push / release 会并发调用 pump，多个请求同时判断「名额空闲」后各发一台；
+  - 给 pump 加单飞锁：一轮只叫一台，结束后再补下一轮；
+  - 同一工作室严格串行，服务端总带宽 10MB/s，不会 10MB/s × 20 台。
+
 - **到点提醒只走 Windows 通知，陪玩在游戏里经常看不到（2026-10-25，网页 v1169）。**
   - 徐建业 1653/1655/1656 的 `durationRemindedAt` 都有值，服务端确实发了；
   - 客户端只弹 Windows Toast，专注助手/独占全屏会被系统静默吞掉；
