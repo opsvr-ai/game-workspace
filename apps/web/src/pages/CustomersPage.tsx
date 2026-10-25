@@ -134,18 +134,19 @@ function canRenewNow(c: Customer): boolean {
  * 判定口径跟操作列那个「服务中」标签**完全一致**（同一个 CONFIRMED 单、同一个 ACTIVE 会话、
  * 已经点过开始首单还没结束），保证「整行在闪」和「标签写着服务中」永远是同一件事。
  */
-function servingSessionOf(c: Customer): { orderId: string; sessionId: string; startedAt: string } | null {
-  // 不能只看订单状态：RENEW/REPURCHASE 单有可能先被标成 DONE，但会话还在 ACTIVE。
-  // 那样界面找不到“正在服务中的订单”，陪玩点结束服务就会提示没有可结束的订单。
+function servingSessionOf(c: Customer, onlyCompanionId?: string | null): { orderId: string; sessionId: string; startedAt: string } | null {
+  // 双陪主陪先结束后 session.companionId 会变 null、副陪继续打；
+  // 主陪不能继续看到「服务中/结束服务」，否则点了就是 403「只能操作自己的会话」。
+  const mine = (s: any) => !onlyCompanionId || s.companionId === onlyCompanionId || s.coCompanionId === onlyCompanionId;
   const activeOrder =
-    c.orders?.find((o) => o.sessions?.some((s) => s.status === 'ACTIVE' && s.startedAt)) ||
+    c.orders?.find((o) => o.sessions?.some((s) => s.status === 'ACTIVE' && s.startedAt && mine(s))) ||
     c.orders?.find((o) => o.status === 'CONFIRMED') ||
     c.orders?.find(
       (o) =>
         o.status === 'GRABBED' &&
-        o.sessions?.some((s) => s.status === 'ACTIVE' && !s.startedAt && s.coCompanionId),
+        o.sessions?.some((s) => s.status === 'ACTIVE' && !s.startedAt && s.coCompanionId && mine(s)),
     );
-  const s = activeOrder?.sessions?.find((x) => x.status === 'ACTIVE' && x.startedAt);
+  const s = activeOrder?.sessions?.find((x) => x.status === 'ACTIVE' && x.startedAt && mine(x));
   if (!activeOrder || !s?.startedAt) return null;
   return { orderId: activeOrder.id, sessionId: s.id, startedAt: s.startedAt };
 }
@@ -167,6 +168,9 @@ const CustomersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
   const isCompanion = role === 'COMPANION';
+  // 双陪主陪先结束后，session 的 companionId 会变 null，不能再让他看到结束服务。
+  const myCompanionId = isCompanion ? user?.companionId : undefined;
+  const sessionIsMine = (s: any) => !myCompanionId || s?.companionId === myCompanionId || s?.coCompanionId === myCompanionId;
   const isCs = role === 'CS';
   const isAdmin = role === 'ADMIN' || role === 'OWNER';
   const canManage = isCs || isAdmin;
@@ -601,7 +605,7 @@ const CustomersPage: React.FC = () => {
           ? `已封存 ${String(record.archivedAt).slice(5, 10)}`
           : '';
         const tail = [deposit, scheduled, archived].filter(Boolean).join(' · ');
-        const serving = !!servingSessionOf(record);
+        const serving = !!servingSessionOf(record, myCompanionId);
         return (
           <div
             style={{ ...CELL_ONE_LINE, position: 'relative', paddingRight: serving ? 56 : undefined }}
@@ -790,7 +794,7 @@ const CustomersPage: React.FC = () => {
             // 正在计时时只显示「服务中」，不能再点续单 / 复购。
             const activeSession = allOrders
               .flatMap((o: any) => o.sessions ?? [])
-              .find((s: any) => s.status === 'ACTIVE' && s.startedAt);
+              .find((s: any) => s.status === 'ACTIVE' && s.startedAt && sessionIsMine(s));
 
             // 陪玩自己录入的客户，开场时新客老客他自己知道，所以三条路一起给他：
             //   真新客 → 点「开始首单」；本来就是老客（还有没打完的存单）→ 直接点「续单 / 复购 / 存单」。
@@ -865,8 +869,8 @@ const CustomersPage: React.FC = () => {
                   o.status === 'GRABBED' &&
                   o.sessions?.some((s: any) => s.status === 'ACTIVE' && !s.startedAt && s.coCompanionId),
               );
-            const activeSession = activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE' && s.startedAt)
-              || activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE');
+            const activeSession = (activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE' && s.startedAt && sessionIsMine(s))
+              || activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE' && sessionIsMine(s)));
             if (!activeOrder || !activeSession) return null;
             if (activeSession.startedAt) {
               return (
@@ -1202,7 +1206,7 @@ const CustomersPage: React.FC = () => {
                         )}
                         rowKey="id"
                         loading={loading}
-                        rowClassName={(record) => (servingSessionOf(record as Customer) ? 'chunlv-row-serving' : '')}
+                        rowClassName={(record) => (servingSessionOf(record as Customer, myCompanionId) ? 'chunlv-row-serving' : '')}
                         onRow={(record) => ({
                           style: { cursor: 'pointer' },
                           onClick: (e: React.MouseEvent) => {
