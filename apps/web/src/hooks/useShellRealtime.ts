@@ -358,14 +358,24 @@ export function useShellRealtime({
         dedupeKey: `duration-reminder:${data?.sessionId || ''}`,
         dedupeMs: 30 * 60 * 1000,
       });
-      showBannerNotification({
-        title,
-        body: desc,
-        icon: '⏰',
-        seconds: 20,
-        hint: '点这里 → 去接单记录点「结束服务」',
-        action: 'open-orders',
-      });
+      const electronApi = (window as any).electronAPI;
+      if (electronApi?.durationReminderPopup) {
+        electronApi.durationReminderPopup({
+          title,
+          body: desc,
+          hint: '点这里 → 去接单记录点「结束服务」',
+          seconds: 20,
+        });
+      } else {
+        showBannerNotification({
+          title,
+          body: desc,
+          icon: '⏰',
+          seconds: 20,
+          hint: '点这里 → 去接单记录点「结束服务」',
+          action: 'open-orders',
+        });
+      }
       // Windows 通知在专注助手 / 全屏游戏里可能被系统吞掉；时间到再补一声提示音
       // + 软件内右下角提醒，保证陪玩至少能听到/回到软件时看到。
       playNotificationSound();

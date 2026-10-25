@@ -43,6 +43,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setCurrentUser: (userId: string, username: string) => ipcRenderer.send('auth:setCurrentUser', userId, username),
   setStudioName: (name: string) => ipcRenderer.send('auth:setStudioName', name),
   notify: (title: string, body: string) => ipcRenderer.send('notify', title, body),
+  /** 到点提醒：全屏游戏里也必须看到；主进程画右下角置顶横幅，不抢鼠标。 */
+  durationReminderPopup: (payload: { title?: string; body?: string; hint?: string; seconds?: number }) =>
+    ipcRenderer.send('service:duration-reminder-popup', payload),
   /** 点横幅：跳到抢单池并把这一单标出来。 */
   orderBannerClick: (orderId: string) => ipcRenderer.send('order-banner:click', String(orderId || '')),
   /** 主进程叫界面「去抢单池看这单」的回调（返回取消订阅函数）。 */

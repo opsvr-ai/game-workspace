@@ -2027,6 +2027,25 @@ function setupIPC(): void {
     } catch {}
   });
 
+  // 服务到点提醒：Windows Toast 在全屏游戏/专注助手会静默；
+  // 这里用客户端右下角置顶横幅（不抢焦点、不抢鼠标，只有真的点卡片才动作）。
+  ipcMain.on('service:duration-reminder-popup', (_e, payload: any) => {
+    try {
+      showBannerNow({
+        title: String(payload?.title || '⏰ 时间到了'),
+        body: String(payload?.body || '打完请点「结束服务」'),
+        icon: '⏰',
+        hint: String(payload?.hint || '点这里 → 去接单记录点「结束服务」'),
+        action: 'open-orders',
+        seconds: Number(payload?.seconds) > 0 ? Number(payload.seconds) : 20,
+      });
+    } catch {
+      try {
+        new Notification({ title: '⏰ 时间到了', body: String(payload?.body || '打完请点「结束服务」') }).show();
+      } catch {}
+    }
+  });
+
   // 群聊广播：主进程直接画一个 Windows 置顶窗口（5 秒后自动消失）。
   // 普通系统通知在没装过开机快捷方式的机器上不一定弹得出来，所以这里自己画，
   // 保证"客服喊话陪玩必须看到"。
