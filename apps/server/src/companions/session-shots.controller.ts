@@ -161,6 +161,16 @@ export class SessionShotsController {
     if (!session) throw new NotFoundException('会话不存在');
     const isMain = session.companionId === req.user.companionId;
     const isCo = session.coCompanionId === req.user.companionId;
+    // 双陪主陪已经先结束（companionId 置空、副陪继续）：他再点旧页面上的「结束服务」
+    // 不要返回 403「只能操作自己的会话」，否则按钮一直留着、一直报错。
+    // 这里做成幂等成功：告诉他「你已经结束过了，搭档继续」，前端收到 mainDetached 会清掉弹窗。
+    if (!isMain && !isCo && !session.companionId && session.coCompanionId) {
+      return {
+        code: 200,
+        message: '你已经结束过了，搭档继续服务',
+        data: { mainDetached: true, coCompanionId: session.coCompanionId, orderId: session.parentOrderId },
+      };
+    }
     if (!isMain && !isCo) throw new ForbiddenException('只能操作自己的会话');
 
     // 双陪 / 代打：主陪点结束只结束自己，搭档继续打；不能把整段会话和搭档一起结束。

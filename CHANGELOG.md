@@ -382,6 +382,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **双陪主陪重复点结束服务时不再报 403，改成幂等提示（2026-10-25，服务端）。**
+  - 会话 1676 已 detach（companionId=null，钱鸿鸣继续）；
+  - 徐建业旧页面再点结束，服务端直接返回「你已经结束过了，搭档继续服务」；
+  - 前端收到 mainDetached 自动清掉弹窗，不再连续 403。
+
 - **双陪主陪先结束后，客户管理还显示“结束服务”，一点就报只能操作自己的会话（2026-10-25，服务端 + 网页 v1167）。**
   - 徐建业会话 1676 在 20:55 已成功 detach，之后 session.companionId 变 null、钱鸿鸣继续；
   - 客户接口没返回 session.companionId，前端把这段 active 会话当成自己的，反复显示结束服务；
