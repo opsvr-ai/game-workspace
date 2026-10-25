@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, Notification, shell, session, screen } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, shell, session, screen } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { execFile, execFileSync, spawn } from 'child_process';
@@ -1562,25 +1562,14 @@ function showBroadcastPopup(payload: BannerPayload, _opts?: { force?: boolean })
 
 /** 全屏游戏里不能画置顶窗（会把人顶回桌面）；用系统通知兜底，至少不打断游戏。 */
 function notifyFullscreenFallback(payload: BannerPayload): void {
-  try {
-    if (!Notification.isSupported()) return;
-    new Notification({
-      title: String(payload?.title || SHELL_BRAND),
-      body: String(payload?.body || ''),
-      silent: false,
-    }).show();
-  } catch {
-    /* 系统通知不可用也不影响游戏 */
-  }
+  // 老板 2026-10-25：其他弹窗全部只用软件自身，不再发 Windows 通知。
+  // 全屏时软件横幅先压住，退出全屏再补；这里只留日志，不创建系统通知。
+  logger.info('Banner deferred while fullscreen (software-only)', {
+    title: payload?.title,
+    body: payload?.body,
+  });
 }
 
-/**
- * 所有软件横幅的唯一入口：先判断这台机器是不是「独占全屏，置顶窗会把游戏顶回桌面」。
- *
- * 硬规则（2026-10-25 徐建业反馈）：**全屏/探测不确定时一律不画置顶窗**，
- * 改用 Windows 通知 + 闪任务栏；非全屏才画右下角横幅。
- * 这样宁可极端情况下少一个 overlay，也绝不把人从三角洲顶回桌面。
- */
 function showBannerWithPolicy(payload: BannerPayload): void {
   try {
     if (shouldSuppressBusyNotification(String(payload?.title || ''), String(payload?.body || ''))) return;
@@ -2751,3 +2740,4 @@ if (!gotLock) {
     }
   });
 }
+
