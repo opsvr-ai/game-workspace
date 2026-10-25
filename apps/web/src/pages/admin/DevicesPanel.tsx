@@ -58,6 +58,7 @@ interface CompanionLite {
   currentMode: string;
   isThrottled: boolean;
   lastHeartbeat: string | null;
+  isResigned?: boolean;
 }
 
 interface CompanionVersion {
@@ -136,6 +137,7 @@ function companionOnline(c: CompanionLite | undefined): boolean {
 interface DeviceRow extends MachineItem {
   companionId: string;
   companionStatus: string;
+  companionResigned?: boolean;
   currentMode: string;
   isThrottled: boolean;
   /** undefined = 没有这个陪玩的版本记录（不显示「最新 / 未更新」标签） */
@@ -231,7 +233,7 @@ const DevicesPanel: React.FC = () => {
 
   const fetchCompanions = useCallback(async () => {
     try {
-      const { data } = await companionsApi.list();
+      const { data } = await companionsApi.list({ includeResigned: true });
       const list = (data as any)?.data ?? [];
       setCompanions(
         list.map((c: any) => ({
@@ -242,6 +244,7 @@ const DevicesPanel: React.FC = () => {
           currentMode: c.pc?.currentMode ?? '',
           isThrottled: !!c.pc?.isThrottled,
           lastHeartbeat: c.pc?.lastHeartbeat ?? null,
+          isResigned: !!c.isResigned,
         })),
       );
     } catch {
@@ -336,6 +339,7 @@ const DevicesPanel: React.FC = () => {
             ...i,
             companionId: c?.id ?? '',
             companionStatus: c?.status ?? '',
+            companionResigned: !!c?.isResigned,
             currentMode: c?.currentMode ?? '',
             isThrottled: !!c?.isThrottled,
             isLatest: v ? v.isLatest : undefined,
@@ -581,6 +585,7 @@ const DevicesPanel: React.FC = () => {
       width: 146,
       render: (_: unknown, r: DeviceRow) => {
         if (!r.companionId) return <Text type='secondary' style={{ fontSize: 12 }}>不是陪玩账号</Text>;
+        if (r.companionResigned) return <Tag color='default'>已离职</Tag>;
         const cfg = companionStatusConfig[r.companionStatus] || { label: r.companionStatus || '未知', color: 'default' };
         return (
           <Space direction='vertical' size={0}>
