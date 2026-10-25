@@ -15,6 +15,7 @@ import { tierMeta } from '../../constants/tiers';
 import DailyKpiPanel from '../../components/DailyKpiPanel';
 import UnifiedDashboard from './UnifiedDashboard';
 import { businessDayKeyOf } from '../../utils/businessDay';
+import { useLiveRefresh, LIVE_BOARD_EVENTS } from '../../hooks/useLiveRefresh';
 
 const { Text } = Typography;
 
@@ -132,6 +133,10 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
     const timer = setInterval(load, 60000);
     return () => clearInterval(timer);
   }, [load]);
+
+  // 状态/抢单/转让事件到达就合并刷新，别等 60 秒轮询，
+  // 否则会出现「人已经在接单，看板还显示空闲/离线」。
+  useLiveRefresh({ events: LIVE_BOARD_EVENTS, refetch: load, delayMs: 800 });
 
   /**
    * 客服发单里的「桥接」点开：列出这张客服当天所有桥接单、合计金额，

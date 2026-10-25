@@ -388,6 +388,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **陪玩状态墙不实时，人在接单还显示空闲/离线（2026-10-25，网页 v1173）。**
+  - 看板原来只靠 60 秒轮询，状态事件到了也不刷新；
+  - 接入 useLiveRefresh：status:broadcast / order:grabbed / order:new 等事件合并后立即 refetch；
+  - 张权服务端状态 AVAILABLE（没有 ACTIVE 会话）时仍会显示空闲；
+  - 张钊截图时的离线是 60 秒前的旧快照，现在会马上变 BUSY。
+
 - **设备管理把离职陪玩误显示「不是陪玩账号」（2026-10-25，网页 v1172）。**
   - 陈佳祺 10-23 已离职，Companion.isResigned=true、OFFLINE；
   - 设备列表原来只拉在职陪玩，离职后匹配不到 Companion，才显示不是陪玩账号；
