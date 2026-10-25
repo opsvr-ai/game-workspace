@@ -251,6 +251,15 @@ export class OrderSessionService {
       where: { parentOrderId: orderId, status: 'ACTIVE', startedAt: { not: null } },
       select: { id: true, companionId: true, coCompanionId: true, amount: true, coAmount: true, startedAt: true, totalPausedSec: true },
     });
+    // 刚刚才点过开始又点一次（常见于连点/来回切页面）：30 秒内拒绝再开段，
+    // 避免同一张单被点出第二段。真正的续单至少是打了一会儿以后。
+    const justStarted = previousActive.find(
+      (s) => s.startedAt && Date.now() - new Date(s.startedAt).getTime() < 30_000
+        && (!dto.companionId || s.companionId === dto.companionId),
+    );
+    if (justStarted) {
+      throw new BadRequestException('这张单刚刚已经开始了，不要重复点；要续单请稍后再操作');
+    }
     // 续单场景：自动结束上一个仍在计时的会话（首单/上一段续单）
     for (const prev of previousActive) {
       const started = prev.startedAt ? new Date(prev.startedAt).getTime() : Date.now();
