@@ -886,6 +886,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **所有提醒只保留客户端右下角弹窗，取消 Windows Toast（2026-10-25，网页 v1171 + 客户端后续版）。**
+  - 网页通知统一调用客户端置顶横幅入口；
+  - 不再调用 `new Notification` 的 Windows Toast，避免同一件事弹两遍；
+  - 旧客户端没有横幅入口时仍保留系统通知兜底。
+
 - **客户端更新按工作室串行下载，带宽上限 10MB/s（2026-10-25）。**
   - 服务端更新名额本来就按 studioId 隔离：同一工作室同时只放行一台下载，其余排队；
   - 服务端总下发给更新包的上限从 1MB/s 调到 10MB/s；

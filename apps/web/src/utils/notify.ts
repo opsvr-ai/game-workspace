@@ -2,6 +2,16 @@
 export function showSystemNotification(title: string, body: string) {
   try {
     const electronApi = (window as any).electronAPI;
+    if (electronApi?.durationReminderPopup) {
+      // 老板 2026-10-25：不要 Windows Toast，也不要弹两遍；
+      // 所有提醒统一走客户端右下角置顶横幅。v47 客户端已有这个入口。
+      electronApi.durationReminderPopup({ title, body, hint: '', seconds: 12 });
+      return;
+    }
+    if (electronApi?.broadcastPopup) {
+      electronApi.broadcastPopup({ title, body, icon: '🔔', seconds: 12 });
+      return;
+    }
     if (electronApi?.notify) {
       electronApi.notify(title, body);
       return;

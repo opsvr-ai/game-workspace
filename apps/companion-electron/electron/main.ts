@@ -1555,17 +1555,13 @@ function shouldSuppressBusyNotification(title: string, body: string): boolean {
 }
 
 function showBroadcastPopup(payload: BannerPayload, _opts?: { force?: boolean }): void {
-  // 老板 2026-10-24：陪玩不喜欢软件置顶弹窗/无边框，打游戏时会顶鼠标、顶画面。
-  // 所有软件横幅一律取消，改成 Windows 系统通知；不再探测全屏、不再抢前台。
   try {
     if (shouldSuppressBusyNotification(String(payload?.title || ''), String(payload?.body || ''))) return;
-    new Notification({
-      title: String(payload?.title || SHELL_BRAND),
-      body: String(payload?.body || ''),
-      silent: false,
-    }).show();
+    // 老板 2026-10-25：不要 Windows Toast，也不要两遍；所有提醒只保留这张
+    // 客户端右下角置顶横幅（focusable:false，不抢鼠标/焦点）。
+    showBannerNow(payload);
   } catch (err: any) {
-    logger.warn('Windows notification failed', { error: err?.message || String(err) });
+    logger.warn('Client banner failed', { error: err?.message || String(err) });
   }
 }
 
@@ -2023,7 +2019,8 @@ function setupIPC(): void {
   ipcMain.on('notify', (_e, title: string, body: string) => {
     try {
       if (shouldSuppressBusyNotification(String(title || ''), String(body || ''))) return;
-      new Notification({ title: String(title || SHELL_BRAND), body: String(body || '') }).show();
+      // 统一走客户端横幅，不再弹 Windows Toast。
+      showBannerNow({ title: String(title || SHELL_BRAND), body: String(body || ''), icon: '🔔', seconds: 12 });
     } catch {}
   });
 

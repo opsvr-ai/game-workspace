@@ -377,15 +377,8 @@ export function useShellRealtime({
         });
       }
       // Windows 通知在专注助手 / 全屏游戏里可能被系统吞掉；时间到再补一声提示音
-      // + 软件内右下角提醒，保证陪玩至少能听到/回到软件时看到。
+      // + 客户端右下角置顶横幅，保证陪玩至少能听到/回到软件时看到。
       playNotificationSound();
-      notification.warning({
-        key: `duration-reminder-${data?.sessionId || ''}`,
-        message: title,
-        description: desc,
-        duration: 20,
-        placement: 'bottomRight',
-      });
     },
     onServiceAutoEnded: (data: any) => {
       showSystemNotification(
