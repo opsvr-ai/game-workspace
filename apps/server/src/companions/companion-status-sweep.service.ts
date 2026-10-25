@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CompanionsService } from './companions.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { switchCompanionStatus } from '../common/companion-status-switch';
+import { getServiceTiming } from '../common/service-timing';
 
 /**
  * 定时清理「假在线」：客户端掉线/睡眠后如果没有及时上报断开，
@@ -73,6 +74,25 @@ export class CompanionStatusSweepService implements OnModuleInit {
         continue;
       }
       if (await this.companionsService.hasActiveServiceSession(c.id)) continue;
+      // 结束服务后的缓冲：BUSY 且没有 ACTIVE 会话时，不能看到就立刻放空闲。
+      // 否则客户端空闲黑名单会在几秒内杀掉三角洲，店长设置的 3 分钟形同虚设。
+      const lastEnded = await this.prisma.orderSession
+        .findFirst({
+          where: {
+            status: 'DONE',
+            endedAt: { not: null },
+            OR: [{ companionId: c.id }, { coCompanionId: c.id }],
+          },
+          orderBy: { endedAt: 'desc' },
+          select: { endedAt: true, parentOrder: { select: { studioId: true } } },
+        })
+        .catch(() => null);
+      if (lastEnded?.endedAt) {
+        const timing = await getServiceTiming(this.prisma, lastEnded.parentOrder?.studioId ?? null);
+        if (now.getTime() - new Date(lastEnded.endedAt).getTime() < timing.bufferMs) {
+          continue;
+        }
+      }
       const nextStatus = 'AVAILABLE';
       await switchCompanionStatus(this.prisma, c.id, nextStatus, now);
       // 改了状态就得推黑名单 —— 客户端只认 blacklist:update 里的 status（老板 2026-10-03：

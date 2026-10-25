@@ -31,7 +31,7 @@ import { CustomerBaselineService } from './customer-baseline.service';
 import { yuanToCents } from '../common/money';
 import { resolveDepositDeduct } from '../common/deposit-deduct';
 import { resolveConfigsRaw } from '../common/studio-config';
-import { releaseCompanionIfIdle, scheduleReleaseCompanionIfIdle } from '../common/companion-presence';
+import { scheduleReleaseCompanionIfIdle } from '../common/companion-presence';
 import { getServiceTiming } from '../common/service-timing';
 
 const SHOTS_DIR = join(process.cwd(), '..', '..', 'uploads', 'session-shots');
@@ -180,7 +180,9 @@ export class SessionShotsController {
         where: { id },
         data: { companionId: null },
       });
-      await releaseCompanionIfIdle(this.prisma, req.user.companionId, id);
+      // 双陪主陪先结束也要走「结束服务缓冲」，不能立刻放空闲把游戏杀掉。
+      const detachTiming = await getServiceTiming(this.prisma, req.user?.studioId ?? null);
+      scheduleReleaseCompanionIfIdle(this.prisma, req.user.companionId, id, detachTiming.bufferMs);
       return {
         code: 200,
         message: '你已结束，搭档继续服务',
