@@ -1550,11 +1550,53 @@ function shouldSuppressBusyNotification(title: string, body: string): boolean {
 }
 
 function showBroadcastPopup(payload: BannerPayload, _opts?: { force?: boolean }): void {
+  showBannerWithPolicy(payload);
+}
+
+/**
+ * 所有软件横幅的唯一入口：先判断这台机器是不是「独占全屏，置顶窗会把游戏顶回桌面」。
+ * 会被顶出去的机器只响提示音 + 闪任务栏 + 攒着，等退出全屏再补弹；
+ * 其他机器照旧右下角显示，并复查一次学习「这台机器不能弹」。
+ */
+function showBannerWithPolicy(payload: BannerPayload): void {
   try {
     if (shouldSuppressBusyNotification(String(payload?.title || ''), String(payload?.body || ''))) return;
-    // 老板 2026-10-25：不要 Windows Toast，也不要两遍；所有提醒只保留这张
-    // 客户端右下角置顶横幅（focusable:false，不抢鼠标/焦点）。
-    showBannerNow(payload);
+    const mode = bannerFullscreenMode();
+    if (mode === 'show') {
+      showBannerNow(payload);
+      return;
+    }
+    void (async () => {
+      let probe: ForegroundProbe | null = null;
+      try {
+        // hold 必须完整探测；auto 也走完整探测但最多等 700ms，避免新单横幅被 PowerShell 拖太久。
+        probe = mode === 'hold'
+          ? await probeForegroundFullscreen()
+          : await probeForegroundFullscreenQuick();
+        const route = decideBannerRoute({
+          mode,
+          probe,
+          learnedKick: bannerKicksGameKnown(),
+        });
+        if (route === 'hold') {
+          deferBannerWhileFullscreen(payload, probe?.exe || '');
+          try { mainWindow?.flashFrame(true); } catch {}
+          logger.info('Banner held while fullscreen game is running', {
+            title: payload?.title,
+            exe: probe?.exe,
+            exclusive: probe?.exclusive,
+            learnedKick: bannerKicksGameKnown(),
+          });
+          return;
+        }
+        showBannerNow(payload);
+        watchFullscreenKick(probe as ForegroundProbe);
+      } catch (err: any) {
+        // 探测/判断失败宁可照旧弹一次，也不能把提醒吞掉。
+        logger.warn('Banner policy failed, fallback to show', { error: err?.message || err });
+        showBannerNow(payload);
+      }
+    })();
   } catch (err: any) {
     logger.warn('Client banner failed', { error: err?.message || String(err) });
   }
@@ -2015,7 +2057,7 @@ function setupIPC(): void {
     try {
       if (shouldSuppressBusyNotification(String(title || ''), String(body || ''))) return;
       // 统一走客户端横幅，不再弹 Windows Toast。
-      showBannerNow({ title: String(title || SHELL_BRAND), body: String(body || ''), icon: '🔔', seconds: 12 });
+      showBannerWithPolicy({ title: String(title || SHELL_BRAND), body: String(body || ''), icon: '🔔', seconds: 12 });
     } catch {}
   });
 
@@ -2023,7 +2065,9 @@ function setupIPC(): void {
   // 这里用客户端右下角置顶横幅（不抢焦点、不抢鼠标，只有真的点卡片才动作）。
   ipcMain.on('service:duration-reminder-popup', (_e, payload: any) => {
     try {
-      showBannerNow({
+      // 到点提醒也必须遵守全屏保护：独占全屏下硬弹置顶窗会把游戏顶回桌面。
+      // 被压住时会响提示音 + 闪任务栏，退出全屏立刻补弹。
+      showBannerWithPolicy({
         title: String(payload?.title || '⏰ 时间到了'),
         body: String(payload?.body || '打完请点「结束服务」'),
         icon: '⏰',
