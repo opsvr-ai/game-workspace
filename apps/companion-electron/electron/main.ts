@@ -455,8 +455,15 @@ function ensureDesktopShortcut(): void {
     `$desktops = @(${q(desktop)}${publicDesktop ? `,${q(publicDesktop)}` : ''})`,
     `foreach($d in $desktops){`,
     `  Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {`,
-    `    if ($_.Name -notmatch '陪玩管理|客服管理|蠢驴电竞|chunlv') { return }`,
+    // 旧品牌快捷方式：不管它当前指向的旧 exe 还在不在，一律删掉。
+    // 以前只在「目标不存在 / 指向当前 exe」时才删，结果旧的「陪玩管理」指向旧目录仍然有效，
+    // 于是桌面上一直同时有「蠢驴电竞」和「陪玩管理」两个图标。
+    `    if ($_.Name -match '陪玩管理|客服管理|chunlv') { Remove-Item -LiteralPath $_.FullName -Force; return }`,
+    `    if ($_.Name -notmatch '蠢驴电竞') { return }`,
     `    if ($_.FullName -eq ${q(desktopLnk)}) { return }`,
+    // 只有确认本机标准快捷方式已经存在，才清理另一个桌面上的重复项；
+    // 否则「本机快捷方式没建出来、公共桌面那个又被删了」就会一个图标都不剩。
+    `    if (-not (Test-Path -LiteralPath ${q(desktopLnk)})) { return }`,
     `    $t=$w.CreateShortcut($_.FullName).TargetPath`,
     `    if (-not $t -or -not (Test-Path -LiteralPath $t) -or ($t -ieq ${q(target)})) { Remove-Item -LiteralPath $_.FullName -Force }`,
     `  }`,
@@ -464,9 +471,7 @@ function ensureDesktopShortcut(): void {
     `foreach($d in $startDirs){`,
     `  if (-not (Test-Path -LiteralPath $d)) { continue }`,
     `  Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {`,
-    `    if ($_.Name -notmatch '陪玩管理|客服管理|chunlv') { return }`,
-    `    $t=$w.CreateShortcut($_.FullName).TargetPath`,
-    `    if (-not $t -or -not (Test-Path -LiteralPath $t) -or ($t -ieq ${q(target)})) { Remove-Item -LiteralPath $_.FullName -Force }`,
+    `    if ($_.Name -match '陪玩管理|客服管理|chunlv') { Remove-Item -LiteralPath $_.FullName -Force }`,
     `  }`,
     `}`,
   ].join(';');
