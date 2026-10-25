@@ -212,10 +212,23 @@ function downloadZipWithProgress(
       }
       const total = parseInt(res.headers['content-length'] || '0', 10);
       let received = 0;
+      const startedAt = Date.now();
+      let paused = false;
       const file = fs.createWriteStream(dest);
       res.on('data', (chunk) => {
         received += chunk.length;
         if (total > 0) onProgress(Math.min(100, Math.round((received / total) * 100)));
+        // 接单中限速 10MB/s：超出当前时间的允许量就暂停读取，过一会儿再续。
+        const allowed = ((Date.now() - startedAt) / 1000) * DOWNLOAD_RATE_BYTES_PER_SEC;
+        if (!paused && received > allowed + DOWNLOAD_RATE_BYTES_PER_SEC) {
+          paused = true;
+          const waitMs = Math.min(1500, Math.max(80, ((received - allowed) / DOWNLOAD_RATE_BYTES_PER_SEC) * 1000));
+          res.pause();
+          setTimeout(() => {
+            paused = false;
+            res.resume();
+          }, waitMs);
+        }
       });
       res.pipe(file);
       file.on('finish', () => {
@@ -359,11 +372,8 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
   const localZip = path.join(localDir, 'update.zip');
   // 上一轮在接单时已经把这一版的包下好了 → 不用再下 123MB，等空闲直接装。
   const havePackage = stagedPackageReady(version, localZip);
-  // 接单/娱乐中不下载：120MB 会抢客户网络，游戏直接卡。等空闲再下，包不会过期。
-  if (!havePackage && companionBusy()) {
-    logger.info('Companion is busy, defer update download until idle', { version });
-    return;
-  }
+  // 接单中也可以静默下载：限速 10MB/s，低占用；真正换版仍然等这单结束，
+  // 避免重启客户端打断正在进行的服务。
   if (!havePackage) {
     const free = freeDiskBytes('C:\\');
     if (free < MIN_FREE_DISK_BYTES) {
@@ -524,6 +534,8 @@ export async function checkForUpdates(): Promise<void> {
 
 const MAX_REDIRECTS = 5;
 const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
+/** 接单中允许静默下载，但限速 10MB/s，别把客户网络和三角洲抢卡。 */
+const DOWNLOAD_RATE_BYTES_PER_SEC = 10 * 1024 * 1024;
 let updateCheckRunning = false;
 
 function runInstaller(installerPath: string): Promise<void> {
@@ -684,11 +696,8 @@ export async function handleUpdateCommand(downloadUrl?: string, pushedVersion?: 
       });
       return;
     }
-    // 接单/娱乐中绝不下载整包：120MB 下载会抢满客户网络，导致三角洲卡顿/掉线。
-    if (companionBusy()) {
-      logger.info('Update command received while companion is busy, skip download until idle', { version });
-      return;
-    }
+    // 接单中允许静默下载（performUpdate 内部会限速 10MB/s），
+    // 安装/重启仍会等这一单结束，不弹窗、不抢游戏网络。
     // 远程推送的机器，服务端已经把这个名额预约给它了（见 reserveUpdateSlot），
     // 所以只需要错开几秒，别再像以前那样错峰 0-60 秒 —— 那几十秒正好容易被别人抢走名额。
     const staggerMs = Math.floor(Math.random() * 5_000);
