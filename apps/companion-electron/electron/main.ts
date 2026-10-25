@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, shell, session, screen } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, Notification, shell, session, screen } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { execFile, execFileSync, spawn } from 'child_process';
@@ -1553,48 +1553,74 @@ function showBroadcastPopup(payload: BannerPayload, _opts?: { force?: boolean })
   showBannerWithPolicy(payload);
 }
 
+/** 全屏游戏里不能画置顶窗（会把人顶回桌面）；用系统通知兜底，至少不打断游戏。 */
+function notifyFullscreenFallback(payload: BannerPayload): void {
+  try {
+    if (!Notification.isSupported()) return;
+    new Notification({
+      title: String(payload?.title || SHELL_BRAND),
+      body: String(payload?.body || ''),
+      silent: false,
+    }).show();
+  } catch {
+    /* 系统通知不可用也不影响游戏 */
+  }
+}
+
 /**
  * 所有软件横幅的唯一入口：先判断这台机器是不是「独占全屏，置顶窗会把游戏顶回桌面」。
- * 会被顶出去的机器只响提示音 + 闪任务栏 + 攒着，等退出全屏再补弹；
- * 其他机器照旧右下角显示，并复查一次学习「这台机器不能弹」。
+ *
+ * 硬规则（2026-10-25 徐建业反馈）：**全屏/探测不确定时一律不画置顶窗**，
+ * 改用 Windows 通知 + 闪任务栏；非全屏才画右下角横幅。
+ * 这样宁可极端情况下少一个 overlay，也绝不把人从三角洲顶回桌面。
  */
 function showBannerWithPolicy(payload: BannerPayload): void {
   try {
     if (shouldSuppressBusyNotification(String(payload?.title || ''), String(payload?.body || ''))) return;
     const mode = bannerFullscreenMode();
     if (mode === 'show') {
+      // 明确选了 show 的机器：接受可能被顶出去，保持原行为。
       showBannerNow(payload);
       return;
     }
     void (async () => {
       let probe: ForegroundProbe | null = null;
       try {
-        // hold 必须完整探测；auto 也走完整探测但最多等 700ms，避免新单横幅被 PowerShell 拖太久。
-        probe = mode === 'hold'
-          ? await probeForegroundFullscreen()
-          : await probeForegroundFullscreenQuick();
+        // 只用最多 700ms 的快速探测；探不出来也不画 overlay（画了就可能掉桌面）。
+        probe = await probeForegroundFullscreenQuick();
+        if (!probe) {
+          deferBannerWhileFullscreen(payload, '');
+          try { mainWindow?.flashFrame(true); } catch {}
+          notifyFullscreenFallback(payload);
+          logger.info('Banner held: fullscreen probe unavailable, using Windows fallback', {
+            title: payload?.title,
+          });
+          return;
+        }
         const route = decideBannerRoute({
           mode,
           probe,
           learnedKick: bannerKicksGameKnown(),
         });
         if (route === 'hold') {
-          deferBannerWhileFullscreen(payload, probe?.exe || '');
+          deferBannerWhileFullscreen(payload, probe.exe || '');
           try { mainWindow?.flashFrame(true); } catch {}
+          notifyFullscreenFallback(payload);
           logger.info('Banner held while fullscreen game is running', {
             title: payload?.title,
-            exe: probe?.exe,
-            exclusive: probe?.exclusive,
+            exe: probe.exe,
+            exclusive: probe.exclusive,
             learnedKick: bannerKicksGameKnown(),
           });
           return;
         }
         showBannerNow(payload);
-        watchFullscreenKick(probe as ForegroundProbe);
+        watchFullscreenKick(probe);
       } catch (err: any) {
-        // 探测/判断失败宁可照旧弹一次，也不能把提醒吞掉。
-        logger.warn('Banner policy failed, fallback to show', { error: err?.message || err });
-        showBannerNow(payload);
+        // 异常同样不冒险画 overlay：系统通知 + 任务栏兜底。
+        logger.warn('Banner policy failed, using Windows fallback', { error: err?.message || err });
+        try { mainWindow?.flashFrame(true); } catch {}
+        notifyFullscreenFallback(payload);
       }
     })();
   } catch (err: any) {
