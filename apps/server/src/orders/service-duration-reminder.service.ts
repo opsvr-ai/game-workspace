@@ -43,6 +43,7 @@ export class ServiceDurationReminderService implements OnModuleInit {
       select: {
         id: true,
         companionId: true,
+        coCompanionId: true,
         duration: true,
         startedAt: true,
         durationRemindedAt: true,
@@ -76,8 +77,10 @@ export class ServiceDurationReminderService implements OnModuleInit {
         `已服务 ${durationH} 小时，${overdueText}。` +
         '打完请立刻点「结束服务」；客户还要接着打就先点「续单」—— ' +
         '不点的话这一单不计业绩，也不算首单成交 / 续单 / 复购（评分和抢单名额都会少）';
-      if (s.companionId) {
-        this.wsGateway.pushToCompanion(s.companionId, 'service:duration_reminder', {
+      // 双陪主陪先结束后，会话只剩 coCompanionId（主陪被置空），
+      // 到点提醒必须也推给还在打的副陪，否则钱鸿鸣这种接手的永远收不到。
+      for (const id of [s.companionId, s.coCompanionId].filter(Boolean) as string[]) {
+        this.wsGateway.pushToCompanion(id, 'service:duration_reminder', {
           sessionId: s.id,
           orderId: s.parentOrder.id,
           gameName: s.parentOrder.gameName || '',

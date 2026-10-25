@@ -382,6 +382,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **双陪主陪先结束后，到点提醒仍推给继续服务的副陪（2026-10-25，服务端）。**
+  - 以前只推 session.companionId；主陪 detach 后 companionId 为空，副陪永远收不到；
+  - 现在主陪 / 副陪都推 service:duration_reminder；
+  - 自动结束和 3 分钟缓冲仍按会话整体处理。
+
 - **点结束后立即消失按钮、停止计时，不再等接口刷新（2026-10-25，网页 v1168）。**
   - EndServiceModal 成功（含双陪主陪 detach）后立刻把 sessionId 加入本地隐藏集合；
   - 客户列表的「服务中」计时和结束按钮马上消失；
