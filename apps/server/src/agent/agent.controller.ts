@@ -197,7 +197,14 @@ export class AgentController {
 
   // Public: companion polls this to reload the web page when a new frontend is deployed.
   @Get('frontend-version')
-  async getFrontendVersion(): Promise<ApiResponse<unknown>> {
+  async getFrontendVersion(@Req() req: any): Promise<ApiResponse<unknown>> {
+    // 2026-10-25：陪玩端外壳每次发网页版都会 webContents.reload()，钱鸿鸣接邀请时
+    // 正赶上连续发版，被刷得反复掉线。外壳这一侧先固定一个稳定版号，不再自动刷；
+    // 浏览器/管理端仍拿真实版号，用右下角「新版本已就绪」提示手动更新。
+    const ua = String(req?.headers?.['user-agent'] || '');
+    if (/companion-electron/i.test(ua)) {
+      return { code: 200, message: 'ok', data: { version: 'client-stable-v1' } };
+    }
     const data = await this.agentService.getFrontendVersion();
     return { code: 200, message: 'ok', data };
   }
