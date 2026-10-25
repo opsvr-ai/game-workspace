@@ -134,10 +134,11 @@ function canRenewNow(c: Customer): boolean {
  * 判定口径跟操作列那个「服务中」标签**完全一致**（同一个 CONFIRMED 单、同一个 ACTIVE 会话、
  * 已经点过开始首单还没结束），保证「整行在闪」和「标签写着服务中」永远是同一件事。
  */
-function servingSessionOf(c: Customer, onlyCompanionId?: string | null): { orderId: string; sessionId: string; startedAt: string } | null {
+function servingSessionOf(c: Customer, onlyCompanionId?: string | null, endedIds?: Set<string>): { orderId: string; sessionId: string; startedAt: string } | null {
   // 双陪主陪先结束后 session.companionId 会变 null、副陪继续打；
   // 主陪不能继续看到「服务中/结束服务」，否则点了就是 403「只能操作自己的会话」。
-  const mine = (s: any) => !onlyCompanionId || s.companionId === onlyCompanionId || s.coCompanionId === onlyCompanionId;
+  const mine = (s: any) => !endedIds?.has(s.id)
+    && (!onlyCompanionId || s.companionId === onlyCompanionId || s.coCompanionId === onlyCompanionId);
   const activeOrder =
     c.orders?.find((o) => o.sessions?.some((s) => s.status === 'ACTIVE' && s.startedAt && mine(s))) ||
     c.orders?.find((o) => o.status === 'CONFIRMED') ||
@@ -170,7 +171,10 @@ const CustomersPage: React.FC = () => {
   const isCompanion = role === 'COMPANION';
   // 双陪主陪先结束后，session 的 companionId 会变 null，不能再让他看到结束服务。
   const myCompanionId = isCompanion ? user?.companionId : undefined;
-  const sessionIsMine = (s: any) => !myCompanionId || s?.companionId === myCompanionId || s?.coCompanionId === myCompanionId;
+  // 双陪主陪点结束后，先把这段会话从界面立刻摘掉，别等接口回来才消失、计时还在跑。
+  const [endedSessionIds, setEndedSessionIds] = useState<Set<string>>(new Set());
+  const sessionIsMine = (s: any) => !endedSessionIds.has(s?.id)
+    && (!myCompanionId || s?.companionId === myCompanionId || s?.coCompanionId === myCompanionId);
   const isCs = role === 'CS';
   const isAdmin = role === 'ADMIN' || role === 'OWNER';
   const canManage = isCs || isAdmin;
@@ -605,7 +609,7 @@ const CustomersPage: React.FC = () => {
           ? `已封存 ${String(record.archivedAt).slice(5, 10)}`
           : '';
         const tail = [deposit, scheduled, archived].filter(Boolean).join(' · ');
-        const serving = !!servingSessionOf(record, myCompanionId);
+        const serving = !!servingSessionOf(record, myCompanionId, endedSessionIds);
         return (
           <div
             style={{ ...CELL_ONE_LINE, position: 'relative', paddingRight: serving ? 56 : undefined }}
@@ -1206,7 +1210,7 @@ const CustomersPage: React.FC = () => {
                         )}
                         rowKey="id"
                         loading={loading}
-                        rowClassName={(record) => (servingSessionOf(record as Customer, myCompanionId) ? 'chunlv-row-serving' : '')}
+                        rowClassName={(record) => (servingSessionOf(record as Customer, myCompanionId, endedSessionIds) ? 'chunlv-row-serving' : '')}
                         onRow={(record) => ({
                           style: { cursor: 'pointer' },
                           onClick: (e: React.MouseEvent) => {
@@ -1421,7 +1425,17 @@ const CustomersPage: React.FC = () => {
           depositBalance={endServiceTarget?.depositBalance}
           suggestedDeduct={endServiceTarget?.suggestedDeduct}
           onClose={() => setEndServiceTarget(null)}
-          onDone={() => fetchCustomers()}
+          onDone={(result) => {
+            if (result?.sessionId) {
+              setEndedSessionIds((prev) => {
+                const next = new Set(prev);
+                next.add(result.sessionId!);
+                return next;
+              });
+            }
+            setEndServiceTarget(null);
+            fetchCustomers();
+          }}
         />
         <ContinueServiceModal
           open={!!continueTarget}
