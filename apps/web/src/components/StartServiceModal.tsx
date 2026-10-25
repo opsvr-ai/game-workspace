@@ -5,6 +5,7 @@ import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
+import { isCompanionUpdateScheduled } from '../utils/companionUpdate';
 
 const { Text } = Typography;
 
@@ -76,6 +77,10 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
 
   const handleStart = async () => {
     if (!orderId && !customerId) return;
+    if (isCompanionUpdateScheduled()) {
+      message.warning('软件正在更新，请稍等');
+      return;
+    }
     if (!claimDuration || claimDuration <= 0) return message.warning('请填写有效时长');
     if (claimPrice == null || claimPrice <= 0) return message.warning('请填写单价');
     if (dual && partnerMode === 'assign' && !coId) return message.warning('双陪请选择搭档');

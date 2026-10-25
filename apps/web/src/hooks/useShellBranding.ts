@@ -17,6 +17,7 @@ import http from '../api/client';
 import { configApi } from '../api/config';
 import { decideBuildRefresh } from '../utils/buildRefresh';
 import { isAnyBusy } from '../utils/busyGuard';
+import { scheduleCompanionUpdate } from '../utils/companionUpdate';
 
 export function useShellBranding(user: UserInfo | null) {
   const [studioBrand, setStudioBrand] = React.useState<{ name: string; logo?: string } | null>(null);
@@ -67,21 +68,28 @@ export function useShellBranding(user: UserInfo | null) {
           const id = res?.data?.data?.webBuildId;
           if (!id) return;
           setWebBuild(id);
-          // 有新版本前端页面要不要现在刷：判定收在 utils/buildRefresh.ts（老板 2026-10-08）。
-          // 规则：服务中不刷、刚打开页面先等 2 分钟、5 分钟内只刷一次，**有人在写东西（有没提交的
-          // 内容）也不刷** —— 以前漏了最后这条，打字打一半被整页刷掉、输入全没了。
-          const decision = decideBuildRefresh({
-            prev: localStorage.getItem('webBuildId'),
+          const inService = !!res?.data?.data?.inService;
+          const prev = localStorage.getItem('webBuildId');
+          if (!prev) {
+            localStorage.setItem('webBuildId', id);
+            return;
+          }
+          // 陪玩：只在非接单模式自动更新；接单中 / 有邀请 / 正在写东西完全不动。
+          // 更新前留 5 秒，开始首单或收到邀请可以取消（见 companionUpdate.ts）。
+          if (user?.role === 'COMPANION') {
+            if (prev !== id && !inService && !isAnyBusy()) scheduleCompanionUpdate(id);
+            return;
+          }
+          localStorage.setItem('webBuildId', id);
+          // 管理端/浏览器不自动 reload，只记构建号；右下角按钮提示手动刷新。
+          void decideBuildRefresh({
+            prev,
             next: id,
             pageAgeMs: Date.now() - pageStartedAt,
             lastReloadAt: Number(localStorage.getItem('webBuildReloadAt') || 0),
-            inService: !!res?.data?.data?.inService,
+            inService,
             busy: isAnyBusy(),
           });
-          if (!decision.remember) return;
-          localStorage.setItem('webBuildId', id);
-          // 不再在这里自动 reload：发版时页面正在用，突然整页刷新会把刚点的单/刚填的内容冲掉。
-          // 新版本提示统一交给 AppLayout 的右下角按钮；用户在方便时自己点。
         })
         .catch(() => {});
     };

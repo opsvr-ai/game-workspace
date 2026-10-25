@@ -16,6 +16,7 @@ import { notification } from 'antd';
 import { message } from '../utils/feedback';
 import { notifyNotice, recordNotice } from '../utils/notice';
 import { playNotificationSound, showBannerNotification, showSystemNotification } from '../utils/notify';
+import { cancelCompanionUpdateForService } from '../utils/companionUpdate';
 import { rolePage } from '../config/roleMenus';
 import http from '../api/client';
 import { useSocket } from './useSocket';
@@ -77,6 +78,7 @@ export function useShellRealtime({
         return;
       }
       if (!user?.companionId || data?.coCompanionId !== user.companionId) return;
+      if (cancelCompanionUpdateForService()) message.info('软件正在更新，已推迟到空闲后');
       const inviter = data.inviterName || '有陪玩';
       const isProxy = data.proxyMode === true;
       const desc = isProxy
@@ -261,6 +263,7 @@ export function useShellRealtime({
       // 广播找搭档：主陪未指定搭档，工作室任意陪玩可接受，第一个接受者成为搭档
       if (!user?.companionId || !data?.sessionId) return;
       if (data?.companionId === user.companionId) return; // 主陪自己不看自己的广播
+      if (cancelCompanionUpdateForService()) message.info('软件正在更新，已推迟到空闲后');
       const inviter = data.inviterName || '有陪玩';
       const desc = `${inviter}广播找搭档：${data.gameName || ''} · 搭档金额 ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`;
       const ttl = data.expiresInSec ?? 15;

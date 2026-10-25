@@ -171,7 +171,7 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
   /** 陪玩是否正在服务中（接单中/服务中）。正在服务时不刷客户端页面，避免打断。 */
   async isCompanionInService(companionId: string): Promise<boolean> {
     try {
-      const [companion, running] = await Promise.all([
+      const [companion, running, pending] = await Promise.all([
         this.prisma.companion.findUnique({ where: { id: companionId }, select: { status: true } }),
         this.prisma.orderSession.count({
           where: {
@@ -180,8 +180,16 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
             OR: [{ companionId }, { coCompanionId: companionId }],
           },
         }),
+        // 搭档邀请 / 双陪等待接受：还没 startedAt，但人已经不能被前端热更刷掉。
+        this.prisma.orderSession.count({
+          where: {
+            status: 'ACTIVE',
+            startedAt: null,
+            OR: [{ companionId }, { coCompanionId: companionId }],
+          },
+        }),
       ]);
-      return companion?.status === 'BUSY' || running > 0;
+      return companion?.status === 'BUSY' || running > 0 || pending > 0;
     } catch {
       return false;
     }
