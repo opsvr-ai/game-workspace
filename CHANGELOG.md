@@ -382,6 +382,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **到点提醒只走 Windows 通知，陪玩在游戏里经常看不到（2026-10-25，网页 v1169）。**
+  - 徐建业 1653/1655/1656 的 `durationRemindedAt` 都有值，服务端确实发了；
+  - 客户端只弹 Windows Toast，专注助手/独占全屏会被系统静默吞掉；
+  - 现在时间到额外响提示音 + 软件内右下角通知，回到软件也能看到；
+  - 全屏游戏里仍需要客户端版置顶横幅（下一版客户端补）。
+
 - **双陪主陪先结束后，到点提醒仍推给继续服务的副陪（2026-10-25，服务端）。**
   - 以前只推 session.companionId；主陪 detach 后 companionId 为空，副陪永远收不到；
   - 现在主陪 / 副陪都推 service:duration_reminder；
