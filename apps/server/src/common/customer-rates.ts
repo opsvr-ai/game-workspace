@@ -50,9 +50,9 @@ export function emptyCustomerRateRow(): CustomerRateRow {
   return { orderCount: 0, firstCustomers: 0, renew: 0, repurchase: 0 };
 }
 
-/** 率（%）：分母为 0 就是 0，别除出 NaN */
+/** 率（%）：分母为 0 就是 0，别除出 NaN；率不可能超过 100%。 */
 export function ratePercent(part: number, total: number): number {
-  return total > 0 ? (part / total) * 100 : 0;
+  return total > 0 ? Math.min(100, (part / total) * 100) : 0;
 }
 
 /**

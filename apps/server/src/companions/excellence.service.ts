@@ -568,8 +568,8 @@ export class ExcellenceService implements OnModuleInit {
     for (const [cid, s] of rates) {
       // 分母统一 = 打了首单的客户数（老板 2026-10-04）
       const rateDenom = s.firstCustomers;
-      const renewRate = rateDenom > 0 ? (s.renew / rateDenom) * 100 : 0;
-      const repurchaseRate = rateDenom > 0 ? (s.repurchase / rateDenom) * 100 : 0;
+      const renewRate = rateDenom > 0 ? Math.min(100, (s.renew / rateDenom) * 100) : 0;
+      const repurchaseRate = rateDenom > 0 ? Math.min(100, (s.repurchase / rateDenom) * 100) : 0;
       const addedCount = addedCustomers.get(cid)?.size || 0;
       // 成交首单客户数 = **打完的**首单客户数（老板 2026-10-05：「不打完怎么算？」）；
       // 理论上不会超过分母，超了就按 100% 封顶。
