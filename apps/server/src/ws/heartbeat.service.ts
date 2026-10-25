@@ -63,6 +63,60 @@ export class HeartbeatService {
       data: { status: 'AVAILABLE' },
     }).catch(() => {});
 
+    // 统一状态同步（2026-10-25）：客户端本地 lastStatus 可能因强制切空闲 / 重启残留，
+    // 与服务端业务状态不一致；这里以服务端为准把权威状态推回客户端，
+    // 不再依赖某一个 forceIdle 事件或让老板手动点空闲。
+    const authoritative = await Promise.resolve(
+      this.prisma.companion.findUnique({ where: { id: user.companionId }, select: { status: true } }),
+    ).catch(() => null);
+    const activeSession =
+      typeof (this.prisma as any).orderSession?.findFirst === 'function'
+        ? await Promise.resolve(
+            (this.prisma as any).orderSession.findFirst({
+              where: {
+                OR: [{ companionId: user.companionId }, { coCompanionId: user.companionId }],
+                status: 'ACTIVE',
+                startedAt: { not: null },
+              },
+              select: { id: true },
+            }),
+          ).catch(() => null)
+        : null;
+    const canonicalStatus = activeSession ? 'BUSY' : (authoritative?.status || 'AVAILABLE');
+    const pcState =
+      typeof (this.prisma as any).companionPC?.findUnique === 'function'
+        ? await Promise.resolve(
+            (this.prisma as any).companionPC.findUnique({
+              where: { companionId: user.companionId },
+              select: { currentMode: true },
+            }),
+          ).catch(() => null)
+        : null;
+    const reportedMode = data.currentMode || pcState?.currentMode;
+    const validModes = new Set(['AVAILABLE', 'BUSY', 'ENTERTAINMENT', 'RESTING', 'OFFLINE']);
+    if (reportedMode && validModes.has(reportedMode) && reportedMode !== canonicalStatus) {
+      await this.prisma.companionPC.update({
+        where: { companionId: user.companionId },
+        data: { currentMode: canonicalStatus },
+      }).catch(() => {});
+      (this.wsGateway as any).server?.to(`user:${user.id}`).emit('state:sync', {
+        status: canonicalStatus,
+        reason: 'heartbeat',
+        activeSessionId: activeSession?.id || null,
+      });
+      if (user.studioId) {
+        await Promise.resolve(
+          (this.wsGateway as any).pushCurrentBlacklist?.(user.companionId, user.studioId, true),
+        ).catch(() => {});
+      }
+      logger.info('Runtime state reconciled from server', {
+        companionId: user.companionId,
+        reportedMode,
+        canonicalStatus,
+        activeSessionId: activeSession?.id || null,
+      });
+    }
+
     // Update duration on open time logs (status-based tracking)
     const now = new Date();
     const openLog = await this.prisma.companionTimeLog.findFirst({

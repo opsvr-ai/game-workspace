@@ -919,6 +919,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **状态改为服务端权威 + 心跳自动对账，不再靠某个人手动重开客户端（2026-10-25，服务端 + 网页 v1175）。**
+  - 每次心跳比较客户端 currentMode / 服务端 Companion.status / ACTIVE 会话；
+  - 不一致就以服务端为准下发 `state:sync`，客户端覆盖本地 lastStatus；
+  - 同时重推对应状态的权威黑名单，解决「服务端空闲、客户端还停在娱乐」导致空闲能开游戏；
+  - 对所有陪玩自动生效，不再一个个调试。
+
 - **客户端 v20261048：彻底取消 Windows 通知，只保留客户端右下角横幅。**
   - 主进程直发的群广播 / 杀进程提示 / 普通 notify 全部改走 showBannerNow；
   - 到点提醒兜底也不再 new Notification；

@@ -386,6 +386,16 @@ export function useShellRealtime({
         data?.message || '服务到点后仍未处理，已自动结束并计入业绩；游戏不会退出，打完后请切回空闲',
       );
     },
+    onStateSync: (data: any) => {
+      // 服务端心跳对账后的权威状态：只覆盖本地，不反向再发 status，避免来回打架。
+      const status = String(data?.status || '');
+      if (!['AVAILABLE', 'BUSY', 'ENTERTAINMENT', 'RESTING', 'OFFLINE'].includes(status)) return;
+      try {
+        (window as any).__showStatusBar?.(status);
+        (window as any).electronAPI?.storeSet?.('lastStatus', status);
+        window.dispatchEvent(new CustomEvent('chunlv:runtime-state', { detail: data }));
+      } catch {}
+    },
     onEntertainmentForceIdle: (data: any) => {
       // 服务端因娱乐余额不足把状态切成 AVAILABLE 时，必须同步客户端本地 lastStatus；
       // 否则本地还停在 ENTERTAINMENT，黑名单继续按娱乐列表走，三角洲就不会被杀。

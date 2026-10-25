@@ -23,6 +23,8 @@ interface UseSocketOptions {
   onFeedbackChase?: (data: any) => void;
   onScheduledReminder?: (data: any) => void;
   onStatusBroadcast?: (data: any) => void;
+  /** 服务端权威运行时状态（心跳对账后下发）：客户端必须直接覆盖本地旧状态。 */
+  onStateSync?: (data: any) => void;
   /** 群聊广播：客服/店长在群聊里发的广播，陪玩端要弹 Windows 提醒 */
   onChatBroadcast?: (data: any) => void;
   // Legacy chat events (deprecated, remove after migration)
@@ -519,6 +521,7 @@ export function useSocket(opts: UseSocketOptions = {}) {
       ['order:grabbed', (data: any) => optsRef.current.onOrderGrabbed?.(data)],
       ['order:scheduled_reminder', (data: any) => optsRef.current.onScheduledReminder?.(data)],
       ['status:broadcast', (data: any) => optsRef.current.onStatusBroadcast?.(data)],
+      ['state:sync', (data: any) => optsRef.current.onStateSync?.(data)],
       ['entertainment:forceIdle', (data: any) => optsRef.current.onEntertainmentForceIdle?.(data)],
       ['chat:notify', (data: any) => optsRef.current.onChatNotify?.(data)],
       ['chat:broadcast', (data: any) => optsRef.current.onChatBroadcast?.(data)],
