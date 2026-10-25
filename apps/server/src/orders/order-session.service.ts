@@ -261,6 +261,15 @@ export class OrderSessionService {
         data: { status: 'DONE', endedAt: new Date(), duration: actualHours || 0.1 },
       });
     }
+    // 并发连点兜底：上一步结束后如果还有 ACTIVE，说明另一路请求刚建了一段，
+    // 此时绝不再建第二段（否则一段结束会把状态放空闲，另一段还在打，游戏被杀）。
+    const stillActive = await this.prisma.orderSession.findFirst({
+      where: { parentOrderId: orderId, status: 'ACTIVE', startedAt: { not: null } },
+      select: { id: true },
+    });
+    if (stillActive) {
+      throw new BadRequestException('这张单已经有进行中的服务，请刷新页面，不要重复点开始');
+    }
     const session = await this.prisma.orderSession.create({
       data: {
         parentOrderId: orderId,

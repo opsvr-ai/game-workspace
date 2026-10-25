@@ -76,6 +76,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
   const hasDepositBalance = Number(depositBalance) > 0;
 
   const handleStart = async () => {
+    if (starting) return; // 防连点：同一张单第二次点击直接忽略
     if (!orderId && !customerId) return;
     if (isCompanionUpdateScheduled()) {
       message.warning('软件正在更新，请稍等');
