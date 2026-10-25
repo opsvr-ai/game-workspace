@@ -112,6 +112,7 @@ export const CONFIG_KEYS = [
   'service.stale_session_hours',
   'service.auto_end_after_reminder_minutes',
   'service.end_buffer_minutes',
+  'service.voice_reminder_text',
   'anomaly.revenue_drop_percent',
   'anomaly.hours_drop_percent',
   'anomaly.spend_drop_percent',
@@ -638,6 +639,12 @@ const CONFIG_DEFINITIONS = {
     min: 0,
     max: 30,
     description: '结束服务后保持接单中、留多久给陪玩切模式',
+  },
+  'service.voice_reminder_text': {
+    type: 'string',
+    scope: 'STUDIO',
+    default: '服务时间到了，请结束服务',
+    description: '到点语音提醒的播报内容',
   },
 
   // ── 异常预警 / 报账 / 营业日 ──

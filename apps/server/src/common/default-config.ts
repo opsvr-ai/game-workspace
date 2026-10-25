@@ -207,6 +207,7 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'service.stale_session_hours': 24,
   'service.auto_end_after_reminder_minutes': 20,
   'service.end_buffer_minutes': 3,
+  'service.voice_reminder_text': '服务时间到了，请结束服务',
   'anomaly.revenue_drop_percent': 50,
   'anomaly.hours_drop_percent': 50,
   'anomaly.spend_drop_percent': 50,

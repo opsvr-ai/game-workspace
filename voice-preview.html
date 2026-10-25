@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>蠢驴电竞 · 到点语音提醒试听</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #0b1220; color: #e8eefc; font: 15px/1.6 "Microsoft YaHei", system-ui, sans-serif; padding: 28px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .sub { color: #8fa3c8; margin-bottom: 22px; }
+  .card { max-width: 920px; background: #121d33; border: 1px solid #24365a; border-radius: 14px; padding: 20px; }
+  label { display: block; color: #9fb3d9; font-size: 13px; margin: 14px 0 6px; }
+  textarea, select, input[type=range] { width: 100%; }
+  textarea { background: #0b1528; color: #fff; border: 1px solid #2b4670; border-radius: 9px; padding: 10px; font: inherit; }
+  select { background: #0b1528; color: #fff; border: 1px solid #2b4670; border-radius: 9px; padding: 9px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 8px; }
+  button { border: 1px solid #2b4670; background: #162744; color: #dbe8ff; border-radius: 9px; padding: 10px 12px; cursor: pointer; text-align: left; }
+  button:hover { background: #1e355b; }
+  button.primary { background: #2f7cff; border-color: #2f7cff; color: #fff; font-weight: 700; text-align: center; }
+  .row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .row input { flex: 1; }
+  .hint { color: #7f93b8; font-size: 12px; margin-top: 12px; }
+  .tag { display: inline-block; font-size: 12px; color: #8fb6ff; border: 1px solid #2b4670; border-radius: 20px; padding: 1px 8px; margin-left: 6px; }
+</style>
+</head>
+<body>
+  <h1>到点语音提醒 · 试听</h1>
+  <div class="sub">只在这台电脑本地试听，还没发布。选声线 → 调音量 → 试听。</div>
+  <div class="card">
+    <label>店长设置的提醒内容</label>
+    <textarea id="text" rows="2">服务时间到了，请结束服务</textarea>
+
+    <label>系统语音 <span class="tag" id="voiceCount">加载中</span></label>
+    <select id="voice"></select>
+
+    <label>声线预设</label>
+    <div class="grid" id="presets"></div>
+
+    <label>音量 <span id="volumeLabel">70%</span></label>
+    <div class="row"><input id="volume" type="range" min="0" max="100" value="70" /></div>
+
+    <div class="row" style="margin-top: 18px">
+      <button class="primary" id="play" style="flex:1">▶ 试听当前声线</button>
+      <button id="stop" style="flex:0 0 110px; text-align:center">停止</button>
+    </div>
+    <div class="hint">声音由 Windows 自带语音合成；不同电脑装的中文语音不同，列表里没有中文语音时请先在 Windows 设置里添加中文语音。</div>
+  </div>
+
+<script>
+const PRESETS = [
+  { id: 'male_qingjiao', label: '男生 · 青椒音', gender: 'male', pitch: 1.25, rate: 1.08 },
+  { id: 'male_dashu', label: '男生 · 大叔音', gender: 'male', pitch: 0.72, rate: 0.90 },
+  { id: 'male_wenrun', label: '男生 · 温润音', gender: 'male', pitch: 0.92, rate: 0.98 },
+  { id: 'female_shaoluo', label: '女声 · 少萝音', gender: 'female', pitch: 1.55, rate: 1.10 },
+  { id: 'female_yujie', label: '女声 · 御姐音', gender: 'female', pitch: 0.82, rate: 0.94 },
+  { id: 'female_tianmei', label: '女声 · 甜妹音', gender: 'female', pitch: 1.30, rate: 1.02 },
+];
+let selected = 'female_tianmei';
+let voices = [];
+const $ = (id) => document.getElementById(id);
+
+function pickVoice(gender) {
+  const zh = voices.filter(v => /zh|chinese|中文|普通话/i.test((v.lang || '') + ' ' + (v.name || '')));
+  if (!zh.length) return null;
+  const male = /kangkang|yunxi|yunjian|男|male/i;
+  const female = /huihui|xiaoxiao|xiaoyi|yaoyao|女|female/i;
+  return zh.find(v => (gender === 'male' ? male : female).test(v.name)) || zh[0];
+}
+
+function refreshVoices() {
+  voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  const sel = $('voice');
+  sel.innerHTML = '';
+  voices.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${v.name} (${v.lang})`;
+    sel.appendChild(opt);
+  });
+  $('voiceCount').textContent = `${voices.length} 个系统语音`;
+}
+
+function renderPresets() {
+  $('presets').innerHTML = '';
+  PRESETS.forEach(p => {
+    const b = document.createElement('button');
+    b.textContent = p.label;
+    b.style.borderColor = p.id === selected ? '#2f7cff' : '#2b4670';
+    b.onclick = () => { selected = p.id; renderPresets(); speak(); };
+    $('presets').appendChild(b);
+  });
+}
+
+function speak() {
+  if (!window.speechSynthesis) return alert('当前浏览器不支持语音合成');
+  const p = PRESETS.find(x => x.id === selected) || PRESETS[0];
+  const text = ($('text').value || '').trim() || '服务时间到了，请结束服务';
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const idx = Number($('voice').value);
+  const chosen = Number.isFinite(idx) ? voices[idx] : pickVoice(p.gender);
+  u.voice = chosen || pickVoice(p.gender) || null;
+  u.lang = u.voice?.lang || 'zh-CN';
+  u.pitch = p.pitch;
+  u.rate = p.rate;
+  u.volume = Number($('volume').value) / 100;
+  speechSynthesis.speak(u);
+}
+
+$('play').onclick = speak;
+$('stop').onclick = () => speechSynthesis.cancel();
+$('volume').oninput = () => { $('volumeLabel').textContent = $('volume').value + '%'; };
+$('voice').onchange = () => {};
+if (window.speechSynthesis) {
+  refreshVoices();
+  speechSynthesis.onvoiceschanged = refreshVoices;
+}
+renderPresets();
+</script>
+</body>
+</html>

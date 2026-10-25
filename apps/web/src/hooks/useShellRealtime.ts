@@ -20,6 +20,7 @@ import { cancelCompanionUpdateForService } from '../utils/companionUpdate';
 import { rolePage } from '../config/roleMenus';
 import http from '../api/client';
 import { useSocket } from './useSocket';
+import { speakVoiceReminder } from '../utils/voiceReminder';
 
 export interface ShellRealtimeDeps {
   user: UserInfo | null;
@@ -376,9 +377,17 @@ export function useShellRealtime({
           action: 'open-orders',
         });
       }
-      // Windows 通知在专注助手 / 全屏游戏里可能被系统吞掉；时间到再补一声提示音
-      // + 客户端右下角置顶横幅，保证陪玩至少能听到/回到软件时看到。
-      playNotificationSound();
+      // 到点语音提醒：店长在后台设内容，陪玩自己选声线/音量。
+      // 先取配置；取不到就用固定短句，避免把整段说明念几十秒。
+      http.get('/config', { params: { keys: 'service.voice_reminder_text' } })
+        .then(({ data }: any) => {
+          const text = String(data?.data?.['service.voice_reminder_text'] || '').trim()
+            || '服务时间到了，请结束服务';
+          if (!speakVoiceReminder(text)) playNotificationSound();
+        })
+        .catch(() => {
+          if (!speakVoiceReminder('服务时间到了，请结束服务')) playNotificationSound();
+        });
     },
     onServiceAutoEnded: (data: any) => {
       showSystemNotification(

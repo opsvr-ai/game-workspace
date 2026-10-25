@@ -11,6 +11,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **到点语音提醒（2026-10-25，试听版，未发布）。**
+  - 陪玩端可选男声青椒/大叔/温润、女声少萝/御姐/甜妹；
+  - 音量可调，设置存本机；
+  - 店长端可设置播报内容 `service.voice_reminder_text`；
+  - 试听页：`voice-preview.html`，暂不推送客户端。
+
 - **到点提醒在全屏游戏里也能看到：客户端右下角置顶横幅（2026-10-25，客户端 v20261046，灰度徐建业/钱鸿鸣）。**
   - Windows Toast 被专注助手/全屏吞掉的问题；
   - 新增 IPC `service:duration-reminder-popup`，主进程画右下角置顶横幅，不抢焦点/不抢鼠标；
