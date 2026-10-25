@@ -961,6 +961,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **到点自动结束改成按实际服务时长紧算（2026-10-25，服务端）。**
+  - 不再额外多送 10 分钟：1h 单到 1h 就提醒；
+  - 到 1h + 店长设置分钟数仍未点结束，直接自动 DONE，不依赖上一次提醒是否落库；
+  - 暂停时间不计入；服务重启/漏 tick 也不会把自动结束往后拖；
+  - 自动结束用原子 updateMany 抢结束权，避免重复结束/重复通知。
+
 - **状态改为服务端权威 + 心跳自动对账，不再靠某个人手动重开客户端（2026-10-25，服务端 + 网页 v1175）。**
   - 每次心跳比较客户端 currentMode / 服务端 Companion.status / ACTIVE 会话；
   - 不一致就以服务端为准下发 `state:sync`，客户端覆盖本地 lastStatus；

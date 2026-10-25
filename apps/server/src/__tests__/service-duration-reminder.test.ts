@@ -41,7 +41,7 @@ const row = (over: any = {}) => ({
   id: 's1',
   companionId: 'c1',
   duration: 1,
-  startedAt: new Date(Date.now() - 2 * HOUR),
+  startedAt: new Date(Date.now() - 1 * HOUR - 5 * MIN),
   durationRemindedAt: null,
   status: 'ACTIVE',
   parentOrderId: 'o1',
@@ -71,7 +71,7 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
     expect(pushed[0].data.message).toContain('续单'); // 客户接着打就先点续单，别让人白打
     expect(pushed[0].data.message).toContain('不计业绩');
     expect(pushed[0].data.message).toContain('不算首单成交');
-    expect(pushed[0].data.overdueMin).toBeGreaterThan(40);
+    expect(pushed[0].data.overdueMin).toBeGreaterThan(4);
     expect(updated).toHaveLength(1);
     expect(updated[0].data.durationRemindedAt).toBeInstanceOf(Date);
   });
@@ -83,17 +83,18 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
   });
 
   it('提醒后 20 分钟仍没处理：自动结束并计入业绩', async () => {
-    const { svc, pushed, updated } = setup([row({ durationRemindedAt: new Date(Date.now() - 21 * MIN) })]);
+    const { svc, pushed, updated } = setup([row({ durationRemindedAt: new Date(Date.now() - 21 * MIN), startedAt: new Date(Date.now() - 2 * HOUR) })]);
     await svc.tick();
     expect(pushed).toHaveLength(1);
     expect(pushed[0].event).toBe('service:auto_ended');
     expect(updated.at(-1)?.data?.status).toBe('DONE');
   });
 
-  it('超时很久：文案带上「已经超时 X 小时 Y 分钟」', async () => {
+  it('超时很久：自动结束，不再继续拖', async () => {
     const { svc, pushed } = setup([row({ startedAt: new Date(Date.now() - 5 * HOUR), duration: 1 })]);
     await svc.tick();
-    expect(pushed[0].data.message).toContain('已经超时 3 小时 50 分钟');
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].event).toBe('service:auto_ended');
   });
 
   it('没有陪玩（companionId 为空）：只记提醒时间，不推送', async () => {
@@ -103,3 +104,5 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
     expect(updated).toHaveLength(1);
   });
 });
+
+

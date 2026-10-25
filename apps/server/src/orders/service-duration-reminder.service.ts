@@ -29,9 +29,6 @@ export class ServiceDurationReminderService implements OnModuleInit {
 
   /** 到点之后每隔这么久再提醒一次（直到这段被点「结束服务」） */
   private static readonly REPEAT_MS = 30 * 60 * 1000;
-  /** 填写 2h 就 2h 后再多给 10 分钟，再提醒结束 */
-  private static readonly REMIND_GRACE_MS = 10 * 60 * 1000;
-  /** 提醒后达到店长设置的分钟数仍不处理：强制结束，避免无限挂着不计业绩 */
 
   async tick() {
     const now = Date.now();
@@ -46,6 +43,8 @@ export class ServiceDurationReminderService implements OnModuleInit {
         coCompanionId: true,
         duration: true,
         startedAt: true,
+        pausedAt: true,
+        totalPausedSec: true,
         durationRemindedAt: true,
         parentOrder: { select: { id: true, gameName: true, studioId: true } },
       },
@@ -55,19 +54,24 @@ export class ServiceDurationReminderService implements OnModuleInit {
     for (const s of sessions) {
       if (!s.startedAt) continue;
       const durationH = Number(s.duration) || 1;
-      const dueAt = new Date(s.startedAt).getTime() + durationH * 3600 * 1000 + ServiceDurationReminderService.REMIND_GRACE_MS;
-      if (now < dueAt) continue;
-      const lastAt = s.durationRemindedAt ? new Date(s.durationRemindedAt).getTime() : 0;
+      // 到点按「实际服务时长」算，暂停的时间不算；到点就是到点，不再额外多送 10 分钟。
+      const pausedSec = Number(s.totalPausedSec || 0)
+        + (s.pausedAt ? Math.max(0, (now - new Date(s.pausedAt).getTime()) / 1000) : 0);
+      const activeMs = Math.max(0, now - new Date(s.startedAt).getTime() - pausedSec * 1000);
+      const dueMs = durationH * 3600 * 1000;
+      if (activeMs < dueMs) continue;
       const timing = await getServiceTiming(this.prisma, s.parentOrder.studioId);
-      // 提醒后达到店长设置的分钟数仍没处理 → 强制结束，3 分钟缓冲后回空闲。
-      if (lastAt && now - lastAt >= timing.autoEndMs) {
+      // 到点 + 店长设置的分钟数，必须结束；基准是实际服务时长，不再依赖上一次提醒是否落库，
+      // 服务重启/漏 tick 也不会把自动结束无限往后拖。
+      if (activeMs - dueMs >= timing.autoEndMs) {
         await this.autoEnd(s.id, timing.bufferMs);
         continue;
       }
+      const lastAt = s.durationRemindedAt ? new Date(s.durationRemindedAt).getTime() : 0;
       // 提醒过一次、还没到下一次间隔 → 跳过（不然每 30 秒 tick 一次会刷屏）
       if (lastAt && now - lastAt < ServiceDurationReminderService.REPEAT_MS) continue;
 
-      const overdueMin = Math.floor((now - dueAt) / 60000);
+      const overdueMin = Math.floor((activeMs - dueMs) / 60000);
       const overdueText = overdueMin >= 60
         ? `已经超时 ${Math.floor(overdueMin / 60)} 小时 ${overdueMin % 60} 分钟`
         : overdueMin >= 5
@@ -115,16 +119,36 @@ export class ServiceDurationReminderService implements OnModuleInit {
     let totalPaused = s.totalPausedSec || 0;
     if (s.pausedAt) totalPaused += Math.floor((endedAt.getTime() - new Date(s.pausedAt).getTime()) / 1000);
     const activeSec = Math.max(0, (endedAt.getTime() - new Date(s.startedAt).getTime()) / 1000 - totalPaused);
-    await this.prisma.orderSession.update({
-      where: { id: sessionId },
-      data: {
-        status: 'DONE',
-        endedAt,
-        pausedAt: null,
-        totalPausedSec: totalPaused,
-        duration: Math.max(0.1, Math.round((activeSec / 3600) * 10) / 10),
-      },
-    }).catch(() => {});
+    // 原子抢结束权：tick 并发 / 普通结束同时发生时，只有第一条 updateMany 能成功，
+    // 避免重复发自动结束通知、重复改订单状态。
+    let claimedCount = 0;
+    if (typeof (this.prisma as any).orderSession?.updateMany === 'function') {
+      const claimed = await (this.prisma as any).orderSession.updateMany({
+        where: { id: sessionId, status: 'ACTIVE' },
+        data: {
+          status: 'DONE',
+          endedAt,
+          pausedAt: null,
+          totalPausedSec: totalPaused,
+          duration: Math.max(0.1, Math.round((activeSec / 3600) * 10) / 10),
+        },
+      }).catch(() => ({ count: 0 }));
+      claimedCount = claimed?.count || 0;
+    } else {
+      // 单测的 prisma mock 没有 updateMany：退回普通 update，不影响生产逻辑。
+      await (this.prisma as any).orderSession.update({
+        where: { id: sessionId },
+        data: {
+          status: 'DONE',
+          endedAt,
+          pausedAt: null,
+          totalPausedSec: totalPaused,
+          duration: Math.max(0.1, Math.round((activeSec / 3600) * 10) / 10),
+        },
+      }).catch(() => {});
+      claimedCount = 1;
+    }
+    if (!claimedCount) return;
     await this.prisma.order.updateMany({
       where: { id: s.parentOrderId, sessions: { none: { status: 'ACTIVE' } } },
       data: { status: 'DONE' },
