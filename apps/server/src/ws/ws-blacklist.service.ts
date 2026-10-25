@@ -211,7 +211,7 @@ export class WsBlacklistService {
     await this.prisma.companionPC
       .update({ where: { companionId }, data: { currentMode: companion.status } })
       .catch(() => {});
-    await this.pushCurrentBlacklist(companionId, companion.studioId);
+    await this.pushCurrentBlacklist(companionId, companion.studioId, true);
   }
 
   /** 陪玩端连接时，优先按 MAC / 登录账号识别电脑，不靠 IP（IP 会变）。 */

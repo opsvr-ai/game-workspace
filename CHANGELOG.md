@@ -394,6 +394,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **误杀游戏专项排查（2026-10-25，服务端 + 客户端 v20261052）。**
+  - 任何 ACTIVE 会话存在时禁止切出 BUSY；
+  - 订单退款/取消/存单等直接改 AVAILABLE 的路径改走统一状态入口；
+  - 心跳发现 ACTIVE 会话但 DB 仍空闲时，先把 DB 纠正为 BUSY；
+  - 服务端改状态后重推黑名单标记 authoritative；
+  - 客户端本地 BUSY 时拒绝非权威 AVAILABLE 推送；
+  - 5 秒倒计时结束前重新检查黑名单，状态已切回接单则取消杀进程。
+
 - **点开始首单进入游戏马上被杀：重复 ACTIVE 会话下状态被切成空闲（2026-10-25，服务端）。**
   - 童祥瑞订单 1694 同时存在一个 ACTIVE 段和一个已结束段；结束回调把状态放成 AVAILABLE；
   - 客户端收到 AVAILABLE 黑名单，立刻杀三角洲；

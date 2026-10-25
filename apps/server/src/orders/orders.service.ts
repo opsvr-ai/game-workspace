@@ -15,6 +15,7 @@ import { OrderTransferService } from './order-transfer.service';
 import { CompanionQuotaService } from './companion-quota.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { stripPoolCustomerContact } from '../common/order-privacy';
+import { switchCompanionStatus } from '../common/companion-status-switch';
 import { PoolScope } from '@chunlv/shared';
 
 @Injectable()
@@ -456,9 +457,7 @@ export class OrdersService implements OnModuleInit {
       });
     }
     if (order.companionId) {
-      await this.prisma.companion
-        .update({ where: { id: order.companionId }, data: { status: 'AVAILABLE' } })
-        .catch(() => {});
+      await switchCompanionStatus(this.prisma, order.companionId, 'AVAILABLE');
       await this.wsGateway.refreshCompanionBlacklist(order.companionId).catch(() => {});
     }
     this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);

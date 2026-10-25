@@ -793,7 +793,9 @@ async function handleBlacklistedProcess(name: string): Promise<void> {
       );
       await new Promise((r) => setTimeout(r, KILL_COUNTDOWN_SECONDS * 1000));
     }
-    // 倒计时这几秒里它可能自己退了：退过就不再动手，也不弹失败提示。
+    // 倒计时这几秒里它可能自己退了，也可能状态已切回接单、黑名单被撤掉：
+    // 退过 / 已不在当前名单里都不再动手，避免“已经开始服务还被杀”。
+    if (!activeBlacklist.includes(name)) return;
     if ((await listRunningPids(image)).length === 0) return;
     logger.warn('Killing blacklisted process', {
       processName: name,
@@ -2651,14 +2653,15 @@ app.whenReady().then(() => {
     if (data?.status) {
       const local = store.get('lastStatus');
       const localOffDuty = local === 'ENTERTAINMENT' || local === 'RESTING';
+      const localBusy = local === 'BUSY';
       // 服务端在连接/心跳时只是按「在线 = 空闲」补推一次，那只是猜测（authoritative=false）。
-      // 不能让猜出来的空闲覆盖陪玩自己选的娱乐中/休息，
-      // 否则一覆盖客户端就会立刻开始按空闲名单杀进程。
-      if (data.authoritative === true || !(localOffDuty && data.status === 'AVAILABLE')) {
+      // 本地 BUSY 时更不能接受非权威 AVAILABLE：这一下会把正在服务的游戏直接杀
+      // （2026-10-25 童祥瑞订单 1694 双 ACTIVE 会话就是这么被误杀的）。
+      if (data.authoritative === true || !(data.status === 'AVAILABLE' && (localOffDuty || localBusy))) {
         store.set('lastStatus', data.status);
       } else {
         acceptList = false;
-        logger.warn('Ignored non-authoritative AVAILABLE status (kept local off-duty status)', {
+        logger.warn('Ignored non-authoritative AVAILABLE status (kept local active/off-duty state)', {
           local,
           pushed: data.status,
         });

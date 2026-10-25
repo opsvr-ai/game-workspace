@@ -8,6 +8,7 @@ import { currentBusinessDayRange } from '../common/business-day';
 import { OrderOutcome } from '@chunlv/shared';
 import { orderChannelOf } from '../common/order-outcome';
 import { SUPPLEMENT_TYPE } from './order.constants';
+import { switchCompanionStatus } from '../common/companion-status-switch';
 
 /** 同意补单后，隔多久提醒管理端去核查「这个客户后来到底通过了没有」（小时）。 */
 const SUPPLEMENT_REVIEW_HOURS = 24;
@@ -1190,9 +1191,7 @@ export class OrderExceptionService {
       },
     });
     if (order.companionId) {
-      await this.prisma.companion
-        .update({ where: { id: order.companionId }, data: { status: 'AVAILABLE' } })
-        .catch(() => {});
+      await switchCompanionStatus(this.prisma, order.companionId, 'AVAILABLE');
       await this.wsGateway.refreshCompanionBlacklist(order.companionId).catch(() => {});
     }
     this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);

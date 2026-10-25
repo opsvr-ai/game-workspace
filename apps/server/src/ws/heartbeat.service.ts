@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { checkEntertainmentEligibility, computeEntertainmentFee, entertainmentMinutesLeft, loadEntertainmentStanding } from '../common/entertainment-fee';
 import { logger } from '../common/logger';
 import { WsGateway } from './ws.gateway';
+import { switchCompanionStatus } from '../common/companion-status-switch';
 
 export interface HeartbeatUser {
   id: string;
@@ -83,6 +84,11 @@ export class HeartbeatService {
           ).catch(() => null)
         : null;
     const canonicalStatus = activeSession ? 'BUSY' : (authoritative?.status || 'AVAILABLE');
+    // 有 ACTIVE 会话时 DB 必须是 BUSY；否则下一次 blacklist:update 会按 AVAILABLE 下发，
+    // 客户端就会把正在服务的游戏杀掉。
+    if (activeSession && authoritative?.status !== 'BUSY') {
+      await switchCompanionStatus(this.prisma, user.companionId, 'BUSY').catch(() => false);
+    }
     const pcState =
       typeof (this.prisma as any).companionPC?.findUnique === 'function'
         ? await Promise.resolve(
