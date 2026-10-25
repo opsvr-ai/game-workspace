@@ -13,6 +13,7 @@ import { ChatProvider } from '../components/chat/ChatProvider';
 import { commander } from '../styles/commander';
 import { installShellMenuCss } from '../styles/shellMenuCss';
 import { installUnloadGuard, isAnyBusy } from '../utils/busyGuard';
+import { installCompanionUpdateClickGuard } from '../utils/companionUpdate';
 // FloatingChatWidget removed — redundant with bell notification
 import NotificationPanel from '../components/shell/NotificationPanel';
 import NoticePathBanner from '../components/shell/NoticePathBanner';
@@ -60,6 +61,7 @@ const AppLayout: React.FC = () => {
   // 页面的 beforeunload 取消这次 reload**（实测 Electron 30：有过用户交互的页面会被拦下）。
   // 想彻底不刷，等客户端那一版（刷前先问页面 / 唤醒不再硬刷）发出去，见 CHANGELOG。
   useEffect(() => installUnloadGuard(), []);
+  useEffect(() => installCompanionUpdateClickGuard(), []);
 
   // 浏览器/网页端自动跟进前端版本：登录后每分钟问一次，版号变了自动刷新。
   // 以前只有陪玩端主进程会 reload，管理员在浏览器里开着旧 tab 会一直看到旧页面。
