@@ -31,6 +31,7 @@ import PasteImageBox from '../components/PasteImageBox';
 import OrderDetailModal from '../components/OrderDetailModal';
 import OrderOutcomeModal, { orderChannelOf } from '../components/OrderOutcome';
 import EndServiceModal from '../components/EndServiceModal';
+import ContinueServiceModal from '../components/ContinueServiceModal';
 import { buildOrderColumns } from '../components/orderColumns';
 import { isRowClickIgnored } from '../utils/rowClick';
 import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
@@ -58,7 +59,7 @@ import {
   fitOrderColumnWidths,
   sumWidths,
 } from '../constants/datasetColumns';
-import { TEXT, SEMANTIC, BORDER, BG } from '../styles/tokens';
+import { TEXT, SEMANTIC, BORDER, BG, BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -206,6 +207,9 @@ const OrdersPage: React.FC = () => {
   // 管理端「补单」（老板 2026-10-08）：店长 / 老板点一下，给这张单的陪玩抢单次数 +1
   const [supplementTarget, setSupplementTarget] = useState<any>(null);
   const [coEndTarget, setCoEndTarget] = useState<{ orderId: string; sessionId: string } | null>(null);
+  const [coSessions, setCoSessions] = useState<Record<string, any>>({});
+  const [coNow, setCoNow] = useState(Date.now());
+  const [coContinueTarget, setCoContinueTarget] = useState<any>(null);
   const [supplementReason, setSupplementReason] = useState('');
   const [supplementSubmitting, setSupplementSubmitting] = useState(false);
   // 今日补单数：读补单记录里真实的数字（以前拿列表备注猜「补单」两个字，不准）
@@ -751,6 +755,32 @@ const OrdersPage: React.FC = () => {
     display: 'flex',
     alignItems: 'center',
   });
+
+  // 「我是副陪的订单」：把当前 ACTIVE 搭档会话捞出来，页面直接显示计时和续单/结束入口。
+  useEffect(() => {
+    if (!isCompanion || companionScope !== 'served') {
+      setCoSessions({});
+      return;
+    }
+    let cancelled = false;
+    const active = (orders || []).filter((o: any) => o.coCompanionId === user?.companionId && (o.status === 'GRABBED' || o.status === 'CONFIRMED'));
+    Promise.all(active.map(async (o: any) => {
+      try {
+        const { data } = await ordersApi.getSessions(o.id);
+        const s = (data.data || []).find((x: any) => x.status === 'ACTIVE' && x.coCompanionId === user?.companionId);
+        return [o.id, s] as const;
+      } catch {
+        return [o.id, null] as const;
+      }
+    })).then((pairs) => {
+      if (cancelled) return;
+      const next: Record<string, any> = {};
+      for (const [id, s] of pairs) if (s) next[id] = s;
+      setCoSessions(next);
+    });
+    const tick = setInterval(() => setCoNow(Date.now()), 1000);
+    return () => { cancelled = true; clearInterval(tick); };
+  }, [orders, isCompanion, companionScope, user?.companionId]);
 
   const openCoEnd = async (r: any) => {
     try {
@@ -1366,6 +1396,33 @@ const OrdersPage: React.FC = () => {
             </div>
           }
         />
+        {isCompanion && companionScope === 'served' && Object.keys(coSessions).length > 0 && (
+          <Card size="small" style={{ marginBottom: 10, borderColor: BRAND.primary }}>
+            {Object.entries(coSessions).map(([orderId, s]: any) => {
+              const o = (orders || []).find((x: any) => x.id === orderId) || {};
+              const pausedSec = Number(s.totalPausedSec || 0) + (s.pausedAt ? Math.max(0, (coNow - new Date(s.pausedAt).getTime()) / 1000) : 0);
+              const sec = Math.max(0, Math.floor((coNow - new Date(s.startedAt).getTime()) / 1000 - pausedSec));
+              const hh = String(Math.floor(sec / 3600)).padStart(2, '0');
+              const mm = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+              const ss = String(sec % 60).padStart(2, '0');
+              return (
+                <div key={orderId} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <Text strong>当前搭档服务：{o.orderCode || orderId}</Text>
+                  <Text>{o.gameName || ''}</Text>
+                  <Tag color={s.pausedAt ? 'orange' : 'green'}>{s.pausedAt ? '已暂停' : `计时 ${hh}:${mm}:${ss}`}</Tag>
+                  <Button size="small" onClick={() => setCoContinueTarget({
+                    orderId,
+                    isDouble: true,
+                    mode: 'RENEW',
+                    mainPrice: Number(s.claimedPrice || (s.duration ? s.amount / s.duration : 0)) || undefined,
+                    coPrice: Number(s.coAmount || 0) || undefined,
+                  })}>续单</Button>
+                  <Button size="small" danger onClick={() => setCoEndTarget({ orderId, sessionId: s.id })}>结束服务</Button>
+                </div>
+              );
+            })}
+          </Card>
+        )}
         <AnnouncementBar slot="orders" />
         <PartnerInviteCards />
         {/* Filter bar：常用条件只留一行，其余收进「更多筛选」 */}
@@ -1859,6 +1916,16 @@ const OrdersPage: React.FC = () => {
         orderId={coEndTarget?.orderId}
         onClose={() => setCoEndTarget(null)}
         onDone={() => { setCoEndTarget(null); fetch(); }}
+      />
+      <ContinueServiceModal
+        open={!!coContinueTarget}
+        orderId={coContinueTarget?.orderId ?? null}
+        isDouble={coContinueTarget?.isDouble}
+        mode={coContinueTarget?.mode}
+        mainPrice={coContinueTarget?.mainPrice}
+        coPrice={coContinueTarget?.coPrice}
+        onClose={() => setCoContinueTarget(null)}
+        onDone={() => fetch()}
       />
       {/* 陪玩点「添加失败」时的弹窗：选原因 + 粘贴截图（可选）+ 备注（老板 2026-10-06） */}
       <Modal
