@@ -30,6 +30,7 @@ import CreateOrderModal from '../components/CreateOrderModal';
 import PasteImageBox from '../components/PasteImageBox';
 import OrderDetailModal from '../components/OrderDetailModal';
 import OrderOutcomeModal, { orderChannelOf } from '../components/OrderOutcome';
+import EndServiceModal from '../components/EndServiceModal';
 import { buildOrderColumns } from '../components/orderColumns';
 import { isRowClickIgnored } from '../utils/rowClick';
 import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
@@ -204,6 +205,7 @@ const OrdersPage: React.FC = () => {
   }, [chatPartner]);
   // 管理端「补单」（老板 2026-10-08）：店长 / 老板点一下，给这张单的陪玩抢单次数 +1
   const [supplementTarget, setSupplementTarget] = useState<any>(null);
+  const [coEndTarget, setCoEndTarget] = useState<{ orderId: string; sessionId: string } | null>(null);
   const [supplementReason, setSupplementReason] = useState('');
   const [supplementSubmitting, setSupplementSubmitting] = useState(false);
   // 今日补单数：读补单记录里真实的数字（以前拿列表备注猜「补单」两个字，不准）
@@ -750,6 +752,21 @@ const OrdersPage: React.FC = () => {
     alignItems: 'center',
   });
 
+  const openCoEnd = async (r: any) => {
+    try {
+      const { data } = await ordersApi.getSessions(r.id);
+      const list = data.data || [];
+      const s = list.find((x: any) => x.status === 'ACTIVE' && x.coCompanionId === user?.companionId);
+      if (!s) {
+        message.info('没有正在进行中的搭档服务');
+        return;
+      }
+      setCoEndTarget({ orderId: r.id, sessionId: s.id });
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '读取服务会话失败'));
+    }
+  };
+
   const renderActions = (r: any) => {
     const chatTarget = isCompanion
       ? r.csUser
@@ -803,6 +820,11 @@ const OrdersPage: React.FC = () => {
     // 数据行高统一 33px。
     return (
       <div style={ACTION_ROW}>
+        {isCoCompanion && (r.status === 'GRABBED' || r.status === 'CONFIRMED') && (
+          <Button size="small" danger onClick={() => openCoEnd(r)}>
+            结束服务
+          </Button>
+        )}
         <span style={actionSlot(36)}>
           {chatTarget && (
             <Badge count={unreadMap[r.id] || 0} size="small">
@@ -1830,6 +1852,13 @@ const OrdersPage: React.FC = () => {
         order={outcomeOrder || {}}
         onClose={() => setOutcomeOrder(null)}
         onSaved={fetch}
+      />
+      <EndServiceModal
+        open={!!coEndTarget}
+        sessionId={coEndTarget?.sessionId}
+        orderId={coEndTarget?.orderId}
+        onClose={() => setCoEndTarget(null)}
+        onDone={() => { setCoEndTarget(null); fetch(); }}
       />
       {/* 陪玩点「添加失败」时的弹窗：选原因 + 粘贴截图（可选）+ 备注（老板 2026-10-06） */}
       <Modal

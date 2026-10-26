@@ -193,6 +193,24 @@ export class SessionShotsController {
         },
       };
     }
+    // 副陪点结束只结束自己：主陪继续打，不能把整段会话/订单一起结束。
+    if (isCo && session.companionId && session.companionId !== req.user.companionId) {
+      await this.prisma.orderSession.update({
+        where: { id },
+        data: { coCompanionId: null },
+      });
+      const detachTiming = await getServiceTiming(this.prisma, req.user?.studioId ?? null);
+      scheduleReleaseCompanionIfIdle(this.prisma, req.user.companionId, id, detachTiming.bufferMs);
+      return {
+        code: 200,
+        message: '你已结束，主陪继续服务',
+        data: {
+          coDetached: true,
+          mainCompanionId: session.companionId,
+          orderId: session.parentOrderId,
+        },
+      };
+    }
 
     const shotCount = this.composite.countShots(id);
     const blackCount = this.composite.countBlackShots(id);

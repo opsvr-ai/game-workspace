@@ -17,7 +17,7 @@ interface Props {
   /** 系统按计时算出来的建议扣款额（元） */
   suggestedDeduct?: number;
   onClose: () => void;
-  onDone?: (result?: { mainDetached?: boolean; sessionId?: string }) => void;
+  onDone?: (result?: { mainDetached?: boolean; coDetached?: boolean; sessionId?: string }) => void;
 }
 
 const EndServiceModal: React.FC<Props> = ({
@@ -57,6 +57,13 @@ const EndServiceModal: React.FC<Props> = ({
       if (res?.data?.data?.mainDetached) {
         message.success('你已结束，搭档会继续服务');
         onDone?.({ mainDetached: true, sessionId });
+        onClose();
+        return;
+      }
+      // 副陪先结束：只摘掉自己，主陪继续打；不能把订单 complete 掉。
+      if (res?.data?.data?.coDetached) {
+        message.success('你已结束，主陪会继续服务');
+        onDone?.({ coDetached: true, sessionId });
         onClose();
         return;
       }
