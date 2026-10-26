@@ -203,7 +203,26 @@ export class CustomersService {
     const actor = actorOfUser(user);
     const customerWhere: any = { isDeletedByCustomer: false, archivedAt: null };
     // 统一作用域：陪玩只看自己的客户，店长 / 客服本店，老板全站
-    Object.assign(customerWhere, scopeWhere(actor, { ownField: 'companionId' }));
+    const ownScope = scopeWhere(actor, { ownField: 'companionId' });
+    if (isCompanionViewer) {
+      // 副陪也要能看到「自己正在搭档服务」的客户，否则没有入口点结束服务。
+      const { companionId: _own, ...restScope } = ownScope as any;
+      Object.assign(customerWhere, restScope);
+      customerWhere.OR = [
+        { companionId: user.companionId },
+        {
+          orders: {
+            some: {
+              sessions: {
+                some: { coCompanionId: user.companionId, status: 'ACTIVE', startedAt: { not: null } },
+              },
+            },
+          },
+        },
+      ];
+    } else {
+      Object.assign(customerWhere, ownScope);
+    }
     if (!isCompanionViewer && opts.companionId) customerWhere.companionId = opts.companionId;
 
     const companionWhere: any = { isResigned: false };
