@@ -56,6 +56,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const [balances, setBalances] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({ monthTotal: 0, yearTotal: 0, allTotal: 0 });
   const [people, setPeople] = useState<any[]>([]);
+  const [workWechats, setWorkWechats] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   // 「到点该跟进了」要用当前时间比，所以每 30 秒自己走一下表（列表本身每 60 秒刷一次）
@@ -122,6 +123,9 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   useEffect(() => {
     load();
     loadPeople();
+    companionsApi.listWorkWechats()
+      .then(({ data }) => setWorkWechats(data.data || []))
+      .catch(() => {});
     const tick = setInterval(() => setNow(Date.now()), 30000);
     const timer = visibleInterval(load, 60000);
     return () => {
@@ -343,6 +347,8 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       customerPlatformAccount: String(cf.customerPlatformAccount || ''),
       customerRoomCode: String(cf.customerRoomCode || ''),
       customerGameId: String(cf.customerGameId || ''),
+      workWechatName: String(cf.csWorkWechatName || cf.workWechatName || ((r.customer || {}).followUps || [])[0]?.workWechatName || ''),
+      csWorkWechatName: String(cf.csWorkWechatName || cf.workWechatName || ((r.customer || {}).followUps || [])[0]?.workWechatName || ''),
     });
     setEditTarget(r);
   };
@@ -916,6 +922,21 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
               />
             </div>
           ))}
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <Text strong style={{ display: 'block', marginBottom: 6 }}>客服工作微信</Text>
+          <Select
+            showSearch
+            allowClear
+            optionFilterProp="label"
+            placeholder="客服选错了工作微信，店长在这里改"
+            value={editValues.workWechatName || undefined}
+            options={workWechats
+              .filter((w: any) => w.type === 'STUDIO')
+              .map((w: any) => ({ value: w.wechatId, label: `${w.wechatId}${w.nickname ? `（${w.nickname}）` : ''}` }))}
+            onChange={(v) => setEditValues((prev) => ({ ...prev, workWechatName: String(v || ''), csWorkWechatName: String(v || '') }))}
+            style={{ width: '100%' }}
+          />
         </div>
         <Text type="secondary" style={{ display: 'block', marginTop: 10, fontSize: 12 }}>
           保存会同步更新这张订单的客户资料和客户微信，不会新增订单。

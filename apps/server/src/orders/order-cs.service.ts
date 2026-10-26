@@ -270,6 +270,9 @@ export class OrderCsService {
       'scheduledTimeText',
       'gameMode',
       'serviceType',
+      'workWechatName',
+      'workWechatId',
+      'csWorkWechatName',
     ];
 
     const cfPatch: any = {};
