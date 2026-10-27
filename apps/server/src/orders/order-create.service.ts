@@ -89,7 +89,7 @@ export class OrderCreateService {
             select: { id: true },
           }).catch(() => null);
           const staleMs = Date.now() - new Date(pending.updatedAt || pending.createdAt).getTime();
-          if (!activeSession && staleMs > 24 * 60 * 60 * 1000) {
+          if (!activeSession && staleMs > 2 * 60 * 60 * 1000) {
             await this.prisma.order.update({
               where: { id: pending.id },
               data: {

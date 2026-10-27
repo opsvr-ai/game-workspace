@@ -850,7 +850,7 @@ const OrdersPage: React.FC = () => {
     // 数据行高统一 33px。
     return (
       <div style={ACTION_ROW}>
-        {isCoCompanion && (r.status === 'GRABBED' || r.status === 'CONFIRMED') && (
+        {isCoCompanion && coSessions[r.id] && (r.status === 'GRABBED' || r.status === 'CONFIRMED') && (
           <Button size="small" danger onClick={() => openCoEnd(r)}>
             结束服务
           </Button>

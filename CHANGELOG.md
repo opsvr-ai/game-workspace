@@ -413,6 +413,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **副陪只有结束按钮、点结束报错、不能开下一单（2026-10-28，网页 v1189）。**
+  - 旧逻辑对任何 CONFIRMED 副陪单都显示结束，哪怕会话已经 DONE；
+  - 现在只在存在 ACTIVE 会话时显示计时/结束；
+  - 超过 2 小时无 ACTIVE 会话的旧单建新单时自动作废，不再拦住下一单。
+
 - **已驳回的实名申请仍留在待审核列表（2026-10-28）。**
   - 驳回后 `isAuthorized=false` 仍被待审核条件捞回来；
   - 现在待审核条件排除 `reviewStatus=REJECTED`；
