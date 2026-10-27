@@ -405,6 +405,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **陪玩已有进行中订单时禁止再新建第二张（2026-10-27）。**
+  - 张权 1800 未结束时又出现 1801；
+  - 服务端建单前检查 GRABBED / CONFIRMED 订单，有就拒绝；
+  - 避免订单管理里凭空多一条「自己发布」的单。
+
 - **到点语音提醒被 Electron 自动播放策略静默拦截（2026-10-27，客户端 v20261057）。**
   - 服务端到点提醒一直在推送并写入 `durationRemindedAt`；
   - 客户端 Chromium 默认拦截无用户点击的 `Audio.play()`，导致只有弹窗没有声音；

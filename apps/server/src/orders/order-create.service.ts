@@ -67,6 +67,27 @@ export class OrderCreateService {
 
     // COMPANION can only create orders for themselves (not for other companions)
     const creator = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { role: true } });
+    // 陪玩手上已经有一张 GRABBED / CONFIRMED 的单时，不允许再新建第二张。
+    // 2026-10-27 张权：1800 还没开始服务，客户端又建出 1801，订单管理看起来像凭空发布一单。
+    if (creator?.role === 'COMPANION' && !dto.proxyMode) {
+      const me = await this.prisma.companion
+        .findUnique({ where: { userId: dto.csUserId }, select: { id: true } })
+        .catch(() => null);
+      if (me) {
+        const pending = await this.prisma.order.findFirst({
+          where: {
+            status: { in: ['GRABBED', 'CONFIRMED'] },
+            OR: [{ companionId: me.id }, { coCompanionId: me.id }],
+          },
+          select: { orderCode: true },
+        });
+        if (pending) {
+          throw new BadRequestException(
+            `你手上还有订单 ${pending.orderCode || ''} 没结束，先处理完再建新单`,
+          );
+        }
+      }
+    }
     // 老板 2026-10-23：陪玩正在服务 A 时，不能再开 B/C 的续单 / 复购；
     // 否则他一边挂 A 的长会话，一边给 10 个客户各开 1 小时复购，复购率直接刷到 100%。
     if (creator?.role === 'COMPANION' && (dto.type === 'RENEW' || dto.type === 'REPURCHASE') && !dto.proxyMode) {
