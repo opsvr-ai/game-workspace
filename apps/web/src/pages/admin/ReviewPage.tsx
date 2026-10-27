@@ -51,7 +51,7 @@ const ReviewPage: React.FC = () => {
       } else {
         await http.put(`/auth/users/${user.id}/reject`, { reason: reviewNote || '未填写原因' });
       }
-      message.success(action === 'APPROVED' ? '审核通过' : '已拒绝');
+      message.success(action === 'APPROVED' ? '审核通过' : '已驳回');
       setReviewNote('');
       fetchPending();
     } catch (err: any) {
@@ -87,7 +87,7 @@ const ReviewPage: React.FC = () => {
             <Button size="small" type="primary" icon={React.createElement(CheckOutlined)}>通过</Button>
           </Popconfirm>
           <Button size="small" danger icon={React.createElement(CloseOutlined)}
-            onClick={() => { setRejectTarget(r); setRejectModalOpen(true); }}>拒绝</Button>
+            onClick={() => { setRejectTarget(r); setRejectModalOpen(true); }}>驳回</Button>
         </Space>
       ),
     },
@@ -113,10 +113,10 @@ const ReviewPage: React.FC = () => {
       <Modal open={!!previewImage} footer={null} onCancel={() => setPreviewImage(null)} width={600}>
         {previewImage && <Image src={previewImage} style={{ width: '100%' }} />}
       </Modal>
-          <Modal title="拒绝审核" open={rejectModalOpen} onOk={() => { if (rejectTarget) { handleReview(rejectTarget, 'REJECTED'); setRejectModalOpen(false); setRejectTarget(null); } }} onCancel={() => { setRejectModalOpen(false); setRejectTarget(null); }} okText="确认拒绝" cancelText="取消">
+          <Modal title="驳回审核" open={rejectModalOpen} onOk={() => { if (rejectTarget) { handleReview(rejectTarget, 'REJECTED'); setRejectModalOpen(false); setRejectTarget(null); } }} onCancel={() => { setRejectModalOpen(false); setRejectTarget(null); }} okText="确认驳回" cancelText="取消">
         <div style={{ marginTop: 16 }}>
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>拒绝原因（可选）</Text>
-          <TextArea rows={3} placeholder="输入拒绝原因" value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} />
+          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>驳回原因（可选）</Text>
+          <TextArea rows={3} placeholder="输入驳回原因" value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} />
         </div>
       </Modal>
 
