@@ -413,6 +413,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **语音输出不再跟随 Windows 应用路由，优先物理扬声器（2026-10-28，网页 v1190）。**
+  - 钱鸿鸣的陪玩管理被 Windows 绑在 USB Audio Device；
+  - 现在语音优先选物理扬声器/耳机，排除 ToDesk/USL/MicU 等虚拟端点；
+  - 选择不到才回退系统默认。
+
 - **副陪只有结束按钮、点结束报错、不能开下一单（2026-10-28，网页 v1189）。**
   - 旧逻辑对任何 CONFIRMED 副陪单都显示结束，哪怕会话已经 DONE；
   - 现在只在存在 ACTIVE 会话时显示计时/结束；

@@ -26,11 +26,41 @@ export const VOICE_PRESETS: VoicePreset[] = [
 
 const PRESET_KEY = 'chunlv:voice-reminder-preset';
 const VOLUME_KEY = 'chunlv:voice-reminder-volume';
+const OUTPUT_KEY = 'chunlv:voice-reminder-output';
 const DEFAULT_PRESET = 'female_tianmei';
 const DEFAULT_VOLUME = 70;
 const DEFAULT_REMINDER_TEXT = '服务时间到了，请结束服务';
 
 let naturalAudio: HTMLAudioElement | null = null;
+
+/**
+ * 语音不能跟着 Windows 给「陪玩管理」绑定的应用路由走（钱鸿鸣就被绑到 USB 声卡）。
+ * 优先选物理扬声器/耳机，排除 ToDesk/USL/MicU/VB 等虚拟端点；选不到才回退默认。
+ */
+async function pickOutputDeviceId(): Promise<string | undefined> {
+  try {
+    const saved = localStorage.getItem(OUTPUT_KEY) || '';
+    const devices = await navigator.mediaDevices?.enumerateDevices?.() || [];
+    const outputs = devices.filter((d) => d.kind === 'audiooutput' && d.deviceId);
+    if (saved && outputs.some((d) => d.deviceId === saved)) return saved;
+    const virtual = /todesk|virtual|usl|micu|vb-audio|cable|voicemeeter|nvidia high definition/i;
+    const physical = /speaker|扬声器|realtek|usb audio|headphone|耳机|sound card/i;
+    const chosen = outputs.find((d) => physical.test(d.label) && !virtual.test(d.label))
+      || outputs.find((d) => !virtual.test(d.label))
+      || outputs[0];
+    return chosen?.deviceId;
+  } catch {
+    return undefined;
+  }
+}
+
+async function playWithPreferredOutput(audio: HTMLAudioElement): Promise<void> {
+  const sinkId = await pickOutputDeviceId();
+  if (sinkId && typeof (audio as any).setSinkId === 'function') {
+    await (audio as any).setSinkId(sinkId);
+  }
+  await audio.play();
+}
 
 export function getVoicePresetId(): string {
   try {
@@ -105,7 +135,7 @@ export function speakVoiceReminder(text: string, presetId?: string, volume?: num
       stopVoiceReminder();
       naturalAudio = new Audio(`/voice-reminder/${preset.id}.mp3`);
       naturalAudio.volume = vol;
-      naturalAudio.play().then(() => {
+      playWithPreferredOutput(naturalAudio).then(() => {
         reportVoice(true, 'audio-playing', '', preset.id, content);
       }).catch((err) => {
         reportVoice(false, 'audio-play-failed', String((err as any)?.message || err), preset.id, content);
@@ -129,7 +159,7 @@ export function speakVoiceReminder(text: string, presetId?: string, volume?: num
       audio.volume = vol;
       naturalAudio = audio;
       audio.onended = () => URL.revokeObjectURL(url);
-      audio.play().then(() => reportVoice(true, 'audio-playing', '', preset.id, content)).catch((err) => {
+      playWithPreferredOutput(audio).then(() => reportVoice(true, 'audio-playing', '', preset.id, content)).catch((err) => {
         reportVoice(false, 'audio-play-failed', String((err as any)?.message || err), preset.id, content);
         speakWithBrowserVoice(content, preset, vol);
       });
