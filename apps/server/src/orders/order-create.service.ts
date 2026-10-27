@@ -79,12 +79,29 @@ export class OrderCreateService {
             status: { in: ['GRABBED', 'CONFIRMED'] },
             OR: [{ companionId: me.id }, { coCompanionId: me.id }],
           },
-          select: { orderCode: true },
+          select: { id: true, orderCode: true, createdAt: true, updatedAt: true },
         });
         if (pending) {
-          throw new BadRequestException(
-            `你手上还有订单 ${pending.orderCode || ''} 没结束，先处理完再建新单`,
-          );
+          // 老数据里存在「抢了但从来没开始、也没有任何会话」的僵尸单（徐建业 1090，
+          // 2026-10-13 抢的，7 天没动）。这种单不该拦住新首单，先自动作废。
+          const activeSession = await this.prisma.orderSession.findFirst({
+            where: { parentOrderId: pending.id, status: 'ACTIVE' },
+            select: { id: true },
+          }).catch(() => null);
+          const staleMs = Date.now() - new Date(pending.updatedAt || pending.createdAt).getTime();
+          if (!activeSession && staleMs > 24 * 60 * 60 * 1000) {
+            await this.prisma.order.update({
+              where: { id: pending.id },
+              data: {
+                status: 'CANCELLED',
+                notes: `超过 24 小时未开始且无服务记录，系统自动作废（原单号 ${pending.orderCode || ''}）`,
+              },
+            }).catch(() => {});
+          } else {
+            throw new BadRequestException(
+              `你手上还有订单 ${pending.orderCode || ''} 没结束，先处理完再建新单`,
+            );
+          }
         }
       }
     }
