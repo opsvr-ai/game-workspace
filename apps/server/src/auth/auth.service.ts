@@ -305,27 +305,28 @@ export class AuthService {
     });
   }
 
-  async rejectUser(userId: string, _reason: string, reviewerStudioId?: string, reviewerRole?: string): Promise<void> {
+  async rejectUser(userId: string, reason: string, reviewerStudioId?: string, reviewerRole?: string, reviewerId?: string): Promise<void> {
+    const targetUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true, role: true } });
+    if (!targetUser) throw new ForbiddenException('用户不存在');
     if (reviewerRole && reviewerRole !== 'OWNER') {
-      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true, role: true } });
-      if (!target) throw new ForbiddenException('用户不存在');
-      assertCanManage(reviewerRole, target.role, reviewerStudioId, target.studioId);
+      assertCanManage(reviewerRole, targetUser.role, reviewerStudioId, targetUser.studioId);
     }
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
-    // Notify the user before deletion
+    // 老板 2026-10-27：审核「拒绝」不能删账号。以前这是给新注册垃圾账号收尾用的，
+    // 但已通过的人被退回待审核后再点拒绝，会把真实员工、订单、客户关联一起删掉。
+    // 现在只撤销授权并记录驳回原因，账号和数据都保留；要删人走「离职/员工删除」明确入口。
+    await this.prisma.user.update({ where: { id: userId }, data: { isAuthorized: false } }).catch(() => {});
+    await this.prisma.companion.updateMany({
+      where: { userId },
+      data: {
+        reviewStatus: 'REJECTED',
+        reviewNote: reason || null,
+        reviewedAt: new Date(),
+        ...(reviewerId ? { reviewedById: reviewerId } : {}),
+      },
+    }).catch(() => {});
     this.wsGateway.notifyUser(userId, 'user:rejected', {
-      message: `您的注册申请已被拒绝${_reason ? '：' + _reason : ''}`,
+      message: `您的实名审核未通过${reason ? '：' + reason : ''}，资料已保留，请重新提交`,
     });
-    // Delete companion first if exists (FK constraint), then user
-    await this.prisma.companion.deleteMany({ where: { userId } });
-    await this.prisma.user.delete({ where: { id: userId } }).catch(() => {});
-    // Also delete auto-created studio if it only has this user
-    if (user?.studioId) {
-      const count = await this.prisma.user.count({ where: { ...scopeWhere(actorOfStudio(user.studioId, 'ADMIN')) } });
-      if (count === 0) {
-        await this.prisma.studio.delete({ where: { id: user.studioId } }).catch(() => {});
-      }
-    }
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {

@@ -90,7 +90,7 @@ export class AuthController {
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Put('users/:id/reject')
   async rejectUser(@Param('id') id: string, @Body() body: { reason: string }, @Request() req: any): Promise<ApiResponse<null>> {
-    await this.authService.rejectUser(id, body.reason, req.user.studioId, req.user.role);
+    await this.authService.rejectUser(id, body.reason, req.user.studioId, req.user.role, req.user.id);
     return { code: 200, message: '已拒绝', data: null };
   }
 
