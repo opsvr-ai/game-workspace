@@ -31,14 +31,14 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 // 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
-const serviceBuild = "2026-10-15.1"
+const serviceBuild = "2026-10-28.1"
 
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026101501"
+const serviceBuildNumber = "2026102801"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026101501" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026102801" // 必须与 serviceBuildNumber 一致
 
 // 陪玩端的安装位置（老机器的习惯，别动顺序）。
 var companionSearchPaths = []string{
@@ -1557,9 +1557,18 @@ func ensureShortcut(exePath string, force bool) {
 	}
 	atomic.StoreInt64(&lastShortcutMs, now)
 	exe := strings.ReplaceAll(exePath, "'", "''")
-	// 快捷方式名字跟着 exe 名走：陪玩端是「陪玩管理」，客服电脑上是「客服管理」。
-	// 以前写死「陪玩管理」，客服机上会被看门狗摆出一个打不开的陪玩管理图标。
+	// 快捷方式名字跟着 exe 名走：陪玩端统一叫「蠢驴电竞」，客服电脑上是「客服管理」。
+	// 以前陪玩端用 exe 名「陪玩管理」，客户端自己清理旧图标后，看门狗又把它建回来，
+	// 桌面永远两个图标（老板 2026-10-28 再次报）。
 	shortcutName := strings.TrimSuffix(filepath.Base(exePath), filepath.Ext(exePath))
+	for _, n := range []string{"陪玩管理", "客服管理", "chunlv"} {
+		if shortcutName == n {
+			if n == "陪玩管理" || n == "chunlv" {
+				shortcutName = "蠢驴电竞"
+			}
+			break
+		}
+	}
 	name := strings.ReplaceAll(shortcutName, "'", "''")
 	script := "$ErrorActionPreference='SilentlyContinue';" +
 		"$exe='" + exe + "';" +
@@ -1575,6 +1584,7 @@ func ensureShortcut(exePath string, force bool) {
 		" $s=$w.CreateShortcut($lnk); $s.TargetPath=$exe; $s.WorkingDirectory=$dir; $s.IconLocation=($exe+',0'); $s.Description=$name; $s.Save();" +
 		" Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {" +
 		"  if($_.Name -match $name){ return }" +
+		"  if($_.Name -match '陪玩管理'){ Remove-Item -LiteralPath $_.FullName -Force; return }" +
 		"  if(-not ($_.Name -match '蠢驴|chunlv|客服|陪玩')){ return }" +
 		"  $t=$w.CreateShortcut($_.FullName).TargetPath;" +
 		"  if(-not $t -or -not (Test-Path -LiteralPath $t) -or ($t -ine $exe)){ Remove-Item -LiteralPath $_.FullName -Force }" +
