@@ -2493,10 +2493,18 @@ app.whenReady().then(() => {
   mainWindow.on('resize', () => scheduleSaveWindowBounds(mainWindow!));
   mainWindow.on('move', () => scheduleSaveWindowBounds(mainWindow!));
   mainWindow.on('close', (e) => {
-    if (!isQuitting && companionTray) {
-      e.preventDefault();
-      mainWindow?.hide();
-    }
+    if (isQuitting) return;
+    // 老板 2026-10-27：X 是「退到托盘」，不是退出；- 仍然正常最小化。
+    // 之前 hide 后没有任何提示，用户以为点 X 没反应、接着点 - 也看不到窗口。
+    e.preventDefault();
+    mainWindow?.hide();
+    try {
+      companionTray?.displayBalloon({
+        title: '蠢驴电竞还在后台运行',
+        content: '点右下角托盘图标可以重新打开；要彻底退出请右键托盘 → 退出',
+        iconType: 'info',
+      });
+    } catch { /* 系统不支持气泡也不影响隐藏 */ }
   });
   // 只在「登录页自己加载失败」时展示兜底页（从客服端外壳移植）。
   // 以前是窗口里任何一次加载失败都会把整个窗口强行 loadURL 回登录页，

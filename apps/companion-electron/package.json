@@ -1,6 +1,6 @@
 {
   "name": "@chunlv/companion-electron",
-  "version": "1.0.20261054",
+  "version": "1.0.20261055",
   "description": "蠢驴电竞统一桌面客户端（按登录角色自适应：陪玩 / 客服 / 店长 / 老板）",
   "main": "dist-electron/main.js",
   "scripts": {
