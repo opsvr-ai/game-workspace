@@ -157,6 +157,8 @@ interface DeviceRow extends MachineItem {
     at?: string;
   } | null;
   metricsAlert?: string;
+  latestVersion?: string;
+  updateReason?: string;
 }
 
 /** 看门狗构建号比较：只把「本机比云端旧」算待更新；本机比云端新（云端配置滞后）算最新。 */
@@ -672,6 +674,18 @@ const DevicesPanel: React.FC = () => {
           </Space>
         );
       },
+    },
+    {
+      title: '更新状态',
+      key: 'updateReason',
+      width: 260,
+      render: (_: unknown, r: DeviceRow) => (
+        <Tooltip title={r.updateReason || '暂无更新原因'}>
+          <Text type={r.appVersion && r.appVersion === r.latestVersion ? 'success' : 'secondary'} style={{ fontSize: 12 }}>
+            {r.updateReason || '—'}
+          </Text>
+        </Tooltip>
+      ),
     },
     {
       title: '远程管理',

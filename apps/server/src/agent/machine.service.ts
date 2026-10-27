@@ -100,6 +100,17 @@ export class MachineService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** 店长看板用：这台电脑为什么还没更新到最新版。 */
+  private updateReasonOf(m: any, latestVersion: string): string {
+    const version = String(m?.appVersion || '').trim();
+    if (!version) return '客户端还没上报版本（可能没登录/没启动）';
+    if (!latestVersion) return `当前 ${version}，服务端未配置最新版本`;
+    if (version === latestVersion) return '已是最新版本';
+    if (!this.isOnline(m?.lastSeenAt)) return `离线，最后心跳 ${m?.lastSeenAt || '未知'}，收不到更新`;
+    return `在线，当前 ${version}；已下发更新，等待下载/安装`;
+  }
+
+
   /** 资源高负载提示：只记录到台账，管理端设备页直接显示，不杀进程。 */
   private metricsAlertOf(now: any, before: any): string {
     const m = now && typeof now === 'object' ? now : before;
@@ -373,14 +384,16 @@ export class MachineService {
    *   ③ ManagedPC 表      → 手工登记的陪玩电脑（可开关机，但不可诊断）
    */
   async listMachines(user?: any) {
-    const [machineRows, tasks, csRows, csUsers, managedPcs, watchdogCfg] = await Promise.all([
+    const [machineRows, tasks, csRows, csUsers, managedPcs, watchdogCfg, latestVersionCfg] = await Promise.all([
       this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.machine.' } } }),
       this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.task.' } } }),
       this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'cs.client.version.' } } }),
       this.prisma.user.findMany({ select: { id: true, username: true, role: true, studioId: true } }),
       this.prisma.managedPC.findMany({ orderBy: { ip: 'asc' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'watchdog.latest_build' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'agent.latest_version' } }),
     ]);
+    const latestVersion = String(latestVersionCfg?.value || '').replace(/^"|"$/g, '');
 
     const userById = new Map(csUsers.map((u) => [u.id, u]));
     const taskList = tasks.map((t) => (t.value as any) || {}).filter((t) => t && t.id);
@@ -417,6 +430,8 @@ export class MachineService {
         mac: m.mac || '',
         os: m.os || '',
         appVersion: m.appVersion || '',
+        latestVersion,
+        updateReason: this.updateReasonOf(m, latestVersion),
         metrics: m.metrics || null,
         metricsAlert: m.metricsAlert || '',
         watchdogBuild: m.watchdogBuild || '',
@@ -969,7 +984,7 @@ export class MachineService {
       if (rows.length <= MachineService.MAX_TASKS) return;
       const sorted = rows
         .map((r) => ({ key: r.key, at: String(((r.value as any) || {}).createdAt || '') }))
-        .sort((a, b) => a.at.localeCompare(b.at));
+        .sort((a: any, b: any) => a.at.localeCompare(b.at));
       const drop = sorted.slice(0, sorted.length - MachineService.MAX_TASKS);
       for (const d of drop) await this.prisma.systemConfig.delete({ where: { key: d.key } });
       this.logger.log(`清理了 ${drop.length} 条旧远程任务`);
