@@ -413,6 +413,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **已驳回的实名申请仍留在待审核列表（2026-10-28）。**
+  - 驳回后 `isAuthorized=false` 仍被待审核条件捞回来；
+  - 现在待审核条件排除 `reviewStatus=REJECTED`；
+  - 驳回后刷新即从实名审核页消失。
+
 - **全库清理僵尸抢单 + 定时自动清理（2026-10-28）。**
   - 一次性清理 359 张超过 24 小时、无 ACTIVE 会话的 GRABBED 单；
   - 服务端每 30 秒继续清理新增僵尸单；

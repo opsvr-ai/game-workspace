@@ -36,5 +36,10 @@ export function notResignedWhere() {
  * 会把离职的人一并捞出来 —— 老板 2026-09-27 报的「李玉妹离职了突然出现在实名审核」就是这个。
  */
 export function pendingReviewWhere() {
-  return { isAuthorized: false, ...notResignedWhere() };
+  return {
+    isAuthorized: false,
+    ...notResignedWhere(),
+    // 已经驳回的人不能再留在待审核列表里（老板 2026-10-28 雷鹏驳回后还在）。
+    AND: [{ OR: [{ companion: null }, { companion: { reviewStatus: { not: 'REJECTED' } } }] }],
+  };
 }
