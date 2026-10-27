@@ -28,7 +28,7 @@ const PRESET_KEY = 'chunlv:voice-reminder-preset';
 const VOLUME_KEY = 'chunlv:voice-reminder-volume';
 const OUTPUT_KEY = 'chunlv:voice-reminder-output';
 const DEFAULT_PRESET = 'female_tianmei';
-const DEFAULT_VOLUME = 70;
+const DEFAULT_VOLUME = 50;
 const DEFAULT_REMINDER_TEXT = '服务时间到了，请结束服务';
 
 let naturalAudio: HTMLAudioElement | null = null;
@@ -76,8 +76,15 @@ export function setVoicePresetId(id: string): void {
 
 export function getVoiceVolume(): number {
   try {
-    const n = Number(localStorage.getItem(VOLUME_KEY));
-    return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : DEFAULT_VOLUME;
+    const raw = localStorage.getItem(VOLUME_KEY);
+    const n = Number(raw);
+    // 老板 2026-10-28：默认音量 50，旧机器里存成 0 的也迁移到 50，
+    // 避免新装/老设置直接静音，到点提醒变成哑巴。
+    if (raw == null || !Number.isFinite(n) || n <= 0) {
+      localStorage.setItem(VOLUME_KEY, String(DEFAULT_VOLUME));
+      return DEFAULT_VOLUME;
+    }
+    return Math.min(100, Math.max(0, n));
   } catch {
     return DEFAULT_VOLUME;
   }
