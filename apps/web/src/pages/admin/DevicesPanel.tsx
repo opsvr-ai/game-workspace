@@ -650,7 +650,9 @@ const DevicesPanel: React.FC = () => {
       width: 150,
       render: (_: unknown, r: DeviceRow) => {
         const wdOld = isWatchdogBehind(r.watchdogBuild, stats.watchdogLatestBuild);
-        const clientLatest = r.isLatest === true;
+        const clientLatest = r.latestVersion
+          ? r.appVersion === r.latestVersion
+          : r.isLatest === true;
         const wdLatest = !!r.watchdogBuild && !wdOld;
         const labelStyle = { display: 'inline-block', width: 40 } as const;
         return (
