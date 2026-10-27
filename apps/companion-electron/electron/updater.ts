@@ -339,23 +339,14 @@ async function mayApplyUpdateNow(
   opts: { busy?: () => boolean; pollMs?: number; maxWaitMs?: number } = {},
 ): Promise<boolean> {
   const busy = opts.busy || companionBusy;
-  const pollMs = opts.pollMs ?? BUSY_WAIT_POLL_MS;
-  const maxWaitMs = opts.maxWaitMs ?? BUSY_WAIT_MAX_MS;
-  if (!busy()) {
+  // 老板 2026-10-27：接单中也要静默升级，不再等这一单结束。
+  // 更新只重启客户端，不杀游戏；服务计时在服务端，客户端重启后继续。
+  if (busy()) {
+    logger.info('Companion is busy, applying silent update now (boss 2026-10-27)', { why });
+  } else {
     logger.info('Companion is idle, applying update now', { why });
-    return true;
   }
-  logger.info('Companion is busy, deferring update until the order is finished', { why });
-  const deadline = Date.now() + maxWaitMs;
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, pollMs));
-    if (!busy()) {
-      logger.info('Companion became idle, applying deferred update', { why });
-      return true;
-    }
-  }
-  logger.info('Still busy after waiting, keep the downloaded package for the next round', { why });
-  return false;
+  return true;
 }
 
 async function performUpdate(downloadUrl: string, version = ''): Promise<void> {

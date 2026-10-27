@@ -154,10 +154,8 @@ export class AgentController {
           skipped.push(next);
           continue;
         }
-        if (await this.agentService.isCompanionInService(next.companionId)) {
-          skipped.push(next);
-          continue;
-        }
+        // 2026-10-27 老板明确：接单中也可以静默升级，不能因为正在服务就一直跳过。
+        // 下载限速、安装由客户端静默完成，不再等服务结束。
         const [target] = await this.agentService.getCompanionTargetsByIds([next.companionId]);
         if (target && compareVersionStrings(target.agentVersion, version) >= 0) {
           logger.info('Update queue: already on latest, skip', {
