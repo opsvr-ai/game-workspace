@@ -51,6 +51,10 @@ let currentStudioName = '';
 // 托盘实例：托盘没建起来（返回 null）时不能走「关窗口=隐藏」，否则窗口再也叫不回来。
 let companionTray: ReturnType<typeof createTray> = null;
 
+// 语音提醒必须在没有用户点击的情况下也能播：Electron 默认按 Chromium 自动播放策略
+// 会把到点提醒的 Audio.play() 静默拦掉，表现就是「弹窗有、语音一点没有」。
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 // 允许局域网 http 地址使用麦克风/媒体接口
 app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', getServerUrl().replace(/\/$/, ''));
 
@@ -2494,17 +2498,9 @@ app.whenReady().then(() => {
   mainWindow.on('move', () => scheduleSaveWindowBounds(mainWindow!));
   mainWindow.on('close', (e) => {
     if (isQuitting) return;
-    // 老板 2026-10-27：X 是「退到托盘」，不是退出；- 仍然正常最小化。
-    // 之前 hide 后没有任何提示，用户以为点 X 没反应、接着点 - 也看不到窗口。
+    // 老板 2026-10-27：X 就是安静退到托盘，不要弹提示；- 仍然正常最小化。
     e.preventDefault();
     mainWindow?.hide();
-    try {
-      companionTray?.displayBalloon({
-        title: '蠢驴电竞还在后台运行',
-        content: '点右下角托盘图标可以重新打开；要彻底退出请右键托盘 → 退出',
-        iconType: 'info',
-      });
-    } catch { /* 系统不支持气泡也不影响隐藏 */ }
   });
   // 只在「登录页自己加载失败」时展示兜底页（从客服端外壳移植）。
   // 以前是窗口里任何一次加载失败都会把整个窗口强行 loadURL 回登录页，
