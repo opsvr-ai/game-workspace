@@ -184,6 +184,33 @@ export class CompanionsController {
   }
 
   /** 陪玩端偏好：接单中 / 娱乐中是否也接收新单弹窗（老板 2026-10-01：娱乐中默认开） */
+  @Post('companions/me/voice-report')
+  @Roles(UserRole.COMPANION)
+  async reportVoice(
+    @Req() req: any,
+    @Body() body: { ok?: boolean; event?: string; error?: string; preset?: string; text?: string; sessionId?: string },
+  ): Promise<ApiResponse<unknown>> {
+    const companionId = req.user?.companionId;
+    if (companionId) {
+      const value = {
+        at: new Date().toISOString(),
+        ok: body?.ok === true,
+        event: String(body?.event || ''),
+        error: String(body?.error || '').slice(0, 300),
+        preset: String(body?.preset || ''),
+        text: String(body?.text || '').slice(0, 120),
+        sessionId: String(body?.sessionId || ''),
+        appVersion: String(req.headers?.['x-client-version'] || ''),
+      };
+      await this.prisma.systemConfig.upsert({
+        where: { key: `companion.voice_report.${companionId}` },
+        create: { key: `companion.voice_report.${companionId}`, value: value as any },
+        update: { value: value as any },
+      }).catch(() => {});
+    }
+    return { code: 200, message: 'ok', data: null };
+  }
+
   @Get('companions/me/voice-reminder')
   @Roles(UserRole.COMPANION)
   async getVoiceReminder(

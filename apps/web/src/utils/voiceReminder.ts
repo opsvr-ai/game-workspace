@@ -74,6 +74,12 @@ function pickChineseVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
   }
 }
 
+function reportVoice(ok: boolean, event: string, error = '', preset = '', text = ''): void {
+  try {
+    void http.post('/companions/me/voice-report', { ok, event, error, preset, text }).catch(() => {});
+  } catch { /* 回执失败不影响播放 */ }
+}
+
 export function stopVoiceReminder(): void {
   try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
   try {
@@ -99,7 +105,10 @@ export function speakVoiceReminder(text: string, presetId?: string, volume?: num
       stopVoiceReminder();
       naturalAudio = new Audio(`/voice-reminder/${preset.id}.mp3`);
       naturalAudio.volume = vol;
-      void naturalAudio.play().catch(() => {
+      naturalAudio.play().then(() => {
+        reportVoice(true, 'audio-playing', '', preset.id, content);
+      }).catch((err) => {
+        reportVoice(false, 'audio-play-failed', String((err as any)?.message || err), preset.id, content);
         // 音频加载失败时退回系统语音，不能让到点提醒完全没声
         speakWithBrowserVoice(content, preset, vol);
       });
@@ -120,7 +129,10 @@ export function speakVoiceReminder(text: string, presetId?: string, volume?: num
       audio.volume = vol;
       naturalAudio = audio;
       audio.onended = () => URL.revokeObjectURL(url);
-      void audio.play().catch(() => speakWithBrowserVoice(content, preset, vol));
+      audio.play().then(() => reportVoice(true, 'audio-playing', '', preset.id, content)).catch((err) => {
+        reportVoice(false, 'audio-play-failed', String((err as any)?.message || err), preset.id, content);
+        speakWithBrowserVoice(content, preset, vol);
+      });
     } catch {
       speakWithBrowserVoice(content, preset, vol);
     }
@@ -139,7 +151,9 @@ function speakWithBrowserVoice(content: string, preset: VoicePreset, volume: num
     utter.pitch = preset.pitch;
     utter.rate = preset.rate;
     utter.volume = volume;
+    utter.onerror = (ev: any) => reportVoice(false, 'speech-synthesis-failed', String(ev?.error || 'speechSynthesis error'), preset.id, content);
     window.speechSynthesis.speak(utter);
+    reportVoice(true, 'speech-synthesis', '', preset.id, content);
     return true;
   } catch {
     return false;
