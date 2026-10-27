@@ -413,6 +413,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **全库清理僵尸抢单 + 定时自动清理（2026-10-28）。**
+  - 一次性清理 359 张超过 24 小时、无 ACTIVE 会话的 GRABBED 单；
+  - 服务端每 30 秒继续清理新增僵尸单；
+  - 不再长期挂着「手上有订单没结束」。
+
 - **设备管理「客户端 非最新」和「已是最新版本」互相矛盾（2026-10-28，网页 v1187）。**
   - 两个版本标签来自两份数据：CompanionPC 心跳 vs 机器台账；
   - 现在统一按机器台账 appVersion 对比 latestVersion；

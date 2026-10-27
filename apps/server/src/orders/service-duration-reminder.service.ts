@@ -32,6 +32,18 @@ export class ServiceDurationReminderService implements OnModuleInit {
 
   async tick() {
     const now = Date.now();
+    // 清掉长期停在 GRABBED、没有任何 ACTIVE 会话的僵尸抢单，避免一直拦住新首单。
+    await this.prisma.order.updateMany({
+      where: {
+        status: 'GRABBED',
+        updatedAt: { lt: new Date(now - 24 * 60 * 60 * 1000) },
+        sessions: { none: { status: 'ACTIVE' } },
+      },
+      data: {
+        status: 'CANCELLED',
+        notes: '超过 24 小时未开始且无 ACTIVE 会话，系统自动清理僵尸抢单',
+      },
+    }).catch(() => {});
     const sessions = await this.prisma.orderSession.findMany({
       where: {
         status: 'ACTIVE',
