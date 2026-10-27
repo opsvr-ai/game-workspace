@@ -57,16 +57,16 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('client-admin-password')
-  async getClientAdminPassword(): Promise<ApiResponse<{ hash: string }>> {
-    const hash = await this.authService.getClientAdminPasswordHash();
+  async getClientAdminPassword(@Request() req: any): Promise<ApiResponse<{ hash: string }>> {
+    const hash = await this.authService.getClientAdminPasswordHash(req.user?.studioId ?? null);
     return { code: 200, message: 'ok', data: { hash } };
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Put('client-admin-password')
-  async setClientAdminPassword(@Body() body: { oldPassword?: string; newPassword?: string }): Promise<ApiResponse<null>> {
-    await this.authService.setClientAdminPassword(body?.oldPassword || '', body?.newPassword || '');
+  async setClientAdminPassword(@Body() body: { oldPassword?: string; newPassword?: string }, @Request() req: any): Promise<ApiResponse<null>> {
+    await this.authService.setClientAdminPassword(req.user?.studioId ?? null, body?.oldPassword || '', body?.newPassword || '');
     return { code: 200, message: '客户端管理员密码已更新，全店生效', data: null };
   }
 

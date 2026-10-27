@@ -345,19 +345,25 @@ export class AuthService {
     return createHash('sha256').update(String(password || '')).digest('hex');
   }
 
-  async getClientAdminPasswordHash(): Promise<string> {
-    const row = await this.prisma.systemConfig.findUnique({ where: { key: 'client.admin_password_hash' } }).catch(() => null);
+  private clientAdminConfigKey(studioId?: string | null): string {
+    return `client.admin_password_hash.${studioId || 'global'}`;
+  }
+
+  async getClientAdminPasswordHash(studioId?: string | null): Promise<string> {
+    const row = await this.prisma.systemConfig
+      .findUnique({ where: { key: this.clientAdminConfigKey(studioId) } })
+      .catch(() => null);
     const value = typeof row?.value === 'string' ? row.value : '';
     return value || this.clientAdminHash('123456');
   }
 
-  async setClientAdminPassword(oldPassword: string, newPassword: string): Promise<void> {
+  async setClientAdminPassword(studioId: string | null | undefined, oldPassword: string, newPassword: string): Promise<void> {
     if (!newPassword || newPassword.length < 4) throw new BadRequestException('新密码至少 4 位');
-    const current = await this.getClientAdminPasswordHash();
+    const current = await this.getClientAdminPasswordHash(studioId);
     if (current !== this.clientAdminHash(oldPassword)) throw new BadRequestException('旧管理员密码错误');
     await this.prisma.systemConfig.upsert({
-      where: { key: 'client.admin_password_hash' },
-      create: { key: 'client.admin_password_hash', value: JSON.stringify(this.clientAdminHash(newPassword)) },
+      where: { key: this.clientAdminConfigKey(studioId) },
+      create: { key: this.clientAdminConfigKey(studioId), value: JSON.stringify(this.clientAdminHash(newPassword)) },
       update: { value: JSON.stringify(this.clientAdminHash(newPassword)) },
     });
   }
