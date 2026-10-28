@@ -505,7 +505,7 @@ const CSDispatchView: React.FC = () => {
 
       <Row
         gutter={6}
-        style={{ background: BG.base, borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 420px)' }}
+        style={{ background: BG.base, borderRadius: 10, padding: 8, minHeight: 0 }}
       >
         {/* Left: Companion sidebar */}
         <Col flex={fixedColumnFlex(PERSONNEL_COLUMN_WIDTH)} style={fixedColumnStyle(PERSONNEL_COLUMN_WIDTH)}>
@@ -1019,6 +1019,7 @@ const CSDispatchView: React.FC = () => {
                     orders={dispatchRecords}
                     loading={loadingRecords}
                     emptyText="暂无派单记录"
+                    hideCustomerSource
                     pageSize={20}
                   />
                 </Card>

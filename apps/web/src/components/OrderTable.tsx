@@ -32,6 +32,8 @@ export interface OrderTableProps {
   orders: any[];
   /** 不显示「主陪 / 副陪」列（这三张列表里没人抢的单占多数，主陪信息放进说明列，省下 84px 让表格一屏放得下） */
   hideStudio?: boolean;
+  /** 不显示客服渠道（小红书 / 引流账号）—— 派单记录只看谁抢走，敏感来源留在订单管理 */
+  hideCustomerSource?: boolean;
   /** 这一页特有的说明列（如「退回情况」）。传 null 就不要这一列 */
   noteColumn?: {
     title: string;
@@ -66,6 +68,7 @@ export interface OrderTableProps {
 const OrderTable: React.FC<OrderTableProps> = ({
   orders,
   hideStudio,
+  hideCustomerSource = false,
   noteColumn,
   renderActions,
   loading,
@@ -98,7 +101,8 @@ const OrderTable: React.FC<OrderTableProps> = ({
     canSeeSourceFor: (o: any) => canSeeCustomerSource(o, user),
     inactiveAccounts,
   }).filter(
-    (c) => !(hideStudio && c.key === 'companion'),
+    (c) => !(hideStudio && c.key === 'companion')
+      && !(hideCustomerSource && ['customerSource', 'customerSourceAccount'].includes(String(c.key))),
   );
   // 这一页特有的列（跟进台账的「客服工作微信 / 添加情况 / 最后跟进 / 下次跟进」）插在
   // 订单列之后、「说明」列之前：客户信息那几列和别的页一个字都不差，多的只有自己这几列。
