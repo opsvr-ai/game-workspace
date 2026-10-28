@@ -51,7 +51,7 @@ const ContinueServiceModal: React.FC<Props> = ({ open, orderId, isDouble, mode =
       if (data?.sessionId) {
         try { (window as any).electronAPI?.sessionWatch?.(data.sessionId); } catch {}
       }
-      message.success(mode === 'REPURCHASE' ? '已复购，继续服务，不用退出游戏' : '已续单，继续服务，不用退出游戏');
+      message.success('已继续服务，不用退出游戏');
       onDone();
       onClose();
     } catch (e: any) {
@@ -64,11 +64,11 @@ const ContinueServiceModal: React.FC<Props> = ({ open, orderId, isDouble, mode =
   return (
     <Modal
       open={open}
-      title={mode === 'REPURCHASE' ? '复购 / 继续服务' : '续单 / 继续服务'}
+      title="继续服务"
       onOk={submit}
       onCancel={onClose}
       confirmLoading={saving}
-      okText={mode === 'REPURCHASE' ? '确认复购' : '确认续单'}
+      okText="确认继续"
       cancelText="取消"
       width={420}
     >

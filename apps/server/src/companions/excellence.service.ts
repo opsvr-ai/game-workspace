@@ -566,15 +566,10 @@ export class ExcellenceService implements OnModuleInit {
     const studioIdOfCompanion = new Map(bonusRows.map((b) => [b.id, b.studioId as string | null]));
 
     for (const [cid, s] of rates) {
-      // 分母统一 = 打了首单的客户数（老板 2026-10-04）
-      const rateDenom = s.firstCustomers;
-      const renewRate = rateDenom > 0 ? Math.min(100, (s.renew / rateDenom) * 100) : 0;
-      const repurchaseRate = rateDenom > 0 ? Math.min(100, (s.repurchase / rateDenom) * 100) : 0;
-      const addedCount = addedCustomers.get(cid)?.size || 0;
-      // 成交首单客户数 = **打完的**首单客户数（老板 2026-10-05：「不打完怎么算？」）；
-      // 理论上不会超过分母，超了就按 100% 封顶。
-      const customerCount = firstSuccessCustomers.get(cid)?.size || 0;
-      const firstSuccessRate = addedCount > 0 ? Math.min(100, (customerCount / addedCount) * 100) : 0;
+      // 老板 2026-10-29：续单率 / 复购率 / 首单成功率全部停用。
+      const renewRate = 0;
+      const repurchaseRate = 0;
+      const firstSuccessRate = 0;
       const cfg = await loadScoreCfg(studioIdOfCompanion.get(cid) ?? opts?.studioId ?? null);
       const metrics = metricsFor(cfg);
       const revenue = monthlyRevenueMap.get(cid) || 0;

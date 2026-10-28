@@ -2,7 +2,6 @@
 import React from 'react';
 import { Modal, Tag } from 'antd';
 import { BRAND, SEMANTIC } from '../styles/tokens';
-import { orderTypeConfig } from '../constants/orders';
 import { cleanRoomCode } from '../constants/orderFields';
 import CopyTextButton from './CopyTextButton';
 
@@ -25,7 +24,7 @@ const GrabSuccessModal: React.FC<Props> = ({ order, onClose }) => (
         return (
           <div style={{ fontSize: 14, lineHeight: 2 }}>
             <div>
-              📋 {g.gameName} · {orderTypeConfig[g.type]?.label || g.type} · ¥
+              📋 {g.gameName} · ¥
               {Number(g.amount).toFixed(0)} · {g.duration}h
             </div>
             {g.customer?.customerCode && <div>客户编号：{g.customer.customerCode}</div>}
