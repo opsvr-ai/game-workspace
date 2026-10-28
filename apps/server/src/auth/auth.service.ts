@@ -330,6 +330,15 @@ export class AuthService {
       const archived = `${targetUser.username}_已驳回_${Date.now()}`.slice(0, 60);
       await this.prisma.user.update({ where: { id: userId }, data: { username: archived } }).catch(() => {});
     }
+    // 身份证号也被归档账号占着时，重新注册仍会提示「已注册」；归档时清掉证件信息。
+    await this.prisma.companion.updateMany({
+      where: { userId },
+      data: { idNumber: null, idCardFront: null, idCardBack: null },
+    }).catch(() => {});
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { idNumber: null, idCardFront: null, idCardBack: null },
+    }).catch(() => {});
     this.wsGateway.notifyUser(userId, 'user:rejected', {
       message: `您的实名审核未通过${reason ? '：' + reason : ''}，资料已保留，请重新提交`,
     });
