@@ -30,6 +30,7 @@ import { useSocket } from '../../hooks/useSocket';
 import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
 import CsConvertedPanel from '../../components/CsConvertedPanel';
 import EscalatedPoolPanel from '../../components/EscalatedPoolPanel';
+import OrderTable from '../../components/OrderTable';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import LoadingState from '../../components/LoadingState';
@@ -121,6 +122,8 @@ const CSDispatchView: React.FC = () => {
           : '/owner/orders';
   const [companions, setCompanions] = useState<Personnel[]>([]);
   const [poolOrders, setPoolOrders] = useState<PoolOrder[]>([]);
+  const [dispatchRecords, setDispatchRecords] = useState<any[]>([]);
+  const [loadingRecords, setLoadingRecords] = useState(false);
   const [poolError, setPoolError] = useState('');
   const [todayNew, setTodayNew] = useState(0);
   const [todayGrabbed, setTodayGrabbed] = useState(0);
@@ -439,6 +442,23 @@ const CSDispatchView: React.FC = () => {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }, [poolOrders, poolSearch, urgencyFilter]);
+
+  const loadDispatchRecords = useCallback(async () => {
+    setLoadingRecords(true);
+    try {
+      const { data } = await ordersApi.list({ page: 1, pageSize: 50 });
+      const payload = data?.data;
+      setDispatchRecords(Array.isArray(payload) ? payload : payload?.items || []);
+    } catch {
+      setDispatchRecords([]);
+    } finally {
+      setLoadingRecords(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDispatchRecords();
+  }, [loadDispatchRecords]);
 
 
   return (
@@ -989,6 +1009,19 @@ const CSDispatchView: React.FC = () => {
           </Card>
         </Col>
       </Row>
+                <Card
+                  size="small"
+                  title={<span style={{ fontSize: 14, fontWeight: 600 }}>派单记录</span>}
+                  extra={<Button size="small" onClick={loadDispatchRecords} loading={loadingRecords}>刷新</Button>}
+                  style={{ marginTop: 12, borderRadius: 8 }}
+                >
+                  <OrderTable
+                    orders={dispatchRecords}
+                    loading={loadingRecords}
+                    emptyText="暂无派单记录"
+                    pageSize={20}
+                  />
+                </Card>
               </>
             ),
           },

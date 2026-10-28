@@ -11,6 +11,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **管理端派单工作台下方新增「派单记录」列表（2026-10-28，网页 v1192）。**
+  - 直接复用订单管理同一套列和 OrderTable；
+  - 显示最近派单记录，带刷新按钮；
+  - 不用再跳订单管理看派单结果。
+
 - **语音提醒增加客户端播放回执（2026-10-28，网页 v1188）。**
   - 播放成功上报 `audio-playing`，失败上报具体错误；
   - 服务端写 `companion.voice_report.<id>`，到点不再只凭“已发送”判定成功。
