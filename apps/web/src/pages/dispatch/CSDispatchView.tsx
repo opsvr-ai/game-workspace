@@ -1009,21 +1009,27 @@ const CSDispatchView: React.FC = () => {
           </Card>
         </Col>
       </Row>
-                <Card
-                  size="small"
-                  title={<span style={{ fontSize: 14, fontWeight: 600 }}>派单记录</span>}
-                  extra={<Button size="small" onClick={loadDispatchRecords} loading={loadingRecords}>刷新</Button>}
-                  style={{ marginTop: 12, borderRadius: 8 }}
-                >
-                  <OrderTable
-                    orders={dispatchRecords}
-                    loading={loadingRecords}
-                    emptyText="暂无派单记录"
-                    hideCustomerSource
-                    pageSize={20}
-                  />
-                </Card>
               </>
+            ),
+          },
+          {
+            key: 'records',
+            label: <span style={{ color: TEXT.heading, fontWeight: 600 }}>接单记录</span>,
+            children: (
+              <Card
+                size="small"
+                title="接单记录"
+                extra={<Button size="small" onClick={loadDispatchRecords} loading={loadingRecords}>刷新</Button>}
+                style={{ borderRadius: 8 }}
+              >
+                <OrderTable
+                  orders={dispatchRecords}
+                  loading={loadingRecords}
+                  emptyText="暂无接单记录"
+                  hideCustomerSource
+                  pageSize={20}
+                />
+              </Card>
             ),
           },
           {
