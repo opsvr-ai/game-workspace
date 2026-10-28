@@ -306,7 +306,7 @@ export class AuthService {
   }
 
   async rejectUser(userId: string, reason: string, reviewerStudioId?: string, reviewerRole?: string, reviewerId?: string): Promise<void> {
-    const targetUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true, role: true } });
+    const targetUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true, role: true, username: true } });
     if (!targetUser) throw new ForbiddenException('用户不存在');
     if (reviewerRole && reviewerRole !== 'OWNER') {
       assertCanManage(reviewerRole, targetUser.role, reviewerStudioId, targetUser.studioId);
@@ -324,6 +324,12 @@ export class AuthService {
         ...(reviewerId ? { reviewedById: reviewerId } : {}),
       },
     }).catch(() => {});
+    // 驳回后把旧用户名归档，释放原用户名，允许本人重新注册并重传身份证；
+    // 原账号/订单/客户仍保留在归档账号下，不删业务数据。
+    if (targetUser.username && !/_已驳回_\d+$/.test(targetUser.username)) {
+      const archived = `${targetUser.username}_已驳回_${Date.now()}`.slice(0, 60);
+      await this.prisma.user.update({ where: { id: userId }, data: { username: archived } }).catch(() => {});
+    }
     this.wsGateway.notifyUser(userId, 'user:rejected', {
       message: `您的实名审核未通过${reason ? '：' + reason : ''}，资料已保留，请重新提交`,
     });
