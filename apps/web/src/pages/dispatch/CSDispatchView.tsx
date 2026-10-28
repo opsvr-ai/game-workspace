@@ -148,7 +148,7 @@ const CSDispatchView: React.FC = () => {
   // 首页「到点该跟进」那条红条和侧边栏的待跟进角标都往 ?tab=followup 跳，
   // 老链接一律落到「工作微信客户」那一页，不用改大家收藏的地址。
   const tabParam = searchParams.get('tab');
-  const initialTab = tabParam === 'converted' || tabParam === 'followup' ? 'converted' : 'dispatch';
+  const initialTab = tabParam === 'converted' || tabParam === 'followup' ? 'converted' : 'records';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [customerRefresh, setCustomerRefresh] = useState(0);
   useEffect(() => {
