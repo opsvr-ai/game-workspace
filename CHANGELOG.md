@@ -418,6 +418,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **派单记录被订单池撑到首屏下面，看不到（2026-10-28，网页 v1193）。**
+  - 订单池最小高度从整屏降到 calc(100vh - 420px)；
+  - 派单记录表格进入首屏可见区域；
+  - 数据仍是订单表最近 50 条。
+
 - **语音输出不再跟随 Windows 应用路由，优先物理扬声器（2026-10-28，网页 v1190）。**
   - 钱鸿鸣的陪玩管理被 Windows 绑在 USB Audio Device；
   - 现在语音优先选物理扬声器/耳机，排除 ToDesk/USL/MicU 等虚拟端点；

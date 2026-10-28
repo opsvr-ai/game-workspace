@@ -505,7 +505,7 @@ const CSDispatchView: React.FC = () => {
 
       <Row
         gutter={6}
-        style={{ background: BG.base, borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 160px)' }}
+        style={{ background: BG.base, borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 420px)' }}
       >
         {/* Left: Companion sidebar */}
         <Col flex={fixedColumnFlex(PERSONNEL_COLUMN_WIDTH)} style={fixedColumnStyle(PERSONNEL_COLUMN_WIDTH)}>
