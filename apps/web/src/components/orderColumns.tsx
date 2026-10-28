@@ -7,7 +7,7 @@ import {
   DATA_SUB_FONT_SIZE,
   FIELD_WIDTH,
 } from '../constants/datasetColumns';
-import { orderStatusConfig, orderTypeConfig, serviceTypeConfig } from '../constants/orders';
+import { orderStatusConfig, serviceTypeConfig } from '../constants/orders';
 import {
   ORDER_FIELD_LABELS,
   ORDER_DISPATCH_TEXT_COLOR,
@@ -109,11 +109,9 @@ export function buildOrderColumns({
       width: W('orderCode', FIELD_WIDTH.orderCode),
       render: (_: unknown, o: any) => {
         const code = o.orderCode || o.id.slice(0, 8);
-        const typeLabel = orderTypeConfig[o.type]?.label || o.type || '首单';
         return (
-          <div style={CELL_ONE_LINE} title={`${code} · ${typeLabel}`}>
+          <div style={CELL_ONE_LINE} title={code}>
             <Text strong>{code}</Text>
-            <span style={CELL_SUB_TEXT}>· {typeLabel}</span>
           </div>
         );
       },

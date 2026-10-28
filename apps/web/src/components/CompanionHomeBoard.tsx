@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { BRAND, TEXT, SEMANTIC, BORDER } from '../styles/tokens';
 import { tierMeta } from '../constants/tiers';
 import StatCard from './StatCard';
-import DailyKpiPanel from './DailyKpiPanel';
 
 const { Text } = Typography;
 
@@ -143,9 +142,6 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
         {/* ② 我的 KPI */}
         <Col xs={24} lg={12}>
           <Card size="small" title="📈 我的 KPI（达标自动加分）" style={{ height: '100%' }}>
-            <Bar label="新客首单成功率" percent={Number(excellence?.newRate ?? 0)} text={pct(excellence?.newRate)} color={BRAND.primary} />
-            <Bar label="续单率" percent={Number(excellence?.renewRate ?? 0)} text={pct(excellence?.renewRate)} color={`${SEMANTIC.success}`} />
-            <Bar label="复购率" percent={Number(excellence?.repurchaseRate ?? 0)} text={pct(excellence?.repurchaseRate)} color="#722ED1" />
             <Bar label="微信添加成功率" percent={Number(w.wechatAddRate ?? 0)} text={pct(w.wechatAddRate)} color="#EB2F96" />
             <Bar label="转化率" percent={Number(w.conversionRate ?? 0)} text={pct(w.conversionRate)} color="#FA8C16" />
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${BORDER.base}` }}>
@@ -188,9 +184,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
         </Col>
       </Row>
 
-      {/* 每日数据（老板 2026-10-07）：我每天打了多少单 / 多少续 / 续单率 / 多少复购 / 复购率 / 客户，
-          点开某一天看明细。服务端只会给我自己的数。 */}
-      <DailyKpiPanel title="我每天打了多少单" style={{ marginTop: 12 }} />
+      {/* 每日数据已按老板要求移除首单/续单/复购口径 */}
     </div>
   );
 };

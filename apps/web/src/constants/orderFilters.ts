@@ -16,7 +16,6 @@ import {
   contactStatusOrder,
   dispatchTypeConfig,
   dispatchTypeOrder,
-  orderTypeConfig,
   serviceTypeConfig,
 } from './orders';
 import { isOrderStuck } from './orderFields';
@@ -54,13 +53,6 @@ export function buildCustomerSourceOptions(orders: any[]): OrderFilterOption[] {
 
 /** 订单表里按顺序出现、且「客户端就能判」的标签维度（工具条按这个顺序排下拉）。 */
 export const ORDER_FILTER_DIMENSIONS: OrderFilterDimension[] = [
-  {
-    key: 'type',
-    placeholder: '订单类型',
-    width: 100,
-    options: Object.entries(orderTypeConfig).map(([value, v]) => ({ value, label: v.label })),
-    match: (o, v) => (o?.type || 'NEW') === v,
-  },
   {
     key: 'dispatchType',
     placeholder: '派单方式',

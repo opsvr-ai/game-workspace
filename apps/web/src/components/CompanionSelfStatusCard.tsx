@@ -122,11 +122,7 @@ export default function CompanionSelfStatusCard({ excellence }: { excellence?: a
               失败原因：{row.failureReasons.map((x: any) => `${x.reason}×${x.count}`).join('；')}
             </div>
           ) : null}
-          {excellence ? (
-            <div style={{ fontSize: 11, color: TEXT.tertiary, marginTop: 4 }}>
-              30天 KPI：首单 {pct(excellence.newRate)} · 续单 {pct(excellence.renewRate)} · 复购 {pct(excellence.repurchaseRate)}
-            </div>
-          ) : null}
+          {excellence ? null : null}
         </div>
       )}
     </Card>

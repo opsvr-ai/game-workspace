@@ -12,7 +12,6 @@ import { BG, BORDER, BRAND, TEXT, SEMANTIC } from '../../styles/tokens';
 import PageHeader from '../../components/PageHeader';
 import StatCard from '../../components/StatCard';
 import { tierMeta } from '../../constants/tiers';
-import DailyKpiPanel from '../../components/DailyKpiPanel';
 import UnifiedDashboard from './UnifiedDashboard';
 import { businessDayKeyOf } from '../../utils/businessDay';
 import { useLiveRefresh, LIVE_BOARD_EVENTS } from '../../hooks/useLiveRefresh';
@@ -372,11 +371,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         </>
       )}
 
-      {/* ── 每日数据（老板 2026-10-07）：每天多少单 / 多少续 / 续单率 / 多少复购 / 复购率 / 客户，
-          点开某一天看明细。管理端看全店，可筛某个陪玩。 ── */}
-      {boardTab === 'daily' && (
-        <DailyKpiPanel showCompanionFilter style={{ marginBottom: 14 }} />
-      )}
+      {/* 每日数据已按老板要求移除首单/续单/复购口径 */}
 
       {/* ── 订单管理：先看今天的量、本月结构和客服发单汇总 ── */}
       {boardTab === 'orders' && (
