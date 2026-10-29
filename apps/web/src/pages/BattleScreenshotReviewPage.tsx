@@ -40,6 +40,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('PENDING');
   const [rejecting, setRejecting] = useState<BattleScreenshot | null>(null);
+  const [rejectIndex, setRejectIndex] = useState(0);
   const [note, setNote] = useState('');
 
   const fetchItems = useCallback(async () => {
@@ -62,6 +63,18 @@ const BattleScreenshotReviewPage: React.FC = () => {
     try {
       await battleScreenshotsApi.review(id, action, noteText);
       message.success(action === 'approve' ? '已采纳并加分' : '已驳回');
+      setRejecting(null);
+      setNote('');
+      fetchItems();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '操作失败');
+    }
+  };
+
+  const reviewOne = async (id: string, index: number, action: 'approve' | 'reject', noteText?: string) => {
+    try {
+      await battleScreenshotsApi.reviewImage(id, index, action, noteText);
+      message.success(action === 'approve' ? '这张已通过' : '这张已驳回');
       setRejecting(null);
       setNote('');
       fetchItems();
@@ -194,17 +207,32 @@ const BattleScreenshotReviewPage: React.FC = () => {
                 {it.images.length > 0 ? (
                   <Image.PreviewGroup>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {it.images.map((url, i) => (
-                        <Image
-                          key={`${it.id}-${i}`}
-                          src={url}
-                          width={92}
-                          height={92}
-                          style={{ objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.secondary}` }}
-                          preview={{ mask: <span style={{ fontSize: 12 }}>点开放大</span> }}
-                          fallback={BROKEN_IMAGE}
-                        />
-                      ))}
+                      {it.images.map((url, i) => {
+                        const st = it.imageStatuses?.[i] || (it.status === 'PENDING' ? 'PENDING' : it.status);
+                        return (
+                          <div key={`${it.id}-${i}`} style={{ width: 100 }}>
+                            <Image
+                              src={url}
+                              width={92}
+                              height={92}
+                              style={{ objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.secondary}` }}
+                              preview={{ mask: <span style={{ fontSize: 12 }}>点开放大</span> }}
+                              fallback={BROKEN_IMAGE}
+                            />
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                              <Tag color={st === 'APPROVED' ? 'green' : st === 'REJECTED' ? 'red' : 'gold'} style={{ margin: 0, fontSize: 11 }}>
+                                {st === 'APPROVED' ? '已通过' : st === 'REJECTED' ? '已驳回' : '待审'}
+                              </Tag>
+                              {st === 'PENDING' && canReview && (
+                                <Space size={2}>
+                                  <Button size="small" type="link" style={{ padding: 0 }} onClick={() => reviewOne(it.id, i, 'approve')}>通过</Button>
+                                  <Button size="small" type="link" danger style={{ padding: 0 }} onClick={() => { setRejecting(it); setRejectIndex(i); }}>驳回</Button>
+                                </Space>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </Image.PreviewGroup>
                 ) : (
@@ -212,12 +240,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
                 )}
                 {it.note && <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>备注：{it.note}</Text>}
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginTop: 10 }}>
-                  {it.status === 'PENDING' && canReview && (
-                    <Space>
-                      <Button type="primary" onClick={() => review(it.id, 'approve')}>采纳并加分</Button>
-                      <Button danger onClick={() => setRejecting(it)}>驳回</Button>
-                    </Space>
-                  )}
+                  {/* 审核按单张图点，不再整组一起通过/驳回。 */}
                   {/* 想存原图（比如做小红书素材）再走这里；日常审核看缩略图就够了，不用再弹文件夹。 */}
                   <Button
                     size="small"
@@ -236,7 +259,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
       <Modal
         title="驳回战绩图"
         open={!!rejecting}
-        onOk={() => review(rejecting!.id, 'reject', note)}
+        onOk={() => reviewOne(rejecting!.id, rejectIndex, 'reject', note)}
         onCancel={() => { setRejecting(null); setNote(''); }}
         okText="确认驳回"
         cancelText="取消"

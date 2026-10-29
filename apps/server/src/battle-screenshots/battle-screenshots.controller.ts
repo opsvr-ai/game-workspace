@@ -175,6 +175,28 @@ export class BattleScreenshotsController {
     return { code: 200, message: approved ? '已采纳并加分' : '已驳回', data };
   }
 
+  @Post(':id/images/:index/review')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async reviewImage(
+    @Param('id') id: string,
+    @Param('index') index: string,
+    @Body() body: { action: 'approve' | 'reject'; note?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    if (!body?.action || !['approve', 'reject'].includes(body.action)) {
+      throw new BadRequestException('请选择采纳或驳回');
+    }
+    const data = await this.service.reviewImage(id, Number(index), req.user.id, body.action, body.note, req.user);
+    this.wsGateway.notifyCompanionNotice((data as any).companionId, {
+      title: body.action === 'approve' ? '战绩图单张已通过' : '战绩图单张被驳回',
+      desc: body.action === 'approve' ? '这张战绩图已通过' : `这张战绩图被驳回${body.note ? '：' + body.note : ''}`,
+      icon: body.action === 'approve' ? '🏅' : '⛔',
+      kind: 'audit',
+      hrefKey: 'battle',
+    });
+    return { code: 200, message: body.action === 'approve' ? '已通过' : '已驳回', data };
+  }
+
   // 老板 2026-10-01：「客服端怎么没有查看战绩图呢？只有店长有？」——战绩图这页本身不显示图片，
   // 真正「看到」战绩图就是点这个「下载图片包」，所以客服（CS）也要能下。
   // 采纳 / 驳回（改分）2026-10-09 起客服也能点，见上面 review 的说明。

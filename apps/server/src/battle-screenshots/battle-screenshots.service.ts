@@ -35,6 +35,7 @@ export class BattleScreenshotsService {
         companionId: params.companionId,
         customerId: params.customerId || null,
         images: params.images,
+        imageStatuses: params.images.map(() => 'PENDING'),
         status: 'PENDING',
       },
     });
@@ -112,6 +113,47 @@ export class BattleScreenshotsService {
       studioId: item.studioId,
       bonus: bonusApplied,
     };
+  }
+
+  async reviewImage(
+    id: string,
+    index: number,
+    reviewerUserId: string,
+    action: 'approve' | 'reject',
+    note?: string,
+    reviewer?: { role?: string; studioId?: string | null },
+  ) {
+    const item = await this.prisma.battleScreenshot.findUnique({ where: { id } });
+    if (!item) throw new NotFoundException('记录不存在');
+    if (reviewer && reviewer.role !== 'OWNER' && reviewer.studioId && item.studioId !== reviewer.studioId) {
+      throw new ForbiddenException('无权处理其他工作室的战绩图');
+    }
+    if (!Number.isInteger(index) || index < 0 || index >= item.images.length) {
+      throw new BadRequestException('图片序号不正确');
+    }
+    const statuses = Array.isArray(item.imageStatuses)
+      ? [...(item.imageStatuses as string[])]
+      : item.images.map(() => 'PENDING');
+    if (statuses[index] && statuses[index] !== 'PENDING') {
+      throw new BadRequestException('这张图已经处理过');
+    }
+    statuses[index] = action === 'approve' ? 'APPROVED' : 'REJECTED';
+    const groupStatus = statuses.every((v) => v === 'APPROVED')
+      ? 'APPROVED'
+      : statuses.every((v) => v === 'REJECTED')
+        ? 'REJECTED'
+        : 'PENDING';
+    await this.prisma.battleScreenshot.update({
+      where: { id },
+      data: {
+        imageStatuses: statuses,
+        status: groupStatus,
+        reviewedById: reviewerUserId,
+        reviewedAt: new Date(),
+        note: note || item.note || undefined,
+      },
+    });
+    return { id, status: groupStatus, imageStatuses: statuses, companionId: item.companionId, studioId: item.studioId };
   }
 
   private async getBonusPerApproval(studioId?: string | null): Promise<number> {

@@ -469,6 +469,7 @@ model BattleScreenshot {
   companionId  String
   customerId   String?
   images       String[]
+  imageStatuses Json?   @default("[]")
   status       String   @default("PENDING") // PENDING | APPROVED | REJECTED
   reviewedById String?
   reviewedAt   DateTime?
